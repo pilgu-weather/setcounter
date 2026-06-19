@@ -139,11 +139,11 @@ async function showWorkoutReminder() {
   if (registration?.active) {
     registration.active.postMessage({
       type: "SHOW_WORKOUT_REMINDER",
-      title: "SET COUNTER",
+      title: "V12",
       body: "오전 11시입니다. 오늘 운동 기록하러 갑시다.",
     });
   } else if (registration?.showNotification) {
-    registration.showNotification("SET COUNTER", {
+    registration.showNotification("V12", {
       body: "오전 11시입니다. 오늘 운동 기록하러 갑시다.",
       icon: "/static/assets/urus1.png?v=2",
       tag: "daily-workout-reminder",

@@ -1,6 +1,6 @@
 {
-  "name": "SET COUNTER",
-  "short_name": "SET COUNTER",
+  "name": "V12",
+  "short_name": "V12",
   "start_url": "/main",
   "scope": "/",
   "display": "standalone",
