@@ -1,6 +1,6 @@
 {
-  "name": "알파고의 형님",
-  "short_name": "알파고",
+  "name": "SET COUNTER",
+  "short_name": "SET COUNTER",
   "start_url": "/main",
   "scope": "/",
   "display": "standalone",

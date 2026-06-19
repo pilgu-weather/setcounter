@@ -13,7 +13,7 @@ self.addEventListener("message", (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(data.title || "알파고의 형님", {
+    self.registration.showNotification(data.title || "SET COUNTER", {
       body: data.body || "오늘 운동 기록할 시간입니다.",
       icon: "/static/assets/urus1.png?v=2",
       badge: "/static/assets/urus1.png?v=2",
