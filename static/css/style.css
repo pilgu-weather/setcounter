@@ -32,8 +32,9 @@ input {
 }
 
 button {
-  min-height: 44px;
+  min-height: 50px;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .app-shell {
@@ -294,6 +295,39 @@ input {
   outline: none;
 }
 
+.input-stepper {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 54px;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.input-stepper input {
+  min-width: 0;
+  min-height: 54px;
+  padding-inline: 6px;
+  font-size: 20px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.stepper-button {
+  width: 54px;
+  min-height: 54px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--ink);
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.stepper-button:active {
+  transform: translateY(1px);
+  background: var(--warm);
+}
+
 input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(255, 210, 31, 0.42);
@@ -395,10 +429,12 @@ input:focus {
 
 .count-button {
   font-size: 18px;
+  min-height: 58px;
 }
 
 .confirm-button {
   width: 100%;
+  min-height: 56px;
   margin-top: 10px;
 }
 
@@ -416,6 +452,7 @@ input:focus {
 .secondary-button {
   background: var(--accent);
   color: var(--ink);
+  min-height: 58px;
 }
 
 .ghost-button {
@@ -729,7 +766,14 @@ input:focus {
   }
 
   .field-grid.three {
-    gap: 8px;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  .field-grid.three {
+    grid-template-columns: 1fr;
   }
 }
 

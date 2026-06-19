@@ -99,6 +99,28 @@ function currentReps() {
   return Math.max(Number.parseInt(els.currentRepsInput.value, 10) || 1, 1);
 }
 
+function clampNumber(value, min, max) {
+  const next = Math.max(value, min);
+  return Number.isFinite(max) ? Math.min(next, max) : next;
+}
+
+function stepNumberInput(input, delta) {
+  const min = Number.parseFloat(input.min);
+  const max = Number.parseFloat(input.max);
+  const current = Number.parseFloat(input.value);
+  const fallback = Number.parseFloat(input.defaultValue) || 0;
+  const next = clampNumber(
+    (Number.isFinite(current) ? current : fallback) + delta,
+    Number.isFinite(min) ? min : 0,
+    Number.isFinite(max) ? max : Infinity
+  );
+  input.value = String(next);
+  if (input === els.weightInput) {
+    normalizedWeight(true);
+  }
+  syncCounter();
+}
+
 function totalReps(rows) {
   return (rows || []).reduce((sum, row) => sum + row.reps, 0);
 }
@@ -593,6 +615,15 @@ function bindEvents() {
   });
   [els.weightInput, els.currentRepsInput, els.setsInput].forEach((input) => {
     input.addEventListener("input", syncCounter);
+  });
+  document.querySelectorAll("[data-step-for]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const input = document.querySelector(`#${button.dataset.stepFor}`);
+      const delta = Number.parseFloat(button.dataset.step) || 0;
+      if (input) {
+        stepNumberInput(input, delta);
+      }
+    });
   });
   els.volumeChartButton.addEventListener("click", () => setChartMode("volume"));
   els.setsChartButton.addEventListener("click", () => setChartMode("sets"));
