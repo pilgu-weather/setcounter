@@ -4,7 +4,7 @@ import os
 import sqlite3
 from datetime import date, datetime
 
-from flask import Flask, g, jsonify, redirect, render_template, request
+from flask import Flask, g, jsonify, redirect, render_template, request, send_from_directory
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -220,6 +220,18 @@ def index():
 @app.route("/main")
 def main():
     return render_template("main.html")
+
+
+@app.route("/service-worker.js")
+def service_worker():
+    response = send_from_directory(
+        os.path.join(BASE_DIR, "static"),
+        "service-worker.js",
+        mimetype="application/javascript",
+    )
+    response.headers["Service-Worker-Allowed"] = "/"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
 
 
 @app.route("/healthz")

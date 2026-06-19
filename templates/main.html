@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/urus1.png') }}?v=2">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=1">
     <title>알파고의 형님</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=12">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=13">
   </head>
   <body>
     <main class="app-shell">
@@ -34,6 +34,15 @@
           <div id="levelProgressBar"></div>
         </div>
         <p class="level-copy" id="levelCopy">이전 최고 기록을 깨면 레벨업</p>
+      </section>
+
+      <section class="reminder-section" aria-labelledby="reminderTitle">
+        <div>
+          <p class="eyebrow">알림</p>
+          <h2 id="reminderTitle">매일 오전 11시</h2>
+          <p class="reminder-copy" id="reminderStatus">운동 기록 알림을 켜주세요.</p>
+        </div>
+        <button class="reminder-button" id="enableReminderButton" type="button">알림 켜기</button>
       </section>
 
       <section class="exercise-section" aria-labelledby="exerciseTitle">
@@ -159,6 +168,6 @@
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=13"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=14"></script>
   </body>
 </html>

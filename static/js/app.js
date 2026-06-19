@@ -16,6 +16,8 @@ const state = {
   chartMode: "volume",
   lastRecord: null,
   logs: [],
+  reminderTimer: null,
+  serviceWorkerReady: null,
   selectedExercise: exercises[0],
   setRows: [],
   stats: null,
@@ -43,6 +45,8 @@ const els = {
   totalVolumeValue: document.querySelector("#totalVolumeValue"),
   levelProgressBar: document.querySelector("#levelProgressBar"),
   levelCopy: document.querySelector("#levelCopy"),
+  reminderStatus: document.querySelector("#reminderStatus"),
+  enableReminderButton: document.querySelector("#enableReminderButton"),
   chartSummary: document.querySelector("#chartSummary"),
   progressChart: document.querySelector("#progressChart"),
   volumeChartButton: document.querySelector("#volumeChartButton"),
@@ -75,6 +79,110 @@ function showToast(message) {
   showToast.timer = window.setTimeout(() => {
     els.toast.classList.remove("is-visible");
   }, 1800);
+}
+
+function reminderEnabled() {
+  return window.localStorage.getItem("workoutReminderEnabled") === "1";
+}
+
+function nextReminderDelay() {
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(11, 0, 0, 0);
+  if (next <= now) {
+    next.setDate(next.getDate() + 1);
+  }
+  return next.getTime() - now.getTime();
+}
+
+function syncReminderUi() {
+  if (!("Notification" in window)) {
+    els.reminderStatus.textContent = "이 브라우저는 알림을 지원하지 않습니다.";
+    els.enableReminderButton.disabled = true;
+    return;
+  }
+
+  const isOn = reminderEnabled() && Notification.permission === "granted";
+  els.enableReminderButton.classList.toggle("is-on", isOn);
+  els.enableReminderButton.textContent = isOn ? "알림 켜짐" : "알림 켜기";
+
+  if (isOn) {
+    els.reminderStatus.textContent = "매일 오전 11시에 운동 알림이 울립니다.";
+  } else if (Notification.permission === "denied") {
+    els.reminderStatus.textContent = "브라우저 설정에서 알림 허용이 필요합니다.";
+  } else {
+    els.reminderStatus.textContent = "운동 기록 알림을 켜주세요.";
+  }
+}
+
+async function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    syncReminderUi();
+    return null;
+  }
+
+  const registration = await navigator.serviceWorker.register("/service-worker.js");
+  state.serviceWorkerReady = navigator.serviceWorker.ready;
+  syncReminderUi();
+  return registration;
+}
+
+async function showWorkoutReminder() {
+  if (!reminderEnabled() || Notification.permission !== "granted") {
+    return;
+  }
+
+  const registration = await state.serviceWorkerReady;
+  if (registration?.active) {
+    registration.active.postMessage({
+      type: "SHOW_WORKOUT_REMINDER",
+      title: "알파고의 형님",
+      body: "오전 11시입니다. 오늘 운동 기록하러 갑시다.",
+    });
+  } else if (registration?.showNotification) {
+    registration.showNotification("알파고의 형님", {
+      body: "오전 11시입니다. 오늘 운동 기록하러 갑시다.",
+      icon: "/static/assets/urus1.png?v=2",
+      tag: "daily-workout-reminder",
+    });
+  }
+}
+
+function scheduleWorkoutReminder() {
+  window.clearTimeout(state.reminderTimer);
+  if (!reminderEnabled() || Notification.permission !== "granted") {
+    return;
+  }
+
+  state.reminderTimer = window.setTimeout(async () => {
+    await showWorkoutReminder();
+    scheduleWorkoutReminder();
+  }, nextReminderDelay());
+}
+
+async function enableReminder() {
+  if (!("Notification" in window)) {
+    showToast("이 브라우저는 알림을 지원하지 않습니다.");
+    syncReminderUi();
+    return;
+  }
+
+  await registerServiceWorker();
+  const permission = Notification.permission === "granted"
+    ? "granted"
+    : await Notification.requestPermission();
+
+  if (permission === "granted") {
+    window.localStorage.setItem("workoutReminderEnabled", "1");
+    syncReminderUi();
+    scheduleWorkoutReminder();
+    await showWorkoutReminder();
+    showToast("매일 오전 11시 알림을 켰습니다.");
+  } else {
+    window.localStorage.removeItem("workoutReminderEnabled");
+    syncReminderUi();
+    showToast("알림 권한이 필요합니다.");
+  }
 }
 
 function cleanNumber(value) {
@@ -625,6 +733,9 @@ function bindEvents() {
       }
     });
   });
+  els.enableReminderButton.addEventListener("click", () => {
+    enableReminder().catch((error) => showToast(error.message));
+  });
   els.volumeChartButton.addEventListener("click", () => setChartMode("volume"));
   els.setsChartButton.addEventListener("click", () => setChartMode("sets"));
   els.prevMonthButton.addEventListener("click", () => changeMonth(-1));
@@ -637,6 +748,10 @@ async function init() {
   bindEvents();
   normalizedWeight(true);
   syncCounter();
+  syncReminderUi();
+  registerServiceWorker()
+    .then(() => scheduleWorkoutReminder())
+    .catch(() => syncReminderUi());
   await Promise.all([loadLogs(), loadLatestRecord(), loadStats()]);
 }
 
