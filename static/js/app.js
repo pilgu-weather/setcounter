@@ -253,6 +253,19 @@ function rowsFromLog(log) {
   }));
 }
 
+function applyInputsFromLatestRecord(log) {
+  const rows = rowsFromLog(log);
+  if (rows.length === 0) {
+    return;
+  }
+
+  const lastRow = rows[rows.length - 1];
+  els.weightInput.value = String(Math.max(Math.round((lastRow.weightKg || 8) / 8) * 8, 8));
+  els.currentRepsInput.value = String(Math.max(lastRow.reps || 1, 1));
+  els.setsInput.value = String(Math.max(log.targetSets || rows.length || 1, 1));
+  syncCounter();
+}
+
 function buildRecordTable(rows) {
   const repsSum = totalReps(rows);
   const volumeSum = totalVolume(rows);
@@ -472,6 +485,7 @@ async function loadLatestRecord() {
   }
 
   const rows = rowsFromLog(latest);
+  applyInputsFromLatestRecord(latest);
   const title = document.createElement("div");
   title.className = "record-title";
   title.textContent = `지난 기록: ${latest.date} · 총 ${latest.totalReps}회 · 볼륨 ${Math.round(latest.volume)}kg`;
