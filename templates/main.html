@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>알파고의 형님</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=11">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <img class="brand-logo" src="{{ url_for('static', filename='assets/urus1.png') }}?v=1" alt="URUS">
+        <div class="brand-copy">
+          <p class="eyebrow">오늘의 운동</p>
+          <h1>알파고의 형님</h1>
+        </div>
+      </header>
+
+      <section class="level-section" aria-labelledby="levelTitle">
+        <div>
+          <p class="eyebrow">URUS LEVEL</p>
+          <h2 id="levelTitle">LV. <span id="levelValue">1</span></h2>
+        </div>
+        <div class="level-stat">
+          <strong id="totalVolumeValue">0kg</strong>
+          <span>누적 볼륨</span>
+        </div>
+        <div class="level-progress" aria-hidden="true">
+          <div id="levelProgressBar"></div>
+        </div>
+        <p class="level-copy" id="levelCopy">이전 최고 기록을 깨면 레벨업</p>
+      </section>
+
+      <section class="exercise-section" aria-labelledby="exerciseTitle">
+        <div class="section-head compact">
+          <div>
+            <h2 id="exerciseTitle">운동 선택</h2>
+            <p class="section-copy">오늘 할 운동을 골라주세요.</p>
+          </div>
+        </div>
+        <div class="exercise-grid" id="exerciseGrid"></div>
+      </section>
+
+      <section class="counter-panel" aria-labelledby="counterTitle">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">선택됨</p>
+            <h2 id="counterTitle">숄더 프레스</h2>
+          </div>
+          <button class="ghost-button" id="resetSessionButton" type="button">초기화</button>
+        </div>
+
+        <div class="last-record" id="lastRecord">지난 기록을 불러오는 중...</div>
+
+        <form class="workout-form" id="workoutForm">
+          <div class="field-grid three">
+            <label>
+              <span>무게 kg</span>
+              <input id="weightInput" name="weight" type="number" min="8" step="8" value="8" inputmode="numeric">
+            </label>
+            <label>
+              <span>이번 세트 횟수</span>
+              <input id="currentRepsInput" name="currentReps" type="number" min="1" max="200" step="1" value="12">
+            </label>
+            <label>
+              <span>목표 세트</span>
+              <input id="setsInput" name="sets" type="number" min="1" max="30" step="1" value="3">
+            </label>
+          </div>
+          <label>
+            <span>메모</span>
+            <input id="notesInput" name="notes" autocomplete="off" placeholder="가볍게, RPE 7 등">
+          </label>
+        </form>
+
+        <div class="planned-record" id="plannedRecord">오늘: 8kg · 0회 완료 · 1세트는 12회</div>
+        <div class="record-compare" id="recordCompare"></div>
+        <div class="set-table-wrap">
+          <table class="set-table" aria-label="오늘 세트 기록">
+            <thead>
+              <tr>
+                <th>세트</th>
+                <th>무게</th>
+                <th>횟수</th>
+                <th>볼륨</th>
+              </tr>
+            </thead>
+            <tbody id="setTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="set-meter" aria-live="polite">
+          <span id="completedSets">0</span>
+          <small>/ <span id="targetSets">3</span> sets</small>
+        </div>
+
+        <div class="progress-track" aria-hidden="true">
+          <div id="progressBar"></div>
+        </div>
+
+        <div class="action-row">
+          <button class="secondary-button" id="undoSetButton" type="button">-1</button>
+          <button class="count-button" id="countSetButton" type="button">이번 세트 완료</button>
+        </div>
+        <button class="confirm-button" id="confirmWorkoutButton" type="button" disabled>확인하고 기록 저장</button>
+      </section>
+
+      <section class="chart-section" aria-labelledby="chartTitle">
+        <div class="section-head plain">
+          <div>
+            <h2 id="chartTitle">운동 그래프</h2>
+            <p class="section-copy" id="chartSummary">이번 달 기록을 기준으로 보여줍니다.</p>
+          </div>
+        </div>
+        <div class="chart-tabs" role="tablist" aria-label="그래프 기준">
+          <button class="chart-tab is-active" id="volumeChartButton" type="button">볼륨</button>
+          <button class="chart-tab" id="setsChartButton" type="button">세트</button>
+        </div>
+        <canvas id="progressChart" width="640" height="280" aria-label="운동 진행 그래프"></canvas>
+      </section>
+
+      <section class="history-section" aria-labelledby="historyTitle">
+        <div class="section-head plain">
+          <h2 id="historyTitle">최근 기록</h2>
+          <span id="monthSummary"></span>
+        </div>
+        <div class="history-list" id="historyList"></div>
+      </section>
+
+      <details class="calendar-section">
+        <summary>달력 보기</summary>
+        <div class="section-head">
+          <button class="icon-button" id="prevMonthButton" type="button" aria-label="이전 달">‹</button>
+          <h2 id="calendarTitle"></h2>
+          <button class="icon-button" id="nextMonthButton" type="button" aria-label="다음 달">›</button>
+        </div>
+        <div class="calendar-weekdays" aria-hidden="true">
+          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </details>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=12"></script>
+  </body>
+</html>
