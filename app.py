@@ -368,6 +368,21 @@ def stats():
     return jsonify(volume_stats())
 
 
+@app.route("/api/storage", methods=["GET"])
+def storage_status():
+    log_count = db_execute("SELECT COUNT(*) AS count FROM workout_logs").fetchone()["count"]
+    excuse_count = db_execute("SELECT COUNT(*) AS count FROM workout_excuses").fetchone()["count"]
+    return jsonify(
+        {
+            "backend": "postgres" if IS_POSTGRES else "sqlite",
+            "persistent": IS_POSTGRES,
+            "render": bool(os.environ.get("RENDER")),
+            "records": log_count,
+            "excuses": excuse_count,
+        }
+    )
+
+
 @app.route("/api/excuses", methods=["GET"])
 def list_excuses():
     month = request.args.get("month", "")
