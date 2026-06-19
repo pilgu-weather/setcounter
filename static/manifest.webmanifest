@@ -1,0 +1,17 @@
+{
+  "name": "알파고의 형님",
+  "short_name": "알파고",
+  "start_url": "/main",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#f5c400",
+  "icons": [
+    {
+      "src": "/static/assets/urus1.png?v=2",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
