@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/urus1.png') }}?v=2">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=1">
     <title>알파고의 형님</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=13">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=14">
   </head>
   <body>
     <main class="app-shell">
@@ -165,9 +165,19 @@
         </div>
         <button class="reminder-button" id="enableReminderButton" type="button">알림 켜기</button>
       </section>
+
+      <section class="sos-section" aria-labelledby="sosTitle">
+        <div>
+          <p class="eyebrow">SOS</p>
+          <h2 id="sosTitle">오늘 운동 면제</h2>
+          <p class="sos-copy">아프거나 바쁜 날은 사유를 남기면 오늘 페널티를 막습니다.</p>
+        </div>
+        <textarea id="sosReasonInput" rows="3" placeholder="예: 감기, 야근, 가족 일정"></textarea>
+        <button class="sos-button" id="sosButton" type="button">SOS 저장</button>
+      </section>
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=14"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=15"></script>
   </body>
 </html>

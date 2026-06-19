@@ -2,7 +2,7 @@ import json
 import math
 import os
 import sqlite3
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from flask import Flask, g, jsonify, redirect, render_template, request, send_from_directory
 
@@ -61,6 +61,16 @@ def init_db():
             )
             """
         )
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workout_excuses (
+                id SERIAL PRIMARY KEY,
+                excuse_date TEXT NOT NULL UNIQUE,
+                reason TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
         columns = {
             row["column_name"]
             for row in db.execute(
@@ -85,6 +95,16 @@ def init_db():
                 target_sets INTEGER NOT NULL DEFAULT 1,
                 completed_sets INTEGER NOT NULL DEFAULT 0,
                 notes TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workout_excuses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                excuse_date TEXT NOT NULL UNIQUE,
+                reason TEXT NOT NULL,
                 created_at TEXT NOT NULL
             )
             """
@@ -165,11 +185,71 @@ def row_to_log(row):
     }
 
 
+def row_to_excuse(row):
+    return {
+        "id": row["id"],
+        "date": row["excuse_date"],
+        "reason": row["reason"],
+        "createdAt": row["created_at"],
+    }
+
+
+def iso_date_range(start_key, end_key):
+    current = date.fromisoformat(start_key)
+    end = date.fromisoformat(end_key)
+    while current <= end:
+        yield current.isoformat()
+        current += timedelta(days=1)
+
+
+def daily_challenge_penalty(logs, excuse_dates):
+    if not logs:
+        return {"penalty": 0, "failedDates": [], "passedDates": []}
+
+    today_key = date.today().isoformat()
+    first_date = min(log["date"] for log in logs)
+    last_checked = (date.today() - timedelta(days=1)).isoformat()
+    if first_date > last_checked:
+        return {"penalty": 0, "failedDates": [], "passedDates": []}
+
+    logs_by_date = {}
+    for log in logs:
+        logs_by_date.setdefault(log["date"], []).append(log)
+
+    previous_by_exercise = {}
+    failed_dates = []
+    passed_dates = []
+
+    for day_key in iso_date_range(first_date, last_checked):
+        day_logs = logs_by_date.get(day_key, [])
+        day_passed = False
+
+        for log in sorted(day_logs, key=lambda item: item["createdAt"]):
+            previous_volume = previous_by_exercise.get(log["exercise"])
+            if previous_volume is None or log["volume"] >= previous_volume:
+                day_passed = True
+            previous_by_exercise[log["exercise"]] = log["volume"]
+
+        if day_passed:
+            passed_dates.append(day_key)
+        elif day_key not in excuse_dates:
+            failed_dates.append(day_key)
+
+    return {
+        "penalty": len(failed_dates),
+        "failedDates": failed_dates,
+        "passedDates": passed_dates,
+        "today": today_key,
+    }
+
+
 def volume_stats():
     rows = db_execute(
         "SELECT * FROM workout_logs ORDER BY created_at ASC, id ASC"
     ).fetchall()
+    excuse_rows = db_execute("SELECT * FROM workout_excuses").fetchall()
     logs = [row_to_log(row) for row in rows]
+    excuse_dates = {row["excuse_date"] for row in excuse_rows}
     total_volume = sum(log["volume"] for log in logs)
     total_reps = sum(log["totalReps"] for log in logs)
     total_sets = sum(log["completedSets"] for log in logs)
@@ -193,12 +273,16 @@ def volume_stats():
             downs += 1
         previous_by_exercise[exercise] = volume
 
-    level = max(level_changes + 1, 1)
+    challenge = daily_challenge_penalty(logs, excuse_dates)
+    level = max(level_changes + 1 - challenge["penalty"], 1)
     return {
         "level": level,
-        "rule": "previous_record_delta",
+        "rule": "previous_record_delta_with_daily_challenge",
         "levelUps": ups,
         "levelDowns": downs,
+        "dailyPenalty": challenge["penalty"],
+        "failedDates": challenge["failedDates"],
+        "passedDates": challenge["passedDates"],
         "trackedExercises": len(previous_by_exercise),
         "totalRecords": len(logs),
         "totalVolume": total_volume,
@@ -282,6 +366,56 @@ def latest_log():
 @app.route("/api/stats", methods=["GET"])
 def stats():
     return jsonify(volume_stats())
+
+
+@app.route("/api/excuses", methods=["GET"])
+def list_excuses():
+    month = request.args.get("month", "")
+    params = []
+    where = ""
+    if month:
+        where = "WHERE excuse_date LIKE ?"
+        params.append(f"{month}-%")
+
+    rows = db_execute(
+        f"""
+        SELECT *
+        FROM workout_excuses
+        {where}
+        ORDER BY excuse_date DESC, id DESC
+        """,
+        params,
+    ).fetchall()
+    return jsonify([row_to_excuse(row) for row in rows])
+
+
+@app.route("/api/excuses", methods=["POST"])
+def create_excuse():
+    payload = request.get_json(silent=True) or {}
+    reason = str(payload.get("reason", "")).strip()
+    if not reason:
+        return jsonify({"error": "reason is required"}), 400
+
+    excuse_date = str(payload.get("date") or date.today().isoformat())[:10]
+    created_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    cursor = db_execute(
+        """
+        INSERT INTO workout_excuses (excuse_date, reason, created_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT (excuse_date)
+        DO UPDATE SET reason = EXCLUDED.reason, created_at = EXCLUDED.created_at
+        RETURNING id
+        """,
+        (excuse_date, reason, created_at),
+    )
+    if IS_POSTGRES:
+        excuse_id = cursor.fetchone()["id"]
+    else:
+        row = cursor.fetchone()
+        excuse_id = row["id"] if row else cursor.lastrowid
+    get_db().commit()
+    row = db_execute("SELECT * FROM workout_excuses WHERE id = ?", (excuse_id,)).fetchone()
+    return jsonify(row_to_excuse(row)), 201
 
 
 @app.route("/api/logs", methods=["POST"])

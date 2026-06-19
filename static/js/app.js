@@ -14,6 +14,7 @@ const exercises = [
 const state = {
   currentMonth: new Date(),
   chartMode: "volume",
+  excuses: [],
   lastRecord: null,
   logs: [],
   reminderTimer: null,
@@ -41,6 +42,8 @@ const els = {
   confirmWorkoutButton: document.querySelector("#confirmWorkoutButton"),
   resetSessionButton: document.querySelector("#resetSessionButton"),
   recordCompare: document.querySelector("#recordCompare"),
+  sosReasonInput: document.querySelector("#sosReasonInput"),
+  sosButton: document.querySelector("#sosButton"),
   levelValue: document.querySelector("#levelValue"),
   totalVolumeValue: document.querySelector("#totalVolumeValue"),
   levelProgressBar: document.querySelector("#levelProgressBar"),
@@ -393,7 +396,7 @@ function renderStats(stats) {
   els.levelValue.textContent = stats.level;
   els.totalVolumeValue.textContent = `${Math.round(stats.totalVolume)}kg`;
   els.levelProgressBar.style.width = `${stats.progressPercent}%`;
-  els.levelCopy.textContent = `레벨업 ${stats.levelUps}회 · 레벨다운 ${stats.levelDowns}회 · 기준 운동 ${stats.trackedExercises}개`;
+  els.levelCopy.textContent = `레벨업 ${stats.levelUps}회 · 레벨다운 ${stats.levelDowns}회 · 일일 페널티 ${stats.dailyPenalty}회`;
 }
 
 async function loadStats() {
@@ -478,10 +481,38 @@ async function loadLatestRecord() {
 
 async function loadLogs() {
   const month = toMonthKey(state.currentMonth);
-  state.logs = await api(`/api/logs?month=${month}`);
+  const [logs, excuses] = await Promise.all([
+    api(`/api/logs?month=${month}`),
+    api(`/api/excuses?month=${month}`),
+  ]);
+  state.logs = logs;
+  state.excuses = excuses;
   renderCalendar();
   renderHistory();
   renderChart();
+}
+
+async function saveSosExcuse() {
+  const previousLevel = state.stats?.level;
+  const reason = els.sosReasonInput.value.trim();
+  if (!reason) {
+    showToast("SOS 사유를 입력해주세요.");
+    return;
+  }
+
+  await api("/api/excuses", {
+    method: "POST",
+    body: JSON.stringify({
+      date: toDateKey(new Date()),
+      reason,
+    }),
+  });
+
+  els.sosReasonInput.value = "";
+  state.currentMonth = new Date();
+  const [, stats] = await Promise.all([loadLogs(), loadStats()]);
+  showToast("오늘 SOS를 저장했습니다.");
+  announceLevelChange(previousLevel, stats.level);
 }
 
 async function saveWorkout() {
@@ -530,6 +561,7 @@ function renderCalendar() {
   const firstDay = new Date(year, month, 1);
   const lastDate = new Date(year, month + 1, 0).getDate();
   const workoutDays = new Set(state.logs.map((log) => log.date));
+  const excusesByDate = new Map(state.excuses.map((excuse) => [excuse.date, excuse]));
   const todayKey = toDateKey(new Date());
 
   els.calendarTitle.textContent = `${year}년 ${month + 1}월`;
@@ -544,13 +576,21 @@ function renderCalendar() {
   for (let day = 1; day <= lastDate; day += 1) {
     const cellDate = new Date(year, month, day);
     const key = toDateKey(cellDate);
+    const excuse = excusesByDate.get(key);
     const cell = document.createElement("div");
     cell.className = "day-cell";
     cell.textContent = day;
-    cell.setAttribute("aria-label", `${key} 운동 ${workoutDays.has(key) ? "있음" : "없음"}`);
+    cell.setAttribute(
+      "aria-label",
+      `${key} 운동 ${workoutDays.has(key) ? "있음" : "없음"}${excuse ? `, SOS: ${excuse.reason}` : ""}`
+    );
 
+    if (excuse) {
+      cell.title = `SOS: ${excuse.reason}`;
+    }
     if (key === todayKey) cell.classList.add("is-today");
     if (workoutDays.has(key)) cell.classList.add("has-workout");
+    if (excuse) cell.classList.add("has-sos");
 
     els.calendarGrid.append(cell);
   }
@@ -735,6 +775,9 @@ function bindEvents() {
   });
   els.enableReminderButton.addEventListener("click", () => {
     enableReminder().catch((error) => showToast(error.message));
+  });
+  els.sosButton.addEventListener("click", () => {
+    saveSosExcuse().catch((error) => showToast(error.message));
   });
   els.volumeChartButton.addEventListener("click", () => setChartMode("volume"));
   els.setsChartButton.addEventListener("click", () => setChartMode("sets"));

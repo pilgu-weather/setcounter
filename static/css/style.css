@@ -27,7 +27,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -100,6 +101,7 @@ h2 {
 .counter-panel,
 .level-section,
 .reminder-section,
+.sos-section,
 .calendar-section,
 .history-section {
   background: rgba(255, 253, 242, 0.95);
@@ -189,6 +191,21 @@ h2 {
 .reminder-button.is-on {
   background: var(--ink);
   color: var(--accent);
+}
+
+.sos-section {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  margin-top: 16px;
+  border-color: rgba(185, 72, 72, 0.55);
+}
+
+.sos-copy {
+  margin-top: 4px;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .counter-panel {
@@ -360,9 +377,26 @@ input {
   background: var(--warm);
 }
 
+textarea {
+  width: 100%;
+  min-height: 86px;
+  resize: vertical;
+  border: 1px solid rgba(185, 72, 72, 0.45);
+  border-radius: 8px;
+  background: #fffdf2;
+  color: var(--ink);
+  padding: 12px;
+  outline: none;
+}
+
 input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(255, 210, 31, 0.42);
+}
+
+textarea:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(185, 72, 72, 0.18);
 }
 
 .last-record,
@@ -485,6 +519,15 @@ input:focus {
   background: var(--accent);
   color: var(--ink);
   min-height: 58px;
+}
+
+.sos-button {
+  border: 0;
+  border-radius: 8px;
+  background: var(--danger);
+  color: #fffdf2;
+  font-size: 18px;
+  font-weight: 900;
 }
 
 .ghost-button {
@@ -715,6 +758,22 @@ input:focus {
   height: 5px;
   border-radius: 999px;
   background: var(--ink);
+}
+
+.day-cell.has-sos {
+  border-color: rgba(185, 72, 72, 0.75);
+}
+
+.day-cell.has-sos::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--danger);
+  box-shadow: 0 0 0 2px #fffdf2;
 }
 
 .history-list {
