@@ -1,6 +1,6 @@
 {
-  "name": "흐엇?!",
-  "short_name": "흐엇?!",
+  "name": "Set Counter",
+  "short_name": "Set Counter",
   "start_url": "/main",
   "scope": "/",
   "display": "standalone",
