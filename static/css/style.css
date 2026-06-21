@@ -776,6 +776,55 @@ textarea:focus {
   box-shadow: 0 0 0 2px #fffdf2;
 }
 
+.day-cell.has-sos {
+  cursor: pointer;
+}
+
+.calendar-excuses {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px 14px;
+}
+
+.calendar-excuses h3 {
+  margin: 2px 0 0;
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.calendar-excuse-item {
+  display: grid;
+  grid-template-columns: minmax(88px, auto) 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border-left: 4px solid var(--danger);
+  background: rgba(185, 72, 72, 0.08);
+  transition: background-color 160ms ease;
+}
+
+.calendar-excuse-item strong {
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.calendar-excuse-item p,
+.calendar-excuses-empty {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.calendar-excuse-item.is-highlighted {
+  background: rgba(185, 72, 72, 0.2);
+}
+
+.calendar-excuses-empty {
+  color: var(--muted);
+}
+
 .history-list {
   display: grid;
   gap: 8px;

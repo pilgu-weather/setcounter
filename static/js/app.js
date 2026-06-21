@@ -56,6 +56,7 @@ const els = {
   setsChartButton: document.querySelector("#setsChartButton"),
   calendarTitle: document.querySelector("#calendarTitle"),
   calendarGrid: document.querySelector("#calendarGrid"),
+  calendarExcuseList: document.querySelector("#calendarExcuseList"),
   prevMonthButton: document.querySelector("#prevMonthButton"),
   nextMonthButton: document.querySelector("#nextMonthButton"),
   historyList: document.querySelector("#historyList"),
@@ -580,6 +581,7 @@ function renderCalendar() {
 
   els.calendarTitle.textContent = `${year}년 ${month + 1}월`;
   els.calendarGrid.replaceChildren();
+  els.calendarExcuseList.replaceChildren();
 
   for (let i = 0; i < firstDay.getDay(); i += 1) {
     const empty = document.createElement("div");
@@ -601,6 +603,22 @@ function renderCalendar() {
 
     if (excuse) {
       cell.title = `SOS: ${excuse.reason}`;
+      cell.tabIndex = 0;
+      cell.setAttribute("role", "button");
+      const revealReason = () => {
+        const reasonItem = els.calendarExcuseList.querySelector(`[data-excuse-date="${key}"]`);
+        if (!reasonItem) return;
+        reasonItem.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        reasonItem.classList.add("is-highlighted");
+        window.setTimeout(() => reasonItem.classList.remove("is-highlighted"), 1400);
+      };
+      cell.addEventListener("click", revealReason);
+      cell.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          revealReason();
+        }
+      });
     }
     if (key === todayKey) cell.classList.add("is-today");
     if (workoutDays.has(key)) cell.classList.add("has-workout");
@@ -608,6 +626,31 @@ function renderCalendar() {
 
     els.calendarGrid.append(cell);
   }
+
+  const monthExcuses = [...state.excuses].sort((a, b) => b.date.localeCompare(a.date));
+  if (monthExcuses.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "calendar-excuses-empty";
+    empty.textContent = "이번 달 SOS 기록이 없습니다.";
+    els.calendarExcuseList.append(empty);
+    return;
+  }
+
+  const heading = document.createElement("h3");
+  heading.textContent = "SOS 사유";
+  els.calendarExcuseList.append(heading);
+  monthExcuses.forEach((excuse) => {
+    const item = document.createElement("div");
+    item.className = "calendar-excuse-item";
+    item.dataset.excuseDate = excuse.date;
+
+    const dateLabel = document.createElement("strong");
+    dateLabel.textContent = excuse.date;
+    const reason = document.createElement("p");
+    reason.textContent = excuse.reason;
+    item.append(dateLabel, reason);
+    els.calendarExcuseList.append(item);
+  });
 }
 
 function groupedLogsForChart() {
