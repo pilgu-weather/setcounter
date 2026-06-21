@@ -55,10 +55,9 @@ button {
 .brand-logo {
   display: block;
   width: 64px;
-  aspect-ratio: 1;
   border: 0;
   border-radius: 12px;
-  object-fit: cover;
+  object-fit: contain;
   background: transparent;
   box-shadow: 0 10px 22px rgba(17, 17, 17, 0.12);
 }

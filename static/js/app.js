@@ -146,7 +146,7 @@ async function showWorkoutReminder() {
   } else if (registration?.showNotification) {
     registration.showNotification("흐엇?!", {
       body: "오전 11시입니다. 오늘 운동 기록하러 갑시다.",
-      icon: "/static/assets/newlogo_icon_v3.png?v=4",
+      icon: "/static/assets/newlogo.PNG?v=5",
       tag: "daily-workout-reminder",
     });
   }
@@ -436,7 +436,7 @@ function makeExerciseArt(exercise) {
   imageBox.setAttribute("aria-hidden", "true");
 
   const image = document.createElement("img");
-  image.src = `/static/assets/${exercise.image}?v=7`;
+  image.src = `/static/assets/${exercise.image}?v=6`;
   image.alt = "";
   image.loading = "lazy";
   imageBox.append(image);

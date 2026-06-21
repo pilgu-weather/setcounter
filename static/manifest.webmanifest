@@ -8,7 +8,7 @@
   "theme_color": "#f5c400",
   "icons": [
     {
-      "src": "/static/assets/newlogo_icon_v3.png?v=4",
+      "src": "/static/assets/newlogo.PNG?v=5",
       "sizes": "any",
       "type": "image/png",
       "purpose": "any maskable"
