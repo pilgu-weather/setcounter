@@ -24,6 +24,10 @@ const state = {
   stats: null,
 };
 
+function weightStepForExercise(exercise = state.selectedExercise) {
+  return exercise?.name === "중량가방 푸쉬업" ? 4 : 8;
+}
+
 const els = {
   exerciseGrid: document.querySelector("#exerciseGrid"),
   counterTitle: document.querySelector("#counterTitle"),
@@ -196,7 +200,9 @@ function cleanNumber(value) {
 
 function normalizedWeight(commit = false) {
   const raw = Number.parseFloat(els.weightInput.value);
-  const next = Math.max(Math.round((Number.isFinite(raw) ? raw : 8) / 8) * 8, 8);
+  const step = weightStepForExercise();
+  const min = step;
+  const next = Math.max(Math.round((Number.isFinite(raw) ? raw : min) / step) * step, min);
   if (commit) {
     els.weightInput.value = String(next);
   }
@@ -221,8 +227,9 @@ function stepNumberInput(input, delta) {
   const max = Number.parseFloat(input.max);
   const current = Number.parseFloat(input.value);
   const fallback = Number.parseFloat(input.defaultValue) || 0;
+  const adjustedDelta = input === els.weightInput ? weightStepForExercise() * Math.sign(delta || 0) : delta;
   const next = clampNumber(
-    (Number.isFinite(current) ? current : fallback) + delta,
+    (Number.isFinite(current) ? current : fallback) + adjustedDelta,
     Number.isFinite(min) ? min : 0,
     Number.isFinite(max) ? max : Infinity
   );
@@ -261,10 +268,21 @@ function applyInputsFromLatestRecord(log) {
   }
 
   const lastRow = rows[rows.length - 1];
-  els.weightInput.value = String(Math.max(Math.round((lastRow.weightKg || 8) / 8) * 8, 8));
+  const step = weightStepForExercise();
+  els.weightInput.value = String(Math.max(Math.round((lastRow.weightKg || step) / step) * step, step));
   els.currentRepsInput.value = String(Math.max(lastRow.reps || 1, 1));
   els.setsInput.value = String(Math.max(log.targetSets || rows.length || 1, 1));
   syncCounter();
+}
+
+function syncWeightControls() {
+  const step = weightStepForExercise();
+  els.weightInput.min = String(step);
+  els.weightInput.step = String(step);
+  document.querySelectorAll("[data-step-for='weightInput']").forEach((button) => {
+    const direction = Math.sign(Number.parseFloat(button.dataset.step) || 0) || 1;
+    button.dataset.step = String(direction * step);
+  });
 }
 
 function buildRecordTable(rows) {
@@ -378,8 +396,9 @@ function syncCounter() {
 
 function resetSession(keepInputs = true) {
   state.setRows = [];
+  syncWeightControls();
   if (!keepInputs) {
-    els.weightInput.value = "8";
+    els.weightInput.value = String(weightStepForExercise());
     els.currentRepsInput.value = "12";
     els.setsInput.value = "3";
     els.notesInput.value = "";
@@ -467,6 +486,7 @@ function renderExerciseCards() {
 async function selectExercise(exercise) {
   state.selectedExercise = exercise;
   els.counterTitle.textContent = exercise.name;
+  syncWeightControls();
   resetSession(true);
   renderExerciseCards();
   await loadLatestRecord();
@@ -846,6 +866,7 @@ async function init() {
   els.counterTitle.textContent = state.selectedExercise.name;
   renderExerciseCards();
   bindEvents();
+  syncWeightControls();
   normalizedWeight(true);
   syncCounter();
   syncReminderUi();
