@@ -146,7 +146,7 @@ async function showWorkoutReminder() {
   } else if (registration?.showNotification) {
     registration.showNotification("흐엇?!", {
       body: "오전 11시입니다. 오늘 운동 기록하러 갑시다.",
-      icon: "/static/assets/newlogo.PNG?v=5",
+      icon: "/static/assets/app-icon-192.png?v=8",
       tag: "daily-workout-reminder",
     });
   }

@@ -15,8 +15,8 @@ self.addEventListener("message", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || "흐엇?!", {
       body: data.body || "오늘 운동 기록할 시간입니다.",
-      icon: "/static/assets/newlogo.PNG?v=5",
-      badge: "/static/assets/newlogo.PNG?v=5",
+      icon: "/static/assets/app-icon-192.png?v=8",
+      badge: "/static/assets/app-icon-192.png?v=8",
       tag: "daily-workout-reminder",
       renotify: true,
       data: { url: "/main" },
