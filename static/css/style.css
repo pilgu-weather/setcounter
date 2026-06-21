@@ -53,12 +53,14 @@ button {
 }
 
 .brand-logo {
-  width: 58px;
+  display: block;
+  width: 64px;
   aspect-ratio: 1;
-  border: 2px solid var(--ink);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 12px;
   object-fit: cover;
-  background: var(--accent);
+  background: transparent;
+  box-shadow: 0 10px 22px rgba(17, 17, 17, 0.12);
 }
 
 .brand-copy {
