@@ -15,7 +15,7 @@
   <body>
     <main class="app-shell">
       <header class="topbar">
-        <img class="brand-logo" src="{{ url_for('static', filename='assets/newlogo.png') }}?v=6" alt="Set Counter 로고">
+        <img class="brand-logo" src="{{ url_for('static', filename='assets/newlogo.webp') }}?v=1" alt="Set Counter 로고" decoding="async">
         <div class="brand-copy">
           <p class="eyebrow">오늘의 운동</p>
           <h1>Set Counter</h1>
@@ -180,6 +180,6 @@
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=18"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=19"></script>
   </body>
 </html>

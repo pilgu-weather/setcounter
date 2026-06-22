@@ -29,6 +29,10 @@ remove the key needed to find them. A recovery URL in the form
 `/main?user_key=<key>` restores that key on a device. Login or a dedicated
 recovery-key screen can be added later without changing workout ownership.
 
+The one-time SQLite migration user is marked as claimable. The first empty
+device user that calls `/api/bootstrap` receives those migrated records in one
+transaction; the marker is then removed so another device cannot claim them.
+
 ## Migration
 
 The source export is stored under

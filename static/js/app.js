@@ -1,14 +1,14 @@
 const exercises = [
-  { name: "숄더 프레스", area: "덤벨 어깨", image: "shoulderpress.PNG" },
-  { name: "사이드 레터럴 레이즈", area: "덤벨 어깨", image: "sarere.PNG" },
-  { name: "중량가방 푸쉬업", area: "맨몸/가방", image: "pushup.PNG" },
-  { name: "덤벨 컬", area: "덤벨 팔", image: "dumbelcurl.PNG" },
-  { name: "해머 컬", area: "덤벨 팔", image: "hammercurl.PNG" },
-  { name: "고블릿 스쿼트", area: "덤벨 하체", image: "gblitsquate.PNG" },
-  { name: "덤벨 로우", area: "덤벨 등", image: "dumbellow.PNG" },
-  { name: "벤치프레스", area: "덤벨 가슴", image: "benchpress.PNG" },
-  { name: "덤벨 힙", area: "덤벨 둔근", image: "dumbelhip.PNG" },
-  { name: "무게판 추감기", area: "전완", image: "wristroller.PNG" },
+  { name: "숄더 프레스", area: "덤벨 어깨", image: "shoulderpress.webp" },
+  { name: "사이드 레터럴 레이즈", area: "덤벨 어깨", image: "sarere.webp" },
+  { name: "중량가방 푸쉬업", area: "맨몸/가방", image: "pushup.webp" },
+  { name: "덤벨 컬", area: "덤벨 팔", image: "dumbelcurl.webp" },
+  { name: "해머 컬", area: "덤벨 팔", image: "hammercurl.webp" },
+  { name: "고블릿 스쿼트", area: "덤벨 하체", image: "gblitsquate.webp" },
+  { name: "덤벨 로우", area: "덤벨 등", image: "dumbellow.webp" },
+  { name: "벤치프레스", area: "덤벨 가슴", image: "benchpress.webp" },
+  { name: "덤벨 힙", area: "덤벨 둔근", image: "dumbelhip.webp" },
+  { name: "무게판 추감기", area: "전완", image: "wristroller.webp" },
 ];
 
 const USER_KEY_STORAGE = "healthUserKey";
@@ -534,6 +534,10 @@ async function selectExercise(exercise) {
 async function loadLatestRecord() {
   els.lastRecord.textContent = "지난 기록을 불러오는 중...";
   const latest = await api(`/api/logs/latest?exercise=${encodeURIComponent(state.selectedExercise.name)}`);
+  renderLatestRecord(latest);
+}
+
+function renderLatestRecord(latest) {
   state.lastRecord = latest;
   els.lastRecord.replaceChildren();
 
@@ -550,6 +554,22 @@ async function loadLatestRecord() {
   title.textContent = `지난 기록: ${latest.date} · 총 ${latest.totalReps}회 · 볼륨 ${Math.round(latest.volume)}kg`;
   els.lastRecord.append(title, buildRecordTable(rows));
   syncRecordCompare();
+}
+
+async function loadBootstrap() {
+  const month = toMonthKey(state.currentMonth);
+  const data = await api(`/api/bootstrap?month=${month}`);
+  state.logs = data.logs;
+  state.excuses = data.excuses;
+  renderLatestRecord(data.latestByExercise[state.selectedExercise.name] || null);
+  renderStats(data.stats);
+  renderCalendar();
+  renderHistory();
+  renderChart();
+  if (data.claimedLegacy) {
+    showToast(`기존 운동 기록 ${data.stats.totalRecords}건을 연결했습니다.`);
+  }
+  return data;
 }
 
 async function loadLogs() {
@@ -609,8 +629,8 @@ async function saveWorkout() {
   showToast("운동 기록을 저장했어요.");
   resetSession(true);
   state.currentMonth = new Date();
-  const [, , stats] = await Promise.all([loadLogs(), loadLatestRecord(), loadStats()]);
-  announceLevelChange(previousLevel, stats.level);
+  const data = await loadBootstrap();
+  announceLevelChange(previousLevel, data.stats.level);
 }
 
 function countSet() {
@@ -834,9 +854,9 @@ function renderHistory() {
     remove.addEventListener("click", async () => {
       const previousLevel = state.stats?.level;
       await api(`/api/logs/${log.id}`, { method: "DELETE" });
-      const [, , stats] = await Promise.all([loadLogs(), loadLatestRecord(), loadStats()]);
+      const data = await loadBootstrap();
       showToast("기록을 삭제했어요.");
-      announceLevelChange(previousLevel, stats.level);
+      announceLevelChange(previousLevel, data.stats.level);
     });
 
     const content = document.createElement("div");
@@ -911,7 +931,7 @@ async function init() {
   registerServiceWorker()
     .then(() => scheduleWorkoutReminder())
     .catch(() => syncReminderUi());
-  await Promise.all([loadLogs(), loadLatestRecord(), loadStats()]);
+  await loadBootstrap();
 }
 
 init().catch((error) => showToast(error.message));

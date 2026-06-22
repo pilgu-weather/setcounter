@@ -5,9 +5,9 @@ from datetime import date, datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 from flask import Flask, g, jsonify, redirect, render_template, request, send_from_directory
-from sqlalchemy import inspect, select
+from sqlalchemy import func, inspect, select, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload
 
 from models import HealthExercise, HealthExcuse, HealthSet, HealthUser, HealthWorkout, db
 
@@ -15,7 +15,7 @@ from models import HealthExercise, HealthExcuse, HealthSet, HealthUser, HealthWo
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USER_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{16,128}$")
 REQUIRED_SCHEMA = {
-    "health_users": {"id", "user_key", "created_at"},
+    "health_users": {"id", "user_key", "created_at", "legacy_claimable"},
     "health_exercises": {"id", "name", "created_at"},
     "health_workouts": {"id", "user_id", "workout_date", "created_at", "updated_at"},
     "health_sets": {
@@ -124,8 +124,12 @@ def workout_query(user_id):
     return (
         select(HealthWorkout)
         .where(HealthWorkout.user_id == user_id)
-        .options(selectinload(HealthWorkout.sets).selectinload(HealthSet.exercise))
+        .options(joinedload(HealthWorkout.sets).joinedload(HealthSet.exercise))
     )
+
+
+def load_workouts(query):
+    return db.session.execute(query).unique().scalars().all()
 
 
 def workout_to_log(workout):
@@ -204,13 +208,7 @@ def daily_challenge_penalty(logs, excuse_dates):
     return {"penalty": len(failed_dates), "failedDates": failed_dates, "passedDates": passed_dates}
 
 
-def volume_stats(user_id):
-    workouts = db.session.scalars(
-        workout_query(user_id).order_by(HealthWorkout.created_at.asc(), HealthWorkout.id.asc())
-    ).all()
-    logs = [workout_to_log(workout) for workout in workouts]
-    excuses = db.session.scalars(select(HealthExcuse).where(HealthExcuse.user_id == user_id)).all()
-    excuse_dates = {item.excuse_date.isoformat() for item in excuses}
+def stats_from_logs(logs, excuse_dates):
     previous_by_exercise = {}
     level_changes = ups = downs = 0
     for log in logs:
@@ -243,6 +241,47 @@ def volume_stats(user_id):
             for exercise, volume in sorted(previous_by_exercise.items())
         ],
     }
+
+
+def volume_stats(user_id):
+    workouts = load_workouts(
+        workout_query(user_id).order_by(HealthWorkout.created_at.asc(), HealthWorkout.id.asc())
+    )
+    logs = [workout_to_log(workout) for workout in workouts]
+    excuses = db.session.scalars(select(HealthExcuse).where(HealthExcuse.user_id == user_id)).all()
+    return stats_from_logs(logs, {item.excuse_date.isoformat() for item in excuses})
+
+
+def claim_legacy_records(user):
+    legacy = db.session.scalar(
+        select(HealthUser)
+        .where(HealthUser.legacy_claimable.is_(True))
+        .with_for_update()
+    )
+    if legacy is None:
+        return False
+    if legacy.id == user.id:
+        legacy.legacy_claimable = False
+        db.session.commit()
+        return True
+    current_workouts = db.session.scalar(
+        select(func.count()).select_from(HealthWorkout).where(HealthWorkout.user_id == user.id)
+    )
+    current_excuses = db.session.scalar(
+        select(func.count()).select_from(HealthExcuse).where(HealthExcuse.user_id == user.id)
+    )
+    if current_workouts or current_excuses:
+        return False
+    db.session.execute(
+        update(HealthWorkout).where(HealthWorkout.user_id == legacy.id).values(user_id=user.id)
+    )
+    db.session.execute(
+        update(HealthExcuse).where(HealthExcuse.user_id == legacy.id).values(user_id=user.id)
+    )
+    legacy.legacy_claimable = False
+    db.session.delete(legacy)
+    db.session.commit()
+    return True
 
 
 @app.route("/")
@@ -281,9 +320,9 @@ def list_logs():
         except ValueError:
             return jsonify({"error": "month must use YYYY-MM"}), 400
         query = query.where(HealthWorkout.workout_date >= start, HealthWorkout.workout_date < end)
-    workouts = db.session.scalars(
+    workouts = load_workouts(
         query.order_by(HealthWorkout.workout_date.desc(), HealthWorkout.id.desc())
-    ).all()
+    )
     return jsonify([workout_to_log(workout) for workout in workouts])
 
 
@@ -293,20 +332,53 @@ def latest_log():
     exercise = request.args.get("exercise", "").strip()
     if not exercise:
         return jsonify(None)
-    workout = db.session.scalar(
+    workout = db.session.execute(
         workout_query(user.id)
         .join(HealthSet, HealthSet.workout_id == HealthWorkout.id)
         .join(HealthExercise, HealthExercise.id == HealthSet.exercise_id)
         .where(HealthExercise.name == exercise)
         .order_by(HealthWorkout.workout_date.desc(), HealthWorkout.id.desc())
         .limit(1)
-    )
+    ).unique().scalars().first()
     return jsonify(workout_to_log(workout) if workout else None)
 
 
 @app.route("/api/stats", methods=["GET"])
 def stats():
     return jsonify(volume_stats(request_user().id))
+
+
+@app.route("/api/bootstrap", methods=["GET"])
+def bootstrap():
+    user = request_user()
+    claimed = claim_legacy_records(user)
+    workouts = load_workouts(
+        workout_query(user.id).order_by(HealthWorkout.created_at.asc(), HealthWorkout.id.asc())
+    )
+    logs = [workout_to_log(workout) for workout in workouts]
+    excuses = db.session.scalars(
+        select(HealthExcuse)
+        .where(HealthExcuse.user_id == user.id)
+        .order_by(HealthExcuse.excuse_date.asc())
+    ).all()
+    excuse_rows = [excuse_to_dict(item) for item in excuses]
+    month = request.args.get("month", "").strip()
+    month_logs = [item for item in logs if not month or item["date"].startswith(f"{month}-")]
+    month_excuses = [
+        item for item in excuse_rows if not month or item["date"].startswith(f"{month}-")
+    ]
+    latest_by_exercise = {}
+    for item in logs:
+        latest_by_exercise[item["exercise"]] = item
+    return jsonify(
+        {
+            "claimedLegacy": claimed,
+            "logs": list(reversed(month_logs)),
+            "excuses": list(reversed(month_excuses)),
+            "latestByExercise": latest_by_exercise,
+            "stats": stats_from_logs(logs, {item["date"] for item in excuse_rows}),
+        }
+    )
 
 
 @app.route("/api/storage", methods=["GET"])
