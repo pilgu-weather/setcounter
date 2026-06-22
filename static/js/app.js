@@ -11,6 +11,40 @@ const exercises = [
   { name: "무게판 추감기", area: "전완", image: "wristroller.PNG" },
 ];
 
+const USER_KEY_STORAGE = "healthUserKey";
+const USER_KEY_PATTERN = /^[A-Za-z0-9._:-]{16,128}$/;
+
+function createUserKey() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  const random = new Uint8Array(24);
+  window.crypto.getRandomValues(random);
+  return Array.from(random, (value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+function loadUserKey() {
+  const url = new URL(window.location.href);
+  const recoveryKey = url.searchParams.get("user_key");
+  if (recoveryKey && USER_KEY_PATTERN.test(recoveryKey)) {
+    window.localStorage.setItem(USER_KEY_STORAGE, recoveryKey);
+    url.searchParams.delete("user_key");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    return recoveryKey;
+  }
+
+  const stored = window.localStorage.getItem(USER_KEY_STORAGE);
+  if (stored && USER_KEY_PATTERN.test(stored)) {
+    return stored;
+  }
+
+  const generated = createUserKey();
+  window.localStorage.setItem(USER_KEY_STORAGE, generated);
+  return generated;
+}
+
+const healthUserKey = loadUserKey();
+
 const state = {
   currentMonth: new Date(),
   chartMode: "volume",
@@ -408,8 +442,12 @@ function resetSession(keepInputs = true) {
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "X-User-Key": healthUserKey,
+      ...(options.headers || {}),
+    },
   });
 
   if (!response.ok) {

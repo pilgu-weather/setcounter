@@ -1,0 +1,18 @@
+{
+  "source": "https://setcounter.onrender.com",
+  "source_backend": "sqlite",
+  "source_persistent": false,
+  "exported_at": "2026-06-22T15:01:03+09:00",
+  "refreshed_at": "2026-06-22T16:46:38+09:00",
+  "source_snapshots": [
+    {"date": "2026-06-21", "workout_log_count": 4},
+    {"date": "2026-06-22", "workout_log_count": 1}
+  ],
+  "workout_log_count": 5,
+  "workout_excuse_count": 0,
+  "sha256": {
+    "workout_logs.json": "2f5cb1af14095d18a860375bff6db638057288718988b3477ec8418d16095211",
+    "workout_excuses.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  },
+  "source_deleted": false
+}

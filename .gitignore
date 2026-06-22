@@ -5,3 +5,4 @@ app.sqlite3
 .env
 .venv/
 venv/
+backups/**/migration-user-key.txt

@@ -10,9 +10,4 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: DATABASE_URL
-        fromDatabase:
-          name: set-counter-db
-          property: connectionString
-databases:
-  - name: set-counter-db
-    plan: free
+        sync: false
