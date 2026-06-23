@@ -114,3 +114,40 @@ class HealthExcuse(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
 
     user = db.relationship("HealthUser", back_populates="excuses")
+
+
+class HealthPushConfig(db.Model):
+    __tablename__ = "health_push_config"
+
+    id = db.Column(db.Integer, primary_key=True)
+    private_key = db.Column(db.Text, nullable=False)
+    public_key = db.Column(db.String(128), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class HealthPushSubscription(db.Model):
+    __tablename__ = "health_push_subscriptions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("health_users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    endpoint = db.Column(db.Text, nullable=False, unique=True)
+    p256dh = db.Column(db.Text, nullable=False)
+    auth = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+
+class HealthReminderDispatch(db.Model):
+    __tablename__ = "health_reminder_dispatches"
+
+    id = db.Column(db.Integer, primary_key=True)
+    reminder_date = db.Column(db.Date, nullable=False, unique=True)
+    sent_count = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)

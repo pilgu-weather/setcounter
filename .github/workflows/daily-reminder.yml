@@ -1,0 +1,16 @@
+name: Daily workout reminder
+
+on:
+  schedule:
+    - cron: "0,15,30,45 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  send-reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake Set Counter and send the 11 AM reminder
+        run: |
+          curl --fail --retry 3 --retry-delay 10 \
+            --request POST \
+            https://setcounter.onrender.com/api/reminders/send

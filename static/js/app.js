@@ -51,7 +51,6 @@ const state = {
   excuses: [],
   lastRecord: null,
   logs: [],
-  reminderTimer: null,
   serviceWorkerReady: null,
   selectedExercise: exercises[0],
   setRows: [],
@@ -127,26 +126,20 @@ function reminderEnabled() {
   return window.localStorage.getItem("workoutReminderEnabled") === "1";
 }
 
-function nextReminderDelay() {
-  const now = new Date();
-  const next = new Date(now);
-  next.setHours(11, 0, 0, 0);
-  if (next <= now) {
-    next.setDate(next.getDate() + 1);
-  }
-  return next.getTime() - now.getTime();
+function pushSupported() {
+  return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
 
 function syncReminderUi() {
-  if (!("Notification" in window)) {
-    els.reminderStatus.textContent = "이 브라우저는 알림을 지원하지 않습니다.";
+  if (!pushSupported()) {
+    els.reminderStatus.textContent = "아이폰은 홈 화면에 추가한 앱에서 알림을 켜주세요.";
     els.enableReminderButton.disabled = true;
     return;
   }
 
   const isOn = reminderEnabled() && Notification.permission === "granted";
   els.enableReminderButton.classList.toggle("is-on", isOn);
-  els.enableReminderButton.textContent = isOn ? "알림 켜짐" : "알림 켜기";
+  els.enableReminderButton.textContent = isOn ? "알림 끄기" : "알림 켜기";
 
   if (isOn) {
     els.reminderStatus.textContent = "매일 오전 11시에 운동 알림이 울립니다.";
@@ -169,57 +162,73 @@ async function registerServiceWorker() {
   return registration;
 }
 
-async function showWorkoutReminder() {
-  if (!reminderEnabled() || Notification.permission !== "granted") {
-    return;
-  }
-
-  const registration = await state.serviceWorkerReady;
-  if (registration?.active) {
-    registration.active.postMessage({
-      type: "SHOW_WORKOUT_REMINDER",
-      title: "Set Counter",
-      body: "오전 11시입니다. 오늘 운동 기록하러 갑시다.",
-    });
-  } else if (registration?.showNotification) {
-    registration.showNotification("Set Counter", {
-      body: "오전 11시입니다. 오늘 운동 기록하러 갑시다.",
-      icon: "/static/assets/app-icon-192.png?v=8",
-      tag: "daily-workout-reminder",
-    });
-  }
+function urlBase64ToUint8Array(value) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = window.atob(base64);
+  return Uint8Array.from(raw, (character) => character.charCodeAt(0));
 }
 
-function scheduleWorkoutReminder() {
-  window.clearTimeout(state.reminderTimer);
-  if (!reminderEnabled() || Notification.permission !== "granted") {
+async function syncPushReminderState(registration = null) {
+  if (!pushSupported()) {
+    syncReminderUi();
     return;
   }
+  registration = registration || await registerServiceWorker();
+  const subscription = await registration.pushManager.getSubscription();
+  if (subscription && Notification.permission === "granted") {
+    window.localStorage.setItem("workoutReminderEnabled", "1");
+  } else {
+    window.localStorage.removeItem("workoutReminderEnabled");
+  }
+  syncReminderUi();
+}
 
-  state.reminderTimer = window.setTimeout(async () => {
-    await showWorkoutReminder();
-    scheduleWorkoutReminder();
-  }, nextReminderDelay());
+async function disableReminder(subscription) {
+  if (subscription) {
+    await api("/api/push/unsubscribe", {
+      method: "POST",
+      body: JSON.stringify({ endpoint: subscription.endpoint }),
+    });
+    await subscription.unsubscribe();
+  }
+  window.localStorage.removeItem("workoutReminderEnabled");
+  syncReminderUi();
+  showToast("오전 11시 알림을 껐습니다.");
 }
 
 async function enableReminder() {
-  if (!("Notification" in window)) {
-    showToast("이 브라우저는 알림을 지원하지 않습니다.");
+  if (!pushSupported()) {
+    showToast("홈 화면에 추가한 앱에서 알림을 켜주세요.");
     syncReminderUi();
     return;
   }
 
-  await registerServiceWorker();
+  const registration = await registerServiceWorker();
+  const existing = await registration.pushManager.getSubscription();
+  if (existing && reminderEnabled()) {
+    await disableReminder(existing);
+    return;
+  }
+
   const permission = Notification.permission === "granted"
     ? "granted"
     : await Notification.requestPermission();
 
   if (permission === "granted") {
+    const keyData = await api("/api/push/vapid-public-key");
+    const subscription = existing || await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+    });
+    await api("/api/push/subscribe", {
+      method: "POST",
+      body: JSON.stringify(subscription.toJSON()),
+    });
     window.localStorage.setItem("workoutReminderEnabled", "1");
     syncReminderUi();
-    scheduleWorkoutReminder();
-    await showWorkoutReminder();
-    showToast("매일 오전 11시 알림을 켰습니다.");
+    const testResult = await api("/api/push/test", { method: "POST" });
+    showToast(testResult.sent ? "알림을 켰습니다. 테스트 알림을 확인하세요." : "알림 구독 저장에 실패했습니다.");
   } else {
     window.localStorage.removeItem("workoutReminderEnabled");
     syncReminderUi();
@@ -929,7 +938,7 @@ async function init() {
   syncCounter();
   syncReminderUi();
   registerServiceWorker()
-    .then(() => scheduleWorkoutReminder())
+    .then((registration) => syncPushReminderState(registration))
     .catch(() => syncReminderUi());
   await loadBootstrap();
 }

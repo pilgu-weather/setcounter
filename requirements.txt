@@ -4,3 +4,4 @@ SQLAlchemy==2.0.31
 gunicorn==22.0.0
 psycopg[binary]==3.2.13
 python-dotenv==1.0.1
+pywebpush==2.3.0

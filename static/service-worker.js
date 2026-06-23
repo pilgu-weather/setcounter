@@ -24,6 +24,26 @@ self.addEventListener("message", (event) => {
   );
 });
 
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (_error) {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Set Counter", {
+      body: data.body || "오전 11시입니다. 오늘 운동 기록할 시간입니다.",
+      icon: "/static/assets/app-icon-192.png?v=8",
+      badge: "/static/assets/app-icon-192.png?v=8",
+      tag: "daily-workout-reminder",
+      renotify: true,
+      data: { url: data.url || "/main" },
+    })
+  );
+});
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const targetUrl = new URL(event.notification.data?.url || "/main", self.location.origin).href;

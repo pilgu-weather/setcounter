@@ -1,6 +1,8 @@
 import math
 import os
 import re
+import base64
+import json
 from datetime import date, datetime, timedelta, timezone
 
 from dotenv import load_dotenv
@@ -9,7 +11,17 @@ from sqlalchemy import func, inspect, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
-from models import HealthExercise, HealthExcuse, HealthSet, HealthUser, HealthWorkout, db
+from models import (
+    HealthExercise,
+    HealthExcuse,
+    HealthPushConfig,
+    HealthPushSubscription,
+    HealthReminderDispatch,
+    HealthSet,
+    HealthUser,
+    HealthWorkout,
+    db,
+)
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -35,7 +47,20 @@ REQUIRED_SCHEMA = {
         "excuse_text",
         "created_at",
     },
+    "health_push_config": {"id", "private_key", "public_key", "created_at"},
+    "health_push_subscriptions": {
+        "id",
+        "user_id",
+        "endpoint",
+        "p256dh",
+        "auth",
+        "created_at",
+        "updated_at",
+    },
+    "health_reminder_dispatches": {"id", "reminder_date", "sent_count", "created_at"},
 }
+
+KST = timezone(timedelta(hours=9))
 
 
 def normalize_database_url(value):
@@ -115,9 +140,119 @@ def request_user():
 
 @app.before_request
 def require_api_user():
-    if request.path.startswith("/api/") and request.path != "/api/storage":
+    public_api_paths = {"/api/storage", "/api/reminders/send"}
+    if request.path.startswith("/api/") and request.path not in public_api_paths:
         if request_user() is None:
             return jsonify({"error": "valid X-User-Key header is required"}), 400
+
+
+def get_vapid_config():
+    config = db.session.get(HealthPushConfig, 1)
+    if config is not None:
+        return config
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode("ascii")
+    public_bytes = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.X962,
+        format=serialization.PublicFormat.UncompressedPoint,
+    )
+    config = HealthPushConfig(
+        id=1,
+        private_key=private_pem,
+        public_key=base64.urlsafe_b64encode(public_bytes).rstrip(b"=").decode("ascii"),
+    )
+    db.session.add(config)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        config = db.session.get(HealthPushConfig, 1)
+    return config
+
+
+def push_payload():
+    return json.dumps(
+        {
+            "title": "Set Counter",
+            "body": "오전 11시입니다. 오늘 운동 기록할 시간입니다.",
+            "url": "/main",
+        },
+        ensure_ascii=False,
+    )
+
+
+def send_push(subscription, config, sender=None):
+    if sender is None:
+        from pywebpush import webpush
+
+        sender = webpush
+    sender(
+        subscription_info={
+            "endpoint": subscription.endpoint,
+            "keys": {"p256dh": subscription.p256dh, "auth": subscription.auth},
+        },
+        data=push_payload(),
+        vapid_private_key=config.private_key,
+        vapid_claims={"sub": "https://setcounter.onrender.com"},
+    )
+
+
+def deliver_reminders(now=None, sender=None):
+    now = now or datetime.now(KST)
+    if now.astimezone(KST).hour != 11:
+        return {"status": "outside_window", "sent": 0}
+    reminder_date = now.astimezone(KST).date()
+    existing = db.session.scalar(
+        select(HealthReminderDispatch).where(
+            HealthReminderDispatch.reminder_date == reminder_date
+        )
+    )
+    if existing is not None:
+        return {"status": "already_sent", "sent": existing.sent_count}
+    config = get_vapid_config()
+    dispatch = HealthReminderDispatch(reminder_date=reminder_date, sent_count=0)
+    db.session.add(dispatch)
+    try:
+        db.session.flush()
+    except IntegrityError:
+        db.session.rollback()
+        return {"status": "already_sent", "sent": 0}
+    subscriptions = db.session.scalars(select(HealthPushSubscription)).all()
+    expired_ids = []
+    sent = 0
+    transient_failures = 0
+    for subscription in subscriptions:
+        try:
+            send_push(subscription, config, sender=sender)
+            sent += 1
+        except Exception as error:
+            status_code = getattr(getattr(error, "response", None), "status_code", None)
+            if status_code in {404, 410}:
+                expired_ids.append(subscription.id)
+            else:
+                transient_failures += 1
+    if transient_failures and not sent:
+        db.session.rollback()
+        raise RuntimeError("all push deliveries failed; dispatch was rolled back")
+    for subscription_id in expired_ids:
+        subscription = db.session.get(HealthPushSubscription, subscription_id)
+        if subscription is not None:
+            db.session.delete(subscription)
+    dispatch.sent_count = sent
+    db.session.commit()
+    return {
+        "status": "sent",
+        "sent": sent,
+        "expired": len(expired_ids),
+        "failed": transient_failures,
+    }
 
 
 def workout_query(user_id):
@@ -384,6 +519,74 @@ def bootstrap():
 @app.route("/api/storage", methods=["GET"])
 def storage_status():
     return jsonify({"backend": "postgres", "persistent": True, "render": bool(os.environ.get("RENDER"))})
+
+
+@app.route("/api/push/vapid-public-key", methods=["GET"])
+def vapid_public_key():
+    return jsonify({"publicKey": get_vapid_config().public_key})
+
+
+@app.route("/api/push/subscribe", methods=["POST"])
+def subscribe_push():
+    user = request_user()
+    payload = request.get_json(silent=True) or {}
+    endpoint = str(payload.get("endpoint", "")).strip()
+    keys = payload.get("keys") or {}
+    p256dh = str(keys.get("p256dh", "")).strip()
+    auth = str(keys.get("auth", "")).strip()
+    if not endpoint or not p256dh or not auth:
+        return jsonify({"error": "valid push subscription is required"}), 400
+    subscription = db.session.scalar(
+        select(HealthPushSubscription).where(HealthPushSubscription.endpoint == endpoint)
+    )
+    if subscription is None:
+        subscription = HealthPushSubscription(endpoint=endpoint)
+        db.session.add(subscription)
+    subscription.user_id = user.id
+    subscription.p256dh = p256dh
+    subscription.auth = auth
+    subscription.updated_at = utc_now()
+    db.session.commit()
+    return jsonify({"subscribed": True}), 201
+
+
+@app.route("/api/push/unsubscribe", methods=["POST"])
+def unsubscribe_push():
+    user = request_user()
+    payload = request.get_json(silent=True) or {}
+    endpoint = str(payload.get("endpoint", "")).strip()
+    subscription = db.session.scalar(
+        select(HealthPushSubscription).where(
+            HealthPushSubscription.user_id == user.id,
+            HealthPushSubscription.endpoint == endpoint,
+        )
+    )
+    if subscription is not None:
+        db.session.delete(subscription)
+        db.session.commit()
+    return "", 204
+
+
+@app.route("/api/push/test", methods=["POST"])
+def test_push():
+    user = request_user()
+    subscriptions = db.session.scalars(
+        select(HealthPushSubscription).where(HealthPushSubscription.user_id == user.id)
+    ).all()
+    config = get_vapid_config()
+    sent = 0
+    for subscription in subscriptions:
+        try:
+            send_push(subscription, config)
+            sent += 1
+        except Exception:
+            continue
+    return jsonify({"sent": sent})
+
+
+@app.route("/api/reminders/send", methods=["POST"])
+def send_daily_reminders():
+    return jsonify(deliver_reminders())
 
 
 @app.route("/api/excuses", methods=["GET"])

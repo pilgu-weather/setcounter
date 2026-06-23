@@ -68,3 +68,17 @@ python verify_health_app.py
 
 The verifier creates an isolated temporary user, checks save/read/reconnect,
 statistics, SOS, ownership isolation and delete, then removes its test data.
+
+## Daily push reminder
+
+The reminder uses standards-based Web Push rather than an in-page timer. VAPID
+keys are generated once and stored in `health_push_config`; browser
+subscriptions are stored per user in `health_push_subscriptions`. The scheduled
+GitHub Actions workflow calls `/api/reminders/send` at 11:00, 11:15, 11:30 and
+11:45 KST. `health_reminder_dispatches` guarantees at most one delivery batch
+per day.
+
+On iPhone, Web Push requires iOS 16.4 or later and the site must be launched
+from a Home Screen app. Open Set Counter from the Home Screen and press the
+notification button once. The server immediately sends a test notification;
+after that the app does not need to remain open for the daily reminder.
