@@ -149,23 +149,30 @@ def require_api_user():
 def get_vapid_config():
     config = db.session.get(HealthPushConfig, 1)
     if config is not None:
+        if config.private_key.startswith("-----BEGIN"):
+            from cryptography.hazmat.primitives import serialization
+
+            private_key = serialization.load_pem_private_key(
+                config.private_key.encode("ascii"), password=None
+            )
+            private_value = private_key.private_numbers().private_value.to_bytes(32, "big")
+            config.private_key = (
+                base64.urlsafe_b64encode(private_value).rstrip(b"=").decode("ascii")
+            )
+            db.session.commit()
         return config
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import ec
 
     private_key = ec.generate_private_key(ec.SECP256R1())
-    private_pem = private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
-    ).decode("ascii")
+    private_value = private_key.private_numbers().private_value.to_bytes(32, "big")
     public_bytes = private_key.public_key().public_bytes(
         encoding=serialization.Encoding.X962,
         format=serialization.PublicFormat.UncompressedPoint,
     )
     config = HealthPushConfig(
         id=1,
-        private_key=private_pem,
+        private_key=base64.urlsafe_b64encode(private_value).rstrip(b"=").decode("ascii"),
         public_key=base64.urlsafe_b64encode(public_bytes).rstrip(b"=").decode("ascii"),
     )
     db.session.add(config)
@@ -193,7 +200,7 @@ def send_push(subscription, config, sender=None):
         from pywebpush import webpush
 
         sender = webpush
-    sender(
+    return sender(
         subscription_info={
             "endpoint": subscription.endpoint,
             "keys": {"p256dh": subscription.p256dh, "auth": subscription.auth},
@@ -233,6 +240,7 @@ def deliver_reminders(now=None, sender=None):
             send_push(subscription, config, sender=sender)
             sent += 1
         except Exception as error:
+            app.logger.exception("Daily push delivery failed")
             status_code = getattr(getattr(error, "response", None), "status_code", None)
             if status_code in {404, 410}:
                 expired_ids.append(subscription.id)
@@ -575,12 +583,22 @@ def test_push():
     ).all()
     config = get_vapid_config()
     sent = 0
+    error_type = None
     for subscription in subscriptions:
         try:
             send_push(subscription, config)
             sent += 1
-        except Exception:
-            continue
+        except Exception as error:
+            app.logger.exception("Test push delivery failed")
+            error_type = type(error).__name__
+    if subscriptions and not sent:
+        return jsonify(
+            {
+                "error": "테스트 푸시 전송에 실패했습니다.",
+                "errorType": error_type,
+                "sent": 0,
+            }
+        ), 502
     return jsonify({"sent": sent})
 
 
