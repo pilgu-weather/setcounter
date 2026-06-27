@@ -388,7 +388,11 @@ def stats_from_logs(logs, excuse_dates):
 
 def volume_stats(user_id):
     workouts = load_workouts(
-        workout_query(user_id).order_by(HealthWorkout.created_at.asc(), HealthWorkout.id.asc())
+        workout_query(user_id).order_by(
+            HealthWorkout.workout_date.asc(),
+            HealthWorkout.created_at.asc(),
+            HealthWorkout.id.asc(),
+        )
     )
     logs = [workout_to_log(workout) for workout in workouts]
     excuses = db.session.scalars(select(HealthExcuse).where(HealthExcuse.user_id == user_id)).all()
@@ -469,19 +473,45 @@ def list_logs():
     return jsonify([workout_to_log(workout) for workout in workouts])
 
 
+@app.route("/api/logs/day", methods=["GET"])
+def list_day_logs():
+    user = request_user()
+    try:
+        day = parse_date(request.args.get("date") or date.today().isoformat())
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
+    workouts = load_workouts(
+        workout_query(user.id)
+        .where(HealthWorkout.workout_date == day)
+        .order_by(HealthWorkout.created_at.desc(), HealthWorkout.id.desc())
+    )
+    return jsonify([workout_to_log(workout) for workout in workouts])
+
+
 @app.route("/api/logs/latest", methods=["GET"])
 def latest_log():
     user = request_user()
     exercise = request.args.get("exercise", "").strip()
     if not exercise:
         return jsonify(None)
-    workout = db.session.execute(
+    query = (
         workout_query(user.id)
         .join(HealthSet, HealthSet.workout_id == HealthWorkout.id)
         .join(HealthExercise, HealthExercise.id == HealthSet.exercise_id)
         .where(HealthExercise.name == exercise)
-        .order_by(HealthWorkout.workout_date.desc(), HealthWorkout.id.desc())
-        .limit(1)
+    )
+    before = request.args.get("before", "").strip()
+    if before:
+        try:
+            query = query.where(HealthWorkout.workout_date < parse_date(before))
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+    workout = db.session.execute(
+        query.order_by(
+            HealthWorkout.workout_date.desc(),
+            HealthWorkout.created_at.desc(),
+            HealthWorkout.id.desc(),
+        ).limit(1)
     ).unique().scalars().first()
     return jsonify(workout_to_log(workout) if workout else None)
 
@@ -496,7 +526,11 @@ def bootstrap():
     user = request_user()
     claimed = claim_legacy_records(user)
     workouts = load_workouts(
-        workout_query(user.id).order_by(HealthWorkout.created_at.asc(), HealthWorkout.id.asc())
+        workout_query(user.id).order_by(
+            HealthWorkout.workout_date.asc(),
+            HealthWorkout.created_at.asc(),
+            HealthWorkout.id.asc(),
+        )
     )
     logs = [workout_to_log(workout) for workout in workouts]
     excuses = db.session.scalars(

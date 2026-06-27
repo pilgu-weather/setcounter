@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=16">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=17">
   </head>
   <body>
     <main class="app-shell">
@@ -34,14 +34,28 @@
         <div class="level-progress" aria-hidden="true">
           <div id="levelProgressBar"></div>
         </div>
-        <p class="level-copy" id="levelCopy">이전 최고 기록을 깨면 레벨업</p>
+        <p class="level-copy" id="levelCopy">이전 기록을 깨면 레벨업</p>
+      </section>
+
+      <section class="calendar-section" aria-labelledby="calendarTitle">
+        <div class="section-head">
+          <button class="icon-button" id="prevMonthButton" type="button" aria-label="이전 달">‹</button>
+          <h2 id="calendarTitle"></h2>
+          <button class="icon-button" id="nextMonthButton" type="button" aria-label="다음 달">›</button>
+        </div>
+        <div class="calendar-weekdays" aria-hidden="true">
+          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+        <div class="calendar-day-detail" id="calendarDayDetail" aria-live="polite"></div>
+        <div class="calendar-excuses" id="calendarExcuseList" aria-live="polite"></div>
       </section>
 
       <section class="exercise-section" aria-labelledby="exerciseTitle">
         <div class="section-head compact">
           <div>
             <h2 id="exerciseTitle">운동 선택</h2>
-            <p class="section-copy">오늘 할 운동을 골라주세요.</p>
+            <p class="section-copy">달력에서 날짜를 누르고 운동을 저장하세요.</p>
           </div>
         </div>
         <div class="exercise-grid" id="exerciseGrid"></div>
@@ -50,7 +64,7 @@
       <section class="counter-panel" aria-labelledby="counterTitle">
         <div class="panel-head">
           <div>
-            <p class="eyebrow">선택됨</p>
+            <p class="eyebrow">선택한 운동</p>
             <h2 id="counterTitle">숄더 프레스</h2>
           </div>
           <button class="ghost-button" id="resetSessionButton" type="button">초기화</button>
@@ -59,6 +73,10 @@
         <div class="last-record" id="lastRecord">지난 기록을 불러오는 중...</div>
 
         <form class="workout-form" id="workoutForm">
+          <label class="date-field">
+            <span>기록 날짜</span>
+            <input id="workoutDateInput" name="workoutDate" type="date">
+          </label>
           <div class="field-grid three">
             <label>
               <span>무게 kg</span>
@@ -91,10 +109,10 @@
           </label>
         </form>
 
-        <div class="planned-record" id="plannedRecord">오늘: 8kg · 0회 완료 · 1세트는 12회</div>
+        <div class="planned-record" id="plannedRecord">오늘: 8kg · 0회 완료 · 볼륨 0kg</div>
         <div class="record-compare" id="recordCompare"></div>
         <div class="set-table-wrap">
-          <table class="set-table" aria-label="오늘 세트 기록">
+          <table class="set-table" aria-label="현재 세트 기록">
             <thead>
               <tr>
                 <th>세트</th>
@@ -139,25 +157,11 @@
 
       <section class="history-section" aria-labelledby="historyTitle">
         <div class="section-head plain">
-          <h2 id="historyTitle">최근 기록</h2>
+          <h2 id="historyTitle">이번 달 요약</h2>
           <span id="monthSummary"></span>
         </div>
         <div class="history-list" id="historyList"></div>
       </section>
-
-      <details class="calendar-section">
-        <summary>달력 보기</summary>
-        <div class="section-head">
-          <button class="icon-button" id="prevMonthButton" type="button" aria-label="이전 달">‹</button>
-          <h2 id="calendarTitle"></h2>
-          <button class="icon-button" id="nextMonthButton" type="button" aria-label="다음 달">›</button>
-        </div>
-        <div class="calendar-weekdays" aria-hidden="true">
-          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
-        </div>
-        <div class="calendar-grid" id="calendarGrid"></div>
-        <div class="calendar-excuses" id="calendarExcuseList" aria-live="polite"></div>
-      </details>
 
       <section class="reminder-section" aria-labelledby="reminderTitle">
         <div>
@@ -171,15 +175,15 @@
       <section class="sos-section" aria-labelledby="sosTitle">
         <div>
           <p class="eyebrow">SOS</p>
-          <h2 id="sosTitle">오늘 운동 면제</h2>
-          <p class="sos-copy">아프거나 바쁜 날은 사유를 남기면 오늘 페널티를 막습니다.</p>
+          <h2 id="sosTitle">선택 날짜 운동 면제</h2>
+          <p class="sos-copy">아프거나 바쁜 날은 달력에서 날짜를 고르고 사유를 남기세요.</p>
         </div>
-        <textarea id="sosReasonInput" rows="3" placeholder="예: 감기, 야근, 가족 일정"></textarea>
+        <textarea id="sosReasonInput" rows="3" placeholder="감기, 야근, 가족 일정"></textarea>
         <button class="sos-button" id="sosButton" type="button">SOS 저장</button>
       </section>
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=20"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=21"></script>
   </body>
 </html>
