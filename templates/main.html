@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=17">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=18">
   </head>
   <body>
     <main class="app-shell">
@@ -62,6 +62,10 @@
       </section>
 
       <section class="counter-panel" aria-labelledby="counterTitle">
+        <div class="selected-date-banner" id="selectedDateBanner">
+          <span>선택 날짜</span>
+          <strong id="selectedDateLabel">오늘</strong>
+        </div>
         <div class="panel-head">
           <div>
             <p class="eyebrow">선택한 운동</p>
@@ -184,6 +188,6 @@
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=21"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=22"></script>
   </body>
 </html>

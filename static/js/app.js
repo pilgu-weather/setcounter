@@ -74,6 +74,8 @@ const state = {
 const els = {
   exerciseGrid: document.querySelector("#exerciseGrid"),
   counterTitle: document.querySelector("#counterTitle"),
+  selectedDateBanner: document.querySelector("#selectedDateBanner"),
+  selectedDateLabel: document.querySelector("#selectedDateLabel"),
   workoutDateInput: document.querySelector("#workoutDateInput"),
   weightInput: document.querySelector("#weightInput"),
   currentRepsInput: document.querySelector("#currentRepsInput"),
@@ -424,6 +426,20 @@ function renderStats(stats) {
   els.levelCopy.textContent = `레벨업 ${stats.levelUps}회 · 레벨다운 ${stats.levelDowns}회 · 일일 페널티 ${stats.dailyPenalty}회`;
 }
 
+function selectedDateText() {
+  return state.selectedDate === todayKey ? "오늘" : state.selectedDate;
+}
+
+function syncSelectedDateUi() {
+  els.workoutDateInput.value = state.selectedDate;
+  if (els.selectedDateLabel) {
+    els.selectedDateLabel.textContent = selectedDateText();
+  }
+  if (els.selectedDateBanner) {
+    els.selectedDateBanner.classList.toggle("is-past", state.selectedDate !== todayKey);
+  }
+}
+
 function announceLevelChange(previousLevel, nextLevel) {
   if (!previousLevel || previousLevel === nextLevel) return;
   showToast(nextLevel > previousLevel ? `레벨업: LV.${nextLevel}` : `레벨다운: LV.${nextLevel}`);
@@ -574,7 +590,7 @@ function renderCalendar() {
       cell.classList.add("has-sos");
       cell.title = `SOS: ${excuse.reason}`;
     }
-    cell.addEventListener("click", () => chooseDate(key));
+    cell.addEventListener("click", () => chooseDate(key, { scrollToInput: true }));
     els.calendarGrid.append(cell);
   }
   renderDayDetail();
@@ -589,7 +605,7 @@ function renderDayDetail() {
   const head = document.createElement("div");
   head.className = "day-detail-head";
   const title = document.createElement("strong");
-  title.textContent = `${state.selectedDate} 기록`;
+  title.textContent = `${selectedDateText()} 기록`;
   const summary = document.createElement("span");
   const total = logs.reduce((sum, log) => sum + (log.volume || 0), 0);
   summary.textContent = logs.length ? `${logs.length}종목 · ${Math.round(total)}kg` : "기록 없음";
@@ -608,10 +624,8 @@ function renderDayDetail() {
     empty.className = "empty-state";
     empty.textContent = "이 날짜를 선택한 상태로 아래에서 운동을 저장하면 여기에 들어옵니다.";
     els.calendarDayDetail.append(empty);
-    return;
-  }
-
-  logs.forEach((log) => {
+  } else {
+    logs.forEach((log) => {
     const item = document.createElement("article");
     item.className = "day-log-item";
     const top = document.createElement("div");
@@ -635,7 +649,18 @@ function renderDayDetail() {
     meta.textContent = `총 ${log.totalReps}회 · 볼륨 ${Math.round(log.volume)}kg${log.notes ? ` · ${log.notes}` : ""}`;
     item.append(top, meta, buildRecordTable(rowsFromLog(log)));
     els.calendarDayDetail.append(item);
+    });
+  }
+
+  const action = document.createElement("button");
+  action.type = "button";
+  action.className = "day-add-button";
+  action.textContent = `${selectedDateText()} 운동 입력하기`;
+  action.addEventListener("click", () => {
+    document.querySelector(".counter-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    els.weightInput.focus({ preventScroll: true });
   });
+  els.calendarDayDetail.append(action);
 }
 
 function renderExcuses() {
@@ -656,9 +681,9 @@ function renderExcuses() {
   });
 }
 
-async function chooseDate(dateKey) {
+async function chooseDate(dateKey, options = {}) {
   state.selectedDate = dateKey;
-  els.workoutDateInput.value = dateKey;
+  syncSelectedDateUi();
   const selectedMonth = dateFromKey(dateKey);
   const monthChanged = toMonthKey(selectedMonth) !== toMonthKey(state.currentMonth);
   if (monthChanged) {
@@ -669,6 +694,9 @@ async function chooseDate(dateKey) {
     await loadLatestRecord();
   }
   syncCounter();
+  showToast(`${selectedDateText()} 기록 날짜로 선택했습니다.`);
+  const target = options.scrollToInput ? document.querySelector(".counter-panel") : els.calendarDayDetail;
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function groupedLogsForChart() {
@@ -896,7 +924,7 @@ function bindEvents() {
 }
 
 async function init() {
-  els.workoutDateInput.value = state.selectedDate;
+  syncSelectedDateUi();
   els.counterTitle.textContent = state.selectedExercise.name;
   renderExerciseCards();
   bindEvents();

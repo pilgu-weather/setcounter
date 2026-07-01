@@ -214,6 +214,38 @@ h2 {
   padding: 18px;
 }
 
+.selected-date-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 14px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--accent);
+  padding: 10px 12px;
+  font-weight: 900;
+}
+
+.selected-date-banner span {
+  color: #fffdf2;
+  font-size: 12px;
+}
+
+.selected-date-banner strong {
+  font-size: 18px;
+}
+
+.selected-date-banner.is-past {
+  background: #ffd21f;
+  color: var(--ink);
+}
+
+.selected-date-banner.is-past span {
+  color: var(--ink);
+}
+
 .panel-head,
 .section-head {
   display: flex;
@@ -844,6 +876,16 @@ textarea:focus {
   color: var(--danger);
   padding: 8px 10px;
   font-size: 13px;
+  font-weight: 900;
+}
+
+.day-add-button {
+  min-height: 48px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--accent);
+  font-size: 15px;
   font-weight: 900;
 }
 
