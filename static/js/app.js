@@ -519,11 +519,12 @@ async function loadLatestRecord() {
 
 async function loadBootstrap() {
   const month = toMonthKey(state.currentMonth);
-  const data = await api(`/api/bootstrap?month=${month}`);
+  const query = new URLSearchParams({ month, before: state.selectedDate });
+  const data = await api(`/api/bootstrap?${query.toString()}`);
   state.logs = data.logs;
   state.excuses = data.excuses;
   renderStats(data.stats);
-  await loadLatestRecord();
+  renderLatestRecord(data.latestByExercise[state.selectedExercise.name] || null);
   renderCalendar();
   renderHistory();
   renderChart();
@@ -931,10 +932,6 @@ async function init() {
   syncWeightControls();
   normalizedWeight(true);
   syncCounter();
-  syncReminderUi();
-  registerServiceWorker()
-    .then((registration) => syncPushReminderState(registration))
-    .catch(() => syncReminderUi());
   await loadBootstrap();
 }
 

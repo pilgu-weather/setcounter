@@ -544,8 +544,17 @@ def bootstrap():
     month_excuses = [
         item for item in excuse_rows if not month or item["date"].startswith(f"{month}-")
     ]
+    before = None
+    before_value = request.args.get("before", "").strip()
+    if before_value:
+        try:
+            before = parse_date(before_value).isoformat()
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
     latest_by_exercise = {}
     for item in logs:
+        if before is not None and item["date"] >= before:
+            continue
         latest_by_exercise[item["exercise"]] = item
     return jsonify(
         {
