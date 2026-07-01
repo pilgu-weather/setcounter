@@ -584,8 +584,49 @@ textarea:focus {
   margin-top: 16px;
 }
 
+.collapsible-section {
+  overflow: hidden;
+}
+
+.collapsible-section summary {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  color: var(--ink);
+  font-weight: 900;
+  cursor: pointer;
+  list-style: none;
+}
+
+.collapsible-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsible-section summary::after {
+  content: "+";
+  margin-left: auto;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--accent);
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.collapsible-section[open] summary::after {
+  content: "-";
+}
+
 .calendar-section {
   overflow: hidden;
+}
+
+.reminder-section.is-blocked {
+  display: none;
 }
 
 .chart-section {

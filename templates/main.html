@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=18">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=19">
   </head>
   <body>
     <main class="app-shell">
@@ -37,19 +37,7 @@
         <p class="level-copy" id="levelCopy">이전 기록을 깨면 레벨업</p>
       </section>
 
-      <section class="calendar-section" aria-labelledby="calendarTitle">
-        <div class="section-head">
-          <button class="icon-button" id="prevMonthButton" type="button" aria-label="이전 달">‹</button>
-          <h2 id="calendarTitle"></h2>
-          <button class="icon-button" id="nextMonthButton" type="button" aria-label="다음 달">›</button>
-        </div>
-        <div class="calendar-weekdays" aria-hidden="true">
-          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
-        </div>
-        <div class="calendar-grid" id="calendarGrid"></div>
-        <div class="calendar-day-detail" id="calendarDayDetail" aria-live="polite"></div>
-        <div class="calendar-excuses" id="calendarExcuseList" aria-live="polite"></div>
-      </section>
+
 
       <section class="exercise-section" aria-labelledby="exerciseTitle">
         <div class="section-head compact">
@@ -159,23 +147,6 @@
         <canvas id="progressChart" width="640" height="280" aria-label="운동 진행 그래프"></canvas>
       </section>
 
-      <section class="history-section" aria-labelledby="historyTitle">
-        <div class="section-head plain">
-          <h2 id="historyTitle">이번 달 요약</h2>
-          <span id="monthSummary"></span>
-        </div>
-        <div class="history-list" id="historyList"></div>
-      </section>
-
-      <section class="reminder-section" aria-labelledby="reminderTitle">
-        <div>
-          <p class="eyebrow">알림</p>
-          <h2 id="reminderTitle">매일 오전 11시</h2>
-          <p class="reminder-copy" id="reminderStatus">운동 기록 알림을 켜주세요.</p>
-        </div>
-        <button class="reminder-button" id="enableReminderButton" type="button">알림 켜기</button>
-      </section>
-
       <section class="sos-section" aria-labelledby="sosTitle">
         <div>
           <p class="eyebrow">SOS</p>
@@ -185,9 +156,42 @@
         <textarea id="sosReasonInput" rows="3" placeholder="감기, 야근, 가족 일정"></textarea>
         <button class="sos-button" id="sosButton" type="button">SOS 저장</button>
       </section>
+
+      <details class="calendar-section collapsible-section" aria-labelledby="calendarTitle">
+        <summary>달력 보기</summary>
+        <div class="section-head">
+          <button class="icon-button" id="prevMonthButton" type="button" aria-label="이전 달">‹</button>
+          <h2 id="calendarTitle"></h2>
+          <button class="icon-button" id="nextMonthButton" type="button" aria-label="다음 달">›</button>
+        </div>
+        <div class="calendar-weekdays" aria-hidden="true">
+          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+        <div class="calendar-day-detail" id="calendarDayDetail" aria-live="polite"></div>
+        <div class="calendar-excuses" id="calendarExcuseList" aria-live="polite"></div>
+      </details>
+
+      <details class="history-section collapsible-section" aria-labelledby="historyTitle">
+        <summary>이번 달 요약 보기</summary>
+        <div class="section-head plain">
+          <h2 id="historyTitle">이번 달 요약</h2>
+          <span id="monthSummary"></span>
+        </div>
+        <div class="history-list" id="historyList"></div>
+      </details>
+
+      <section class="reminder-section is-blocked" hidden aria-labelledby="reminderTitle">
+        <div>
+          <p class="eyebrow">알림</p>
+          <h2 id="reminderTitle">매일 오전 11시</h2>
+          <p class="reminder-copy" id="reminderStatus">운동 기록 알림을 켜주세요.</p>
+        </div>
+        <button class="reminder-button" id="enableReminderButton" type="button">알림 켜기</button>
+      </section>
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=22"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=23"></script>
   </body>
 </html>
