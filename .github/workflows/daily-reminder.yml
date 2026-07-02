@@ -13,4 +13,5 @@ jobs:
         run: |
           curl --fail --retry 3 --retry-delay 10 \
             --request POST \
+            --header "X-Cron-Token: ${{ secrets.REMINDER_CRON_TOKEN }}" \
             https://setcounter.onrender.com/api/reminders/send

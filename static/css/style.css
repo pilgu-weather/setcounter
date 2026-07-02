@@ -314,15 +314,6 @@ h2 {
   object-fit: cover;
 }
 
-.exercise-art.sprite {
-  background-image: url("../assets/exercise-sprite.png");
-  background-repeat: no-repeat;
-  background-size: 400% 300%;
-  background-position:
-    calc(var(--icon-x) * 33.3333%)
-    calc(var(--icon-y) * 50%);
-}
-
 .exercise-card strong {
   max-width: 100%;
   min-height: 34px;

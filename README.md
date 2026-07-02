@@ -12,6 +12,7 @@ Required Render environment variable:
 
 ```text
 DATABASE_URL=<existing Neon pooled connection string>
+REMINDER_CRON_TOKEN=<long random secret used by GitHub Actions>
 ```
 
 Do not add a Render `databases:` block. In the Render dashboard, set
@@ -77,6 +78,11 @@ subscriptions are stored per user in `health_push_subscriptions`. The scheduled
 GitHub Actions workflow calls `/api/reminders/send` at 11:00, 11:15, 11:30 and
 11:45 KST. `health_reminder_dispatches` guarantees at most one delivery batch
 per day.
+
+For production, set the same `REMINDER_CRON_TOKEN` value in Render and in the
+GitHub repository secret named `REMINDER_CRON_TOKEN`. When the Render variable
+is present, `/api/reminders/send` rejects requests that do not include the
+matching `X-Cron-Token` header.
 
 On iPhone, Web Push requires iOS 16.4 or later and the site must be launched
 from a Home Screen app. Open Set Counter from the Home Screen and press the

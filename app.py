@@ -26,6 +26,11 @@ from models import (
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USER_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{16,128}$")
+MAX_EXERCISE_NAME_LENGTH = 120
+MAX_MEMO_LENGTH = 500
+MAX_SETS_PER_WORKOUT = 30
+MAX_REPS_PER_SET = 1000
+MAX_WEIGHT_KG = 2000
 REQUIRED_SCHEMA = {
     "health_users": {"id", "user_key", "created_at", "legacy_claimable"},
     "health_exercises": {"id", "name", "created_at"},
@@ -97,6 +102,7 @@ def create_app():
         SQLALCHEMY_DATABASE_URI=normalize_database_url(os.environ.get("DATABASE_URL")),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SQLALCHEMY_ENGINE_OPTIONS={"pool_pre_ping": True, "pool_recycle": 300},
+        MAX_CONTENT_LENGTH=64 * 1024,
     )
     db.init_app(app)
     with app.app_context():
@@ -110,6 +116,34 @@ app = create_app()
 
 def utc_now():
     return datetime.now(timezone.utc)
+
+
+def today_kst():
+    return datetime.now(KST).date()
+
+
+@app.after_request
+def add_release_headers(response):
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault(
+        "Permissions-Policy",
+        "camera=(), microphone=(), geolocation=(), payment=()",
+    )
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self'; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "manifest-src 'self'; "
+        "worker-src 'self'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'none'",
+    )
+    return response
 
 
 def parse_date(value):
@@ -144,6 +178,11 @@ def require_api_user():
     if request.path.startswith("/api/") and request.path not in public_api_paths:
         if request_user() is None:
             return jsonify({"error": "valid X-User-Key header is required"}), 400
+
+
+@app.errorhandler(413)
+def request_too_large(_error):
+    return jsonify({"error": "request body is too large"}), 413
 
 
 def get_vapid_config():
@@ -328,7 +367,7 @@ def daily_challenge_penalty(logs, excuse_dates):
     if not logs:
         return {"penalty": 0, "failedDates": [], "passedDates": []}
     first_date = min(log["date"] for log in logs)
-    last_checked = (date.today() - timedelta(days=1)).isoformat()
+    last_checked = (datetime.now(KST).date() - timedelta(days=1)).isoformat()
     if first_date > last_checked:
         return {"penalty": 0, "failedDates": [], "passedDates": []}
     logs_by_date = {}
@@ -477,7 +516,7 @@ def list_logs():
 def list_day_logs():
     user = request_user()
     try:
-        day = parse_date(request.args.get("date") or date.today().isoformat())
+        day = parse_date(request.args.get("date") or today_kst().isoformat())
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
     workouts = load_workouts(
@@ -647,6 +686,9 @@ def test_push():
 
 @app.route("/api/reminders/send", methods=["POST"])
 def send_daily_reminders():
+    cron_token = os.environ.get("REMINDER_CRON_TOKEN", "").strip()
+    if cron_token and request.headers.get("X-Cron-Token", "") != cron_token:
+        return jsonify({"error": "forbidden"}), 403
     return jsonify(deliver_reminders())
 
 
@@ -670,11 +712,11 @@ def list_excuses():
 def create_excuse():
     user = request_user()
     payload = request.get_json(silent=True) or {}
-    reason = str(payload.get("reason", "")).strip()
+    reason = str(payload.get("reason", "")).strip()[:MAX_MEMO_LENGTH]
     if not reason:
         return jsonify({"error": "reason is required"}), 400
     try:
-        excuse_date = parse_date(payload.get("date") or date.today().isoformat())
+        excuse_date = parse_date(payload.get("date") or today_kst().isoformat())
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
     excuse = db.session.scalar(
@@ -693,21 +735,30 @@ def create_excuse():
 
 def normalized_set_data(payload, exercise):
     step = 4 if exercise == "중량가방 푸쉬업" else 8
-    raw_weight = max(float(payload.get("weightKg", step)), step)
+    raw_weight = min(max(float(payload.get("weightKg", step)), step), MAX_WEIGHT_KG)
     fallback_weight = max(math.floor(raw_weight / step + 0.5) * step, step)
     raw_reps = payload.get("setReps", [])
     raw_weights = payload.get("setWeights", [])
     if not isinstance(raw_reps, list) or not isinstance(raw_weights, list):
         raise ValueError
-    reps = [max(int(value), 0) for value in raw_reps if str(value).strip()]
+    if len(raw_reps) > MAX_SETS_PER_WORKOUT or len(raw_weights) > MAX_SETS_PER_WORKOUT:
+        raise ValueError
+    reps = [
+        min(max(int(value), 0), MAX_REPS_PER_SET)
+        for value in raw_reps
+        if str(value).strip()
+    ]
     weights = [
-        max(math.floor(max(float(value), step) / step + 0.5) * step, step)
+        max(math.floor(min(max(float(value), step), MAX_WEIGHT_KG) / step + 0.5) * step, step)
         for value in raw_weights
         if str(value).strip()
     ]
     if not reps:
-        fallback_reps = max(int(payload.get("reps", 0)), 0)
-        completed = max(int(payload.get("completedSets", payload.get("targetSets", 1))), 0)
+        fallback_reps = min(max(int(payload.get("reps", 0)), 0), MAX_REPS_PER_SET)
+        completed = min(
+            max(int(payload.get("completedSets", payload.get("targetSets", 1))), 0),
+            MAX_SETS_PER_WORKOUT,
+        )
         reps = [fallback_reps] * completed if fallback_reps else []
     if len(weights) < len(reps):
         weights.extend([fallback_weight] * (len(reps) - len(weights)))
@@ -723,8 +774,10 @@ def create_log():
     exercise_name = str(payload.get("exercise", "")).strip()
     if not exercise_name:
         return jsonify({"error": "exercise is required"}), 400
+    if len(exercise_name) > MAX_EXERCISE_NAME_LENGTH:
+        return jsonify({"error": "exercise is too long"}), 400
     try:
-        workout_date = parse_date(payload.get("date") or date.today().isoformat())
+        workout_date = parse_date(payload.get("date") or today_kst().isoformat())
         set_data = normalized_set_data(payload, exercise_name)
     except (TypeError, ValueError):
         return jsonify({"error": "valid date, weight, reps, and completed sets are required"}), 400
@@ -736,7 +789,7 @@ def create_log():
     workout = HealthWorkout(user_id=user.id, workout_date=workout_date)
     db.session.add(workout)
     db.session.flush()
-    memo = str(payload.get("notes", "")).strip()
+    memo = str(payload.get("notes", "")).strip()[:MAX_MEMO_LENGTH]
     for index, (weight, reps) in enumerate(set_data, start=1):
         workout.sets.append(
             HealthSet(exercise_id=exercise.id, set_index=index, weight=weight, reps=reps, memo=memo)

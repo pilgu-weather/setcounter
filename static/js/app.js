@@ -676,7 +676,11 @@ function renderExcuses() {
     item.type = "button";
     item.className = "calendar-excuse-item";
     item.dataset.excuseDate = excuse.date;
-    item.innerHTML = `<strong>${excuse.date}</strong><p>${excuse.reason}</p>`;
+    const dateLabel = document.createElement("strong");
+    dateLabel.textContent = excuse.date;
+    const reason = document.createElement("p");
+    reason.textContent = excuse.reason;
+    item.append(dateLabel, reason);
     item.addEventListener("click", () => chooseDate(excuse.date));
     els.calendarExcuseList.append(item);
   });
@@ -813,13 +817,18 @@ function renderHistory() {
       const item = document.createElement("button");
       item.type = "button";
       item.className = "history-item history-day-button";
-      item.innerHTML = `
-        <span>
-          <strong class="history-title">${day.date}</strong>
-          <span class="history-meta">${day.count}종목 · ${Math.round(day.volume)}kg · ${day.names.join(", ")}</span>
-        </span>
-        <span class="history-open">보기</span>
-      `;
+      const body = document.createElement("span");
+      const title = document.createElement("strong");
+      title.className = "history-title";
+      title.textContent = day.date;
+      const meta = document.createElement("span");
+      meta.className = "history-meta";
+      meta.textContent = `${day.count}종목 · ${Math.round(day.volume)}kg · ${day.names.join(", ")}`;
+      body.append(title, meta);
+      const open = document.createElement("span");
+      open.className = "history-open";
+      open.textContent = "보기";
+      item.append(body, open);
       item.addEventListener("click", () => chooseDate(day.date));
       els.historyList.append(item);
     });
