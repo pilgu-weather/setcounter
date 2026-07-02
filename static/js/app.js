@@ -305,6 +305,18 @@ function applyInputsFromLatestRecord(log) {
   syncCounter();
 }
 
+function applyNextSetFromLatestRecord() {
+  const rows = rowsFromLog(state.lastRecord);
+  const nextRow = rows[state.setRows.length];
+  if (!nextRow || state.setRows.length >= targetSets()) {
+    return false;
+  }
+  const step = weightStepForExercise();
+  els.weightInput.value = String(Math.max(Math.round((nextRow.weightKg || step) / step) * step, step));
+  els.currentRepsInput.value = String(Math.max(nextRow.reps || 1, 1));
+  return true;
+}
+
 function syncWeightControls() {
   const step = weightStepForExercise();
   els.weightInput.min = String(step);
@@ -944,6 +956,7 @@ function countSet() {
     return;
   }
   state.setRows.push({ weightKg, reps: currentReps() });
+  applyNextSetFromLatestRecord();
   syncCounter();
   if (state.setRows.length >= targetSets()) showToast("목표 세트 완료. 확인을 눌러 저장하세요.");
 }
