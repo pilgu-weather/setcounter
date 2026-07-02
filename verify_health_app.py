@@ -49,6 +49,23 @@ def run():
             assert stats.status_code == 200
             assert stats.get_json()["totalVolume"] == 304.0
 
+            profile = client.get("/api/profile", headers=headers(user_key))
+            assert profile.status_code == 200
+            assert profile.get_json()["nicknameRequired"] is True
+            bad_nickname = client.post(
+                "/api/profile", headers=headers(user_key), json={"nickname": "admin"}
+            )
+            assert bad_nickname.status_code == 400
+            nickname = client.post(
+                "/api/profile", headers=headers(user_key), json={"nickname": "테스트유저"}
+            )
+            assert nickname.status_code == 200
+            assert nickname.get_json()["nickname"] == "테스트유저"
+            too_soon = client.post(
+                "/api/profile", headers=headers(user_key), json={"nickname": "다른닉"}
+            )
+            assert too_soon.status_code == 429
+
             excuse = client.post(
                 "/api/excuses",
                 headers=headers(user_key),
@@ -75,7 +92,7 @@ def run():
                     delete(HealthExercise).where(HealthExercise.name.like("verification-%"))
                 )
                 db.session.commit()
-    print("PASS: save, read, reconnect, isolation, stats, SOS, delete")
+    print("PASS: save, read, reconnect, isolation, stats, profile, SOS, delete")
 
 
 if __name__ == "__main__":

@@ -16,6 +16,8 @@ class HealthUser(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_key = db.Column(db.String(128), nullable=False, unique=True, index=True)
+    nickname = db.Column(db.String(24))
+    nickname_updated_at = db.Column(db.DateTime(timezone=True))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
     legacy_claimable = db.Column(db.Boolean, nullable=False, default=False)
 

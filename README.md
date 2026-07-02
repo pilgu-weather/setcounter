@@ -34,6 +34,16 @@ The one-time SQLite migration user is marked as claimable. The first empty
 device user that calls `/api/bootstrap` receives those migrated records in one
 transaction; the marker is then removed so another device cannot claim them.
 
+## Nicknames
+
+Users must create a nickname before normal first use. The nickname is stored on
+`health_users`, displayed with the current level, and can be changed from the
+top-right menu. Server validation blocks spaces, reserved words, profanity, and
+violent terms. Changes are limited to once every seven days.
+
+Existing users with workouts or SOS records but no nickname are initialized to
+`테스트` during schema upgrade so old data keeps working after the feature ships.
+
 ## Migration
 
 The source export is stored under

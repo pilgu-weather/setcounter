@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 from flask import Flask, g, jsonify, redirect, render_template, request, send_from_directory
-from sqlalchemy import func, inspect, select, update
+from sqlalchemy import func, inspect, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
@@ -26,13 +26,46 @@ from models import (
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USER_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{16,128}$")
+NICKNAME_PATTERN = re.compile(r"^[0-9A-Za-z가-힣_]{2,12}$")
+NICKNAME_CHANGE_INTERVAL = timedelta(days=7)
+FORBIDDEN_NICKNAME_WORDS = {
+    "admin",
+    "administrator",
+    "setcounter",
+    "운영자",
+    "관리자",
+    "씨발",
+    "시발",
+    "ㅅㅂ",
+    "병신",
+    "븅신",
+    "개새",
+    "새끼",
+    "좆",
+    "존나",
+    "꺼져",
+    "죽어",
+    "자살",
+    "느금",
+    "애미",
+    "애비",
+    "보지",
+    "자지",
+}
 MAX_EXERCISE_NAME_LENGTH = 120
 MAX_MEMO_LENGTH = 500
 MAX_SETS_PER_WORKOUT = 30
 MAX_REPS_PER_SET = 1000
 MAX_WEIGHT_KG = 2000
 REQUIRED_SCHEMA = {
-    "health_users": {"id", "user_key", "created_at", "legacy_claimable"},
+    "health_users": {
+        "id",
+        "user_key",
+        "nickname",
+        "nickname_updated_at",
+        "created_at",
+        "legacy_claimable",
+    },
     "health_exercises": {"id", "name", "created_at"},
     "health_workouts": {"id", "user_id", "workout_date", "created_at", "updated_at"},
     "health_sets": {
@@ -95,6 +128,31 @@ def validate_schema():
             )
 
 
+def upgrade_schema():
+    schema = inspect(db.engine)
+    if "health_users" not in schema.get_table_names():
+        return
+    user_columns = {column["name"] for column in schema.get_columns("health_users")}
+    with db.engine.begin() as connection:
+        if "nickname" not in user_columns:
+            connection.execute(text("ALTER TABLE health_users ADD COLUMN nickname VARCHAR(24)"))
+        if "nickname_updated_at" not in user_columns:
+            connection.execute(text("ALTER TABLE health_users ADD COLUMN nickname_updated_at TIMESTAMPTZ"))
+        connection.execute(
+            text(
+                """
+                UPDATE health_users u
+                SET nickname='테스트'
+                WHERE u.nickname IS NULL
+                  AND (
+                    EXISTS (SELECT 1 FROM health_workouts w WHERE w.user_id = u.id)
+                    OR EXISTS (SELECT 1 FROM health_excuses e WHERE e.user_id = u.id)
+                  )
+                """
+            )
+        )
+
+
 def create_app():
     load_dotenv()
     app = Flask(__name__)
@@ -107,6 +165,7 @@ def create_app():
     db.init_app(app)
     with app.app_context():
         db.create_all()
+        upgrade_schema()
         validate_schema()
     return app
 
@@ -170,6 +229,46 @@ def request_user():
             user = db.session.scalar(select(HealthUser).where(HealthUser.user_key == user_key))
     g.health_user = user
     return user
+
+
+def nickname_available_at(user):
+    if not user.nickname or user.nickname_updated_at is None:
+        return None
+    updated_at = user.nickname_updated_at
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=timezone.utc)
+    return updated_at + NICKNAME_CHANGE_INTERVAL
+
+
+def validate_nickname(value):
+    nickname = str(value or "").strip()
+    compact = re.sub(r"\s+", "", nickname)
+    if nickname != compact:
+        raise ValueError("닉네임에는 공백을 넣을 수 없습니다")
+    if not NICKNAME_PATTERN.fullmatch(nickname):
+        raise ValueError("닉네임은 한글, 영문, 숫자, _ 조합 2~12자로 입력하세요")
+    lowered = nickname.lower()
+    for word in FORBIDDEN_NICKNAME_WORDS:
+        if word in lowered:
+            raise ValueError("사용할 수 없는 단어가 포함되어 있습니다")
+    return nickname
+
+
+def profile_to_dict(user, stats=None):
+    available_at = nickname_available_at(user)
+    now = utc_now()
+    can_change = not user.nickname or available_at is None or now >= available_at
+    return {
+        "nickname": user.nickname,
+        "nicknameRequired": not bool(user.nickname),
+        "canChangeNickname": can_change,
+        "nextNicknameChangeAt": (
+            available_at.isoformat().replace("+00:00", "Z")
+            if available_at and not can_change
+            else None
+        ),
+        "level": stats["level"] if stats else None,
+    }
 
 
 @app.before_request
@@ -560,6 +659,37 @@ def stats():
     return jsonify(volume_stats(request_user().id))
 
 
+@app.route("/api/profile", methods=["GET"])
+def get_profile():
+    user = request_user()
+    return jsonify(profile_to_dict(user, volume_stats(user.id)))
+
+
+@app.route("/api/profile", methods=["POST"])
+def update_profile():
+    user = request_user()
+    payload = request.get_json(silent=True) or {}
+    try:
+        nickname = validate_nickname(payload.get("nickname"))
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
+    if nickname == user.nickname:
+        return jsonify(profile_to_dict(user, volume_stats(user.id)))
+    available_at = nickname_available_at(user)
+    now = utc_now()
+    if user.nickname and available_at is not None and now < available_at:
+        return jsonify(
+            {
+                "error": "닉네임은 7일에 한 번만 변경할 수 있습니다",
+                "nextNicknameChangeAt": available_at.isoformat().replace("+00:00", "Z"),
+            }
+        ), 429
+    user.nickname = nickname
+    user.nickname_updated_at = now
+    db.session.commit()
+    return jsonify(profile_to_dict(user, volume_stats(user.id)))
+
+
 @app.route("/api/bootstrap", methods=["GET"])
 def bootstrap():
     user = request_user()
@@ -595,13 +725,15 @@ def bootstrap():
         if before is not None and item["date"] >= before:
             continue
         latest_by_exercise[item["exercise"]] = item
+    stats_data = stats_from_logs(logs, {item["date"] for item in excuse_rows})
     return jsonify(
         {
             "claimedLegacy": claimed,
             "logs": list(reversed(month_logs)),
             "excuses": list(reversed(month_excuses)),
             "latestByExercise": latest_by_exercise,
-            "stats": stats_from_logs(logs, {item["date"] for item in excuse_rows}),
+            "stats": stats_data,
+            "profile": profile_to_dict(user, stats_data),
         }
     )
 

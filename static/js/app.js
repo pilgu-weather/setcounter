@@ -69,10 +69,21 @@ const state = {
   serviceWorkerReady: null,
   setRows: [],
   stats: null,
+  profile: null,
 };
 
 const els = {
   exerciseGrid: document.querySelector("#exerciseGrid"),
+  menuButton: document.querySelector("#menuButton"),
+  menuPopover: document.querySelector("#menuPopover"),
+  changeNicknameButton: document.querySelector("#changeNicknameButton"),
+  userBadgeLabel: document.querySelector("#userBadgeLabel"),
+  profileModal: document.querySelector("#profileModal"),
+  profileForm: document.querySelector("#profileForm"),
+  profileModalTitle: document.querySelector("#profileModalTitle"),
+  profileModalCopy: document.querySelector("#profileModalCopy"),
+  nicknameInput: document.querySelector("#nicknameInput"),
+  profileError: document.querySelector("#profileError"),
   counterTitle: document.querySelector("#counterTitle"),
   selectedDateBanner: document.querySelector("#selectedDateBanner"),
   selectedDateLabel: document.querySelector("#selectedDateLabel"),
@@ -424,6 +435,57 @@ function renderStats(stats) {
   els.totalVolumeValue.textContent = `${Math.round(stats.totalVolume)}kg`;
   els.levelProgressBar.style.width = `${stats.progressPercent}%`;
   els.levelCopy.textContent = `레벨업 ${stats.levelUps}회 · 레벨다운 ${stats.levelDowns}회 · 일일 페널티 ${stats.dailyPenalty}회`;
+  renderProfile();
+}
+
+function renderProfile(profile = state.profile) {
+  if (profile) {
+    state.profile = profile;
+  }
+  const nickname = state.profile?.nickname || "닉네임";
+  const level = state.stats?.level || state.profile?.level || 1;
+  if (els.userBadgeLabel) {
+    els.userBadgeLabel.textContent = `LV.${level} ${nickname}`;
+  }
+  if (state.profile?.nicknameRequired) {
+    openNicknameModal(true);
+  }
+}
+
+function openNicknameModal(required = false) {
+  els.profileError.textContent = "";
+  els.profileModalTitle.textContent = required ? "닉네임 만들기" : "닉네임 변경";
+  els.profileModalCopy.textContent = required
+    ? "운동 레벨과 커뮤니티에 표시할 닉네임을 먼저 정하세요."
+    : "닉네임 변경은 7일에 한 번만 가능합니다.";
+  els.nicknameInput.value = state.profile?.nickname || "";
+  els.profileModal.hidden = false;
+  window.setTimeout(() => els.nicknameInput.focus(), 0);
+}
+
+function closeNicknameModal() {
+  if (!state.profile?.nicknameRequired) {
+    els.profileModal.hidden = true;
+  }
+}
+
+async function saveNickname(event) {
+  event.preventDefault();
+  const nickname = els.nicknameInput.value.trim();
+  els.profileError.textContent = "";
+  try {
+    const profile = await api("/api/profile", {
+      method: "POST",
+      body: JSON.stringify({ nickname }),
+    });
+    renderProfile(profile);
+    els.profileModal.hidden = true;
+    els.menuPopover.hidden = true;
+    els.menuButton.setAttribute("aria-expanded", "false");
+    showToast("닉네임을 저장했습니다.");
+  } catch (error) {
+    els.profileError.textContent = error.message;
+  }
 }
 
 function selectedDateText() {
@@ -523,7 +585,9 @@ async function loadBootstrap() {
   const data = await api(`/api/bootstrap?${query.toString()}`);
   state.logs = data.logs;
   state.excuses = data.excuses;
+  state.profile = data.profile;
   renderStats(data.stats);
+  renderProfile(data.profile);
   renderLatestRecord(data.latestByExercise[state.selectedExercise.name] || null);
   renderCalendar();
   renderHistory();
@@ -901,6 +965,26 @@ function setChartMode(mode) {
 }
 
 function bindEvents() {
+  els.menuButton.addEventListener("click", () => {
+    const nextHidden = !els.menuPopover.hidden;
+    els.menuPopover.hidden = nextHidden;
+    els.menuButton.setAttribute("aria-expanded", String(!nextHidden));
+  });
+  els.changeNicknameButton.addEventListener("click", () => {
+    els.menuPopover.hidden = true;
+    els.menuButton.setAttribute("aria-expanded", "false");
+    if (state.profile && !state.profile.canChangeNickname) {
+      showToast("닉네임은 7일에 한 번만 변경할 수 있습니다.");
+      return;
+    }
+    openNicknameModal(false);
+  });
+  els.profileForm.addEventListener("submit", saveNickname);
+  els.profileModal.addEventListener("click", (event) => {
+    if (event.target === els.profileModal) {
+      closeNicknameModal();
+    }
+  });
   els.countSetButton.addEventListener("click", countSet);
   els.undoSetButton.addEventListener("click", () => {
     state.setRows.pop();

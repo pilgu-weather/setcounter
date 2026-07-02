@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=21">
   </head>
   <body>
     <main class="app-shell">
@@ -20,11 +20,17 @@
           <p class="eyebrow">오늘의 운동</p>
           <h1>Set Counter</h1>
         </div>
+        <div class="top-menu">
+          <button class="menu-button" id="menuButton" type="button" aria-haspopup="true" aria-expanded="false" aria-label="메뉴">☰</button>
+          <div class="menu-popover" id="menuPopover" hidden>
+            <button id="changeNicknameButton" type="button">닉네임 변경</button>
+          </div>
+        </div>
       </header>
 
       <section class="level-section" aria-labelledby="levelTitle">
         <div>
-          <p class="eyebrow">LEVEL</p>
+          <p class="eyebrow" id="userBadgeLabel">LV.1 닉네임</p>
           <h2 id="levelTitle">LV. <span id="levelValue">1</span></h2>
         </div>
         <div class="level-stat">
@@ -192,6 +198,18 @@
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=26"></script>
+    <div class="profile-modal" id="profileModal" hidden>
+      <form class="profile-dialog" id="profileForm">
+        <h2 id="profileModalTitle">닉네임 만들기</h2>
+        <p id="profileModalCopy">커뮤니티와 레벨 표시에 사용할 닉네임을 정하세요.</p>
+        <label>
+          <span>닉네임</span>
+          <input id="nicknameInput" name="nickname" autocomplete="nickname" maxlength="12" placeholder="예: 테스트">
+        </label>
+        <p class="profile-error" id="profileError" role="alert"></p>
+        <button class="confirm-button" id="saveNicknameButton" type="submit">저장</button>
+      </form>
+    </div>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=28"></script>
   </body>
 </html>

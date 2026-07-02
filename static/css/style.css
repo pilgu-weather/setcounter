@@ -16,6 +16,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -50,6 +54,50 @@ button {
   justify-content: flex-start;
   gap: 16px;
   padding: 8px 2px 18px;
+}
+
+.top-menu {
+  position: relative;
+  margin-left: auto;
+}
+
+.menu-button {
+  width: 44px;
+  min-height: 44px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.menu-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 8;
+  min-width: 150px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: #fffdf2;
+  box-shadow: var(--shadow);
+  padding: 6px;
+}
+
+.menu-popover button {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 900;
+  text-align: left;
+}
+
+.menu-popover button:hover {
+  background: #ffe37a;
 }
 
 .brand-logo {
@@ -1042,6 +1090,49 @@ textarea:focus {
 .toast.is-visible {
   transform: translate(-50%, 0);
   opacity: 1;
+}
+
+.profile-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgba(17, 17, 17, 0.72);
+  padding: 18px;
+}
+
+.profile-dialog {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 14px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: #fffdf2;
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+
+.profile-dialog h2,
+.profile-dialog p {
+  margin: 0;
+}
+
+.profile-dialog h2 {
+  color: var(--ink);
+  font-size: 24px;
+}
+
+.profile-dialog p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.profile-error {
+  min-height: 20px;
+  color: var(--danger);
+  font-weight: 900;
 }
 
 @media (max-width: 390px) {

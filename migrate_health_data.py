@@ -21,7 +21,14 @@ BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_BACKUP = BASE_DIR / "backups" / "health-migration-20260622-150103"
 USER_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{16,128}$")
 REQUIRED_COLUMNS = {
-    "health_users": {"id", "user_key", "created_at", "legacy_claimable"},
+    "health_users": {
+        "id",
+        "user_key",
+        "nickname",
+        "nickname_updated_at",
+        "created_at",
+        "legacy_claimable",
+    },
     "health_exercises": {"id", "name", "created_at"},
     "health_workouts": {"id", "user_id", "workout_date", "created_at", "updated_at"},
     "health_sets": {
@@ -102,6 +109,12 @@ def prepare_schema(connection):
                     "BOOLEAN NOT NULL DEFAULT FALSE"
                 )
             )
+        if "nickname" not in user_columns:
+            connection.execute(text("ALTER TABLE health_users ADD COLUMN nickname VARCHAR(24)"))
+        if "nickname_updated_at" not in user_columns:
+            connection.execute(
+                text("ALTER TABLE health_users ADD COLUMN nickname_updated_at TIMESTAMPTZ")
+            )
     protected_tables = ("health_users", "health_workouts", "health_sets", "health_excuses")
     populated = {name: count_rows(connection, name) for name in protected_tables}
     if any(populated.values()):
@@ -113,6 +126,8 @@ def prepare_schema(connection):
             CREATE TABLE IF NOT EXISTS health_users (
                 id SERIAL PRIMARY KEY,
                 user_key VARCHAR(128) NOT NULL UNIQUE,
+                nickname VARCHAR(24),
+                nickname_updated_at TIMESTAMPTZ,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 legacy_claimable BOOLEAN NOT NULL DEFAULT FALSE
             )
@@ -378,7 +393,10 @@ def migrate(backup_dir, app_url):
         if user_id is not None:
             counts = verify_import(connection, user_id, source_logs)
             connection.execute(
-                text("UPDATE health_users SET legacy_claimable=TRUE WHERE id=:user_id"),
+                text(
+                    "UPDATE health_users SET legacy_claimable=TRUE, "
+                    "nickname=COALESCE(nickname, '테스트') WHERE id=:user_id"
+                ),
                 {"user_id": user_id},
             )
             print(
@@ -390,8 +408,8 @@ def migrate(backup_dir, app_url):
             raise RuntimeError("health target tables already contain data; migration aborted before writes")
         user_id = connection.scalar(
             text(
-                "INSERT INTO health_users (user_key, legacy_claimable) "
-                "VALUES (:key, TRUE) RETURNING id"
+                "INSERT INTO health_users (user_key, nickname, legacy_claimable) "
+                "VALUES (:key, '테스트', TRUE) RETURNING id"
             ),
             {"key": user_key},
         )
