@@ -1,15 +1,15 @@
 :root {
-  color-scheme: light;
-  --bg: #fff7cf;
-  --panel: #fffdf2;
-  --ink: #111111;
-  --muted: #5c5640;
-  --line: #e3d48d;
-  --accent: #ffd21f;
-  --accent-dark: #111111;
-  --warm: #ffb800;
-  --danger: #b94848;
-  --shadow: 0 18px 50px rgba(17, 17, 17, 0.16);
+  color-scheme: dark;
+  --bg: #0b0b0b;
+  --panel: #171717;
+  --ink: #f2f2ee;
+  --muted: #a8a29a;
+  --line: #343434;
+  --accent: #d9dde3;
+  --accent-dark: #0b0b0b;
+  --warm: #b8c0cc;
+  --danger: #d94848;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
 }
 
 * {
@@ -24,8 +24,8 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(255, 210, 31, 0.45), transparent 28rem),
-    linear-gradient(180deg, #fff0a8 0%, var(--bg) 42%);
+    radial-gradient(circle at top left, rgba(185, 192, 204, 0.18), transparent 28rem),
+    linear-gradient(180deg, #202020 0%, var(--bg) 42%);
   color: var(--ink);
   font-family: Arial, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 }
@@ -64,10 +64,10 @@ button {
 .menu-button {
   width: 44px;
   min-height: 44px;
-  border: 2px solid var(--ink);
+  border: 2px solid var(--line);
   border-radius: 8px;
   background: var(--accent);
-  color: var(--ink);
+  color: var(--accent-dark);
   font-size: 22px;
   font-weight: 900;
 }
@@ -78,9 +78,9 @@ button {
   right: 0;
   z-index: 8;
   min-width: 150px;
-  border: 2px solid var(--ink);
+  border: 2px solid var(--line);
   border-radius: 8px;
-  background: #fffdf2;
+  background: #171717;
   box-shadow: var(--shadow);
   padding: 6px;
 }
@@ -97,7 +97,7 @@ button {
 }
 
 .menu-popover button:hover {
-  background: #ffe37a;
+  background: #2b2b2b;
 }
 
 .brand-logo {
@@ -107,7 +107,7 @@ button {
   border-radius: 12px;
   object-fit: contain;
   background: transparent;
-  box-shadow: 0 10px 22px rgba(17, 17, 17, 0.12);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
 }
 
 .brand-copy {
@@ -153,8 +153,8 @@ h2 {
 .sos-section,
 .calendar-section,
 .history-section {
-  background: rgba(255, 253, 242, 0.95);
-  border: 1px solid rgba(227, 212, 141, 0.95);
+  background: rgba(23, 23, 23, 0.96);
+  border: 1px solid rgba(52, 52, 52, 0.95);
   border-radius: 8px;
   box-shadow: var(--shadow);
 }
@@ -195,15 +195,15 @@ h2 {
   grid-column: 1 / -1;
   height: 12px;
   overflow: hidden;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: #fffdf2;
+  background: #171717;
 }
 
 .level-progress div {
   width: 0%;
   height: 100%;
-  background: var(--ink);
+  background: var(--accent);
   transition: width 180ms ease;
 }
 
@@ -229,17 +229,17 @@ h2 {
 
 .reminder-button {
   min-width: 112px;
-  border: 2px solid var(--ink);
+  border: 2px solid var(--line);
   border-radius: 8px;
   background: var(--accent);
-  color: var(--ink);
+  color: var(--accent-dark);
   padding: 0 14px;
   font-weight: 900;
 }
 
 .reminder-button.is-on {
-  background: var(--ink);
-  color: var(--accent);
+  background: #2b2b2b;
+  color: var(--ink);
 }
 
 .sos-section {
@@ -268,16 +268,16 @@ h2 {
   justify-content: space-between;
   gap: 10px;
   margin: 0 0 14px;
-  border: 2px solid var(--ink);
+  border: 2px solid var(--line);
   border-radius: 8px;
-  background: var(--ink);
-  color: var(--accent);
+  background: #101010;
+  color: var(--ink);
   padding: 10px 12px;
   font-weight: 900;
 }
 
 .selected-date-banner span {
-  color: #fffdf2;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -286,7 +286,7 @@ h2 {
 }
 
 .selected-date-banner.is-past {
-  background: #ffd21f;
+  background: #262626;
   color: var(--ink);
 }
 
@@ -335,7 +335,7 @@ h2 {
   min-height: 132px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fffdf2;
+  background: #171717;
   color: var(--ink);
   padding: 8px 6px 10px;
   text-align: center;
@@ -343,8 +343,8 @@ h2 {
 
 .exercise-card[aria-pressed="true"] {
   border-color: var(--ink);
-  background: #ffe37a;
-  box-shadow: inset 0 0 0 2px rgba(17, 17, 17, 0.16);
+  background: #2b2b2b;
+  box-shadow: inset 0 0 0 2px rgba(242, 242, 238, 0.18);
 }
 
 .exercise-art {
@@ -352,7 +352,7 @@ h2 {
   aspect-ratio: 1;
   border-radius: 8px;
   overflow: hidden;
-  background: #fff0a8;
+  background: #202020;
 }
 
 .exercise-art img {
@@ -410,7 +410,7 @@ input {
   min-height: 46px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fffdf2;
+  background: #171717;
   color: var(--ink);
   padding: 0 12px;
   outline: none;
@@ -435,10 +435,10 @@ input {
 .stepper-button {
   width: 54px;
   min-height: 54px;
-  border: 2px solid var(--ink);
+  border: 2px solid var(--line);
   border-radius: 8px;
   background: var(--accent);
-  color: var(--ink);
+  color: var(--accent-dark);
   font-size: 26px;
   font-weight: 900;
   line-height: 1;
@@ -455,7 +455,7 @@ textarea {
   resize: vertical;
   border: 1px solid rgba(185, 72, 72, 0.45);
   border-radius: 8px;
-  background: #fffdf2;
+  background: #171717;
   color: var(--ink);
   padding: 12px;
   outline: none;
@@ -463,7 +463,7 @@ textarea {
 
 input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(255, 210, 31, 0.42);
+  box-shadow: 0 0 0 3px rgba(185, 192, 204, 0.22);
 }
 
 textarea:focus {
@@ -474,14 +474,14 @@ textarea:focus {
 .last-record,
 .planned-record {
   border-radius: 8px;
-  color: var(--accent-dark);
+  color: var(--ink);
   font-size: 14px;
   font-weight: 800;
 }
 
 .last-record {
   margin-top: 14px;
-  background: #fff0a8;
+  background: #202020;
   padding: 11px 12px;
 }
 
@@ -531,7 +531,7 @@ textarea:focus {
   height: 12px;
   overflow: hidden;
   border-radius: 999px;
-  background: #f1dfa0;
+  background: #2f2f2f;
 }
 
 .progress-track div {
@@ -561,8 +561,8 @@ textarea:focus {
 
 .count-button,
 .confirm-button {
-  background: var(--ink);
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-dark);
 }
 
 .count-button {
@@ -578,8 +578,8 @@ textarea:focus {
 
 .confirm-button:disabled {
   cursor: not-allowed;
-  background: #c9bd7c;
-  color: #fff7cf;
+  background: #343434;
+  color: var(--muted);
 }
 
 .count-button:active,
@@ -589,7 +589,7 @@ textarea:focus {
 
 .secondary-button {
   background: var(--accent);
-  color: var(--ink);
+  color: var(--accent-dark);
   min-height: 58px;
 }
 
@@ -597,7 +597,7 @@ textarea:focus {
   border: 0;
   border-radius: 8px;
   background: var(--danger);
-  color: #fffdf2;
+  color: #171717;
   font-size: 18px;
   font-weight: 900;
 }
@@ -612,7 +612,7 @@ textarea:focus {
 .icon-button {
   width: 44px;
   background: var(--accent);
-  color: var(--ink);
+  color: var(--accent-dark);
   font-size: 26px;
   line-height: 1;
 }
@@ -646,8 +646,8 @@ textarea:focus {
   content: "+";
   margin-left: auto;
   border-radius: 999px;
-  background: var(--ink);
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-dark);
   width: 28px;
   height: 28px;
   display: grid;
@@ -669,8 +669,8 @@ textarea:focus {
 }
 
 .chart-section {
-  background: rgba(255, 253, 242, 0.95);
-  border: 1px solid rgba(227, 212, 141, 0.95);
+  background: rgba(23, 23, 23, 0.96);
+  border: 1px solid rgba(52, 52, 52, 0.95);
   border-radius: 8px;
   box-shadow: var(--shadow);
 }
@@ -685,7 +685,7 @@ textarea:focus {
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fffdf2;
+  background: #171717;
 }
 
 .set-table,
@@ -716,7 +716,7 @@ textarea:focus {
 
 .set-table th,
 .record-table th {
-  background: #ffe37a;
+  background: #2b2b2b;
   color: var(--muted);
   font-size: 12px;
   font-weight: 900;
@@ -748,8 +748,8 @@ textarea:focus {
 }
 
 .record-table tfoot td {
-  background: #111111;
-  color: #ffd21f;
+  background: #101010;
+  color: var(--ink);
   font-weight: 900;
 }
 
@@ -768,7 +768,7 @@ textarea:focus {
 .record-chips span {
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: #fffdf2;
+  background: #171717;
   color: var(--muted);
   padding: 5px 8px;
   font-size: 12px;
@@ -785,14 +785,14 @@ textarea:focus {
 .chart-tab {
   border: 0;
   border-radius: 8px;
-  background: #fff0a8;
+  background: #202020;
   color: var(--muted);
   font-weight: 800;
 }
 
 .chart-tab.is-active {
-  background: var(--ink);
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-dark);
 }
 
 #progressChart {
@@ -802,7 +802,7 @@ textarea:focus {
   margin: 0 12px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fffdf2;
+  background: #171717;
 }
 
 .calendar-weekdays,
@@ -834,7 +834,7 @@ textarea:focus {
   aspect-ratio: 1;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fffdf2;
+  background: #171717;
   color: var(--muted);
   font-size: 14px;
   font-weight: 800;
@@ -864,12 +864,12 @@ textarea:focus {
 
 .day-cell.is-today {
   color: var(--ink);
-  border-color: rgba(17, 17, 17, 0.65);
+  border-color: rgba(242, 242, 238, 0.65);
 }
 
 .day-cell.has-workout {
-  background: #ffe37a;
-  border-color: rgba(17, 17, 17, 0.25);
+  background: #2b2b2b;
+  border-color: rgba(242, 242, 238, 0.25);
   color: var(--ink);
 }
 
@@ -880,7 +880,7 @@ textarea:focus {
   width: 5px;
   height: 5px;
   border-radius: 999px;
-  background: var(--ink);
+  background: var(--accent);
 }
 
 .day-cell.is-selected {
@@ -901,7 +901,7 @@ textarea:focus {
   height: 8px;
   border-radius: 999px;
   background: var(--danger);
-  box-shadow: 0 0 0 2px #fffdf2;
+  box-shadow: 0 0 0 2px #171717;
 }
 
 .calendar-excuses {
@@ -914,9 +914,9 @@ textarea:focus {
   display: grid;
   gap: 10px;
   margin: 0 12px 12px;
-  border: 1px solid rgba(17, 17, 17, 0.22);
+  border: 1px solid rgba(242, 242, 238, 0.14);
   border-radius: 8px;
-  background: rgba(255, 253, 242, 0.95);
+  background: rgba(23, 23, 23, 0.96);
   padding: 12px;
 }
 
@@ -963,8 +963,8 @@ textarea:focus {
   min-height: 48px;
   border: 0;
   border-radius: 8px;
-  background: var(--ink);
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-dark);
   font-size: 15px;
   font-weight: 900;
 }
@@ -1025,7 +1025,7 @@ textarea:focus {
   min-height: 58px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fffdf2;
+  background: #171717;
   padding: 10px 12px;
 }
 
@@ -1060,7 +1060,7 @@ textarea:focus {
   min-height: 44px;
   border: 0;
   border-radius: 8px;
-  background: #f8eaea;
+  background: rgba(217, 72, 72, 0.16);
   color: var(--danger);
   font-weight: 900;
 }
@@ -1080,7 +1080,7 @@ textarea:focus {
   width: min(calc(100% - 32px), 480px);
   border-radius: 8px;
   background: #111111;
-  color: #ffd21f;
+  color: var(--ink);
   padding: 13px 16px;
   text-align: center;
   opacity: 0;
@@ -1106,9 +1106,9 @@ textarea:focus {
   width: min(100%, 420px);
   display: grid;
   gap: 14px;
-  border: 2px solid var(--ink);
+  border: 2px solid var(--line);
   border-radius: 8px;
-  background: #fffdf2;
+  background: #171717;
   box-shadow: var(--shadow);
   padding: 20px;
 }
