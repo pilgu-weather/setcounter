@@ -297,10 +297,10 @@ function rowsFromLog(log) {
 function applyInputsFromLatestRecord(log) {
   const rows = rowsFromLog(log);
   if (!rows.length) return;
-  const lastRow = rows[rows.length - 1];
+  const firstRow = rows[0];
   const step = weightStepForExercise();
-  els.weightInput.value = String(Math.max(Math.round((lastRow.weightKg || step) / step) * step, step));
-  els.currentRepsInput.value = String(Math.max(lastRow.reps || 1, 1));
+  els.weightInput.value = String(Math.max(Math.round((firstRow.weightKg || step) / step) * step, step));
+  els.currentRepsInput.value = String(Math.max(firstRow.reps || 1, 1));
   els.setsInput.value = String(Math.max(log.targetSets || rows.length || 1, 1));
   syncCounter();
 }
