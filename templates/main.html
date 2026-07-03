@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#0b0b0b">
+    <meta name="theme-color" content="#191a1c">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Set Counter">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='assets/app-icon-180.png') }}?v=8">
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=22">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=24">
   </head>
   <body>
     <main class="app-shell">
@@ -30,7 +30,13 @@
 
       <section class="level-section" aria-labelledby="levelTitle">
         <div>
-          <p class="eyebrow" id="userBadgeLabel">LV.1 닉네임</p>
+          <p class="eyebrow user-badge" id="userBadgeLabel">
+            <span class="level-badge rookie" aria-label="레벨 1">
+              <span class="level-badge-label">LV</span>
+              <span class="level-badge-number">1</span>
+            </span>
+            <span class="nickname-text">닉네임</span>
+          </p>
           <h2 id="levelTitle">LV. <span id="levelValue">1</span></h2>
         </div>
         <div class="level-stat">
@@ -210,6 +216,6 @@
         <button class="confirm-button" id="saveNicknameButton" type="submit">저장</button>
       </form>
     </div>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=30"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=31"></script>
   </body>
 </html>

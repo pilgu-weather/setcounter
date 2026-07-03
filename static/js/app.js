@@ -43,6 +43,22 @@ function pad(value) {
   return String(value).padStart(2, "0");
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function levelBadgeClass(level) {
+  if (level >= 30) return "level-badge legendary";
+  if (level >= 20) return "level-badge elite";
+  if (level >= 10) return "level-badge strong";
+  return "level-badge rookie";
+}
+
 function toDateKey(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
@@ -457,7 +473,13 @@ function renderProfile(profile = state.profile) {
   const nickname = state.profile?.nickname || "닉네임";
   const level = state.stats?.level || state.profile?.level || 1;
   if (els.userBadgeLabel) {
-    els.userBadgeLabel.textContent = `LV.${level} ${nickname}`;
+    els.userBadgeLabel.innerHTML = `
+      <span class="${levelBadgeClass(level)}" aria-label="레벨 ${level}">
+        <span class="level-badge-label">LV</span>
+        <span class="level-badge-number">${level}</span>
+      </span>
+      <span class="nickname-text">${escapeHtml(nickname)}</span>
+    `;
   }
   if (state.profile?.nicknameRequired) {
     openNicknameModal(true);
