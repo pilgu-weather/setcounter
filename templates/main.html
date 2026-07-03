@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=25">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=26">
   </head>
   <body>
     <main class="app-shell">
@@ -152,7 +152,12 @@
           </div>
         </div>
         <form class="board-form" id="boardForm">
-          <div class="board-author" id="boardAuthor">1 닉네임</div>
+          <div class="board-author" id="boardAuthor">
+            <span class="level-badge rookie" aria-label="레벨 1">
+              <span class="level-badge-number">1</span>
+            </span>
+            <span class="nickname-text">닉네임</span>
+          </div>
           <textarea id="boardInput" rows="3" maxlength="180" placeholder="오늘 운동 인증, 기록 자랑, 한 줄 다짐"></textarea>
           <button class="confirm-button" type="submit">글쓰기</button>
         </form>
@@ -216,6 +221,6 @@
         <button class="confirm-button" id="saveNicknameButton" type="submit">저장</button>
       </form>
     </div>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=32"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=33"></script>
   </body>
 </html>

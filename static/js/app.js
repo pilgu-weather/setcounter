@@ -817,22 +817,47 @@ async function chooseDate(dateKey, options = {}) {
   target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function boardAuthorText() {
+function currentBoardAuthor() {
   const nickname = state.profile?.nickname || "닉네임";
   const level = state.stats?.level || state.profile?.level || 1;
-  return `${level} ${nickname}`;
+  return { level, nickname };
+}
+
+function boardAuthorText(author) {
+  return `${author.level} ${author.nickname}`;
+}
+
+function authorFromPost(post) {
+  if (post.level && post.nickname) return { level: post.level, nickname: post.nickname };
+  const match = String(post.author || "").match(/^(\d+)\s+(.+)$/);
+  if (match) return { level: Number(match[1]), nickname: match[2] };
+  return { level: 1, nickname: post.author || "닉네임" };
+}
+
+function renderBoardAuthorElement(target, author) {
+  target.className = "board-author";
+  target.innerHTML = `
+    <span class="${levelBadgeClass(author.level)}" aria-label="레벨 ${author.level}">
+      <span class="level-badge-number">${author.level}</span>
+    </span>
+    <span class="nickname-text">${escapeHtml(author.nickname)}</span>
+  `;
 }
 
 function defaultBoardPosts() {
   return [
     {
       id: "sample-1",
+      level: 12,
+      nickname: "쇠질왕",
       author: "12 쇠질왕",
       content: "오늘 기록 넘긴 사람은 여기 인증.",
       createdAt: "방금 전",
     },
     {
       id: "sample-2",
+      level: 7,
+      nickname: "꾸준맨",
       author: "7 꾸준맨",
       content: "하루 한 종목이라도 찍으면 레벨은 지킨다.",
       createdAt: "어제",
@@ -842,7 +867,7 @@ function defaultBoardPosts() {
 
 function renderBoard() {
   if (!els.boardList) return;
-  if (els.boardAuthor) els.boardAuthor.textContent = boardAuthorText();
+  if (els.boardAuthor) renderBoardAuthorElement(els.boardAuthor, currentBoardAuthor());
   els.boardList.replaceChildren();
   const posts = state.boardPosts.length ? state.boardPosts : defaultBoardPosts();
   posts.forEach((post) => {
@@ -851,7 +876,7 @@ function renderBoard() {
     const meta = document.createElement("div");
     meta.className = "board-post-meta";
     const author = document.createElement("strong");
-    author.textContent = post.author;
+    renderBoardAuthorElement(author, authorFromPost(post));
     const time = document.createElement("span");
     time.textContent = post.createdAt;
     meta.append(author, time);
@@ -869,9 +894,11 @@ function submitBoardPost(event) {
     showToast("게시글 내용을 입력해주세요.");
     return;
   }
+  const author = currentBoardAuthor();
   state.boardPosts.unshift({
     id: `${Date.now()}`,
-    author: boardAuthorText(),
+    ...author,
+    author: boardAuthorText(author),
     content,
     createdAt: "방금 전",
   });
