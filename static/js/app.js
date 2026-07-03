@@ -477,7 +477,7 @@ function renderStats(stats) {
   els.levelValue.textContent = stats.level;
   els.totalVolumeValue.textContent = `${Math.round(stats.totalVolume)}kg`;
   els.levelProgressBar.style.width = `${stats.progressPercent}%`;
-  els.levelCopy.textContent = `레벨업 ${stats.levelUps}회 · 레벨다운 ${stats.levelDowns}회 · 일일 페널티 ${stats.dailyPenalty}회`;
+  els.levelCopy.textContent = `레벨업 ${stats.levelUps}회 · 레벨다운 ${stats.levelDowns}회 · 일일 페널티 ${stats.dailyPenalty}회 · 부정 페널티 ${stats.cheatPenalty || 0}회`;
   renderProfile();
 }
 
@@ -554,6 +554,24 @@ function syncSelectedDateUi() {
 function announceLevelChange(previousLevel, nextLevel) {
   if (!previousLevel || previousLevel === nextLevel) return;
   showToast(nextLevel > previousLevel ? `레벨업: LV.${nextLevel}` : `레벨다운: LV.${nextLevel}`);
+}
+
+function announceCheatGuard(previousStats, nextStats) {
+  if (!previousStats || !nextStats) return false;
+  const previousPenalty = previousStats.cheatPenalty || 0;
+  const nextPenalty = nextStats.cheatPenalty || 0;
+  const previousCount = previousStats.cheatSuspicionCount || 0;
+  const nextCount = nextStats.cheatSuspicionCount || 0;
+  if (nextPenalty > previousPenalty) {
+    const email = nextStats.complaintEmail || "";
+    showToast(`부정행위로 인한 레벨다운입니다. 컴플레인 이메일: ${email}`);
+    return true;
+  }
+  if (nextCount > previousCount) {
+    showToast("비정상 기록이 반복되면 부정행위로 제한을 받을 수 있습니다.");
+    return true;
+  }
+  return false;
 }
 
 function makeExerciseArt(exercise) {
@@ -971,6 +989,7 @@ async function saveSosExcuse() {
 
 async function saveWorkout() {
   const previousLevel = state.stats?.level;
+  const previousStats = state.stats ? { ...state.stats } : null;
   const log = {
     date: state.selectedDate,
     exercise: state.selectedExercise.name,
@@ -988,7 +1007,8 @@ async function saveWorkout() {
   showToast(`${state.selectedDate} 운동 기록을 저장했습니다.`);
   resetSession(true);
   const data = await loadBootstrap();
-  announceLevelChange(previousLevel, data.stats.level);
+  const cheatAlertShown = announceCheatGuard(previousStats, data.stats);
+  if (!cheatAlertShown) announceLevelChange(previousLevel, data.stats.level);
 }
 
 function countSet() {

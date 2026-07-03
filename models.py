@@ -58,6 +58,8 @@ class HealthWorkout(db.Model):
     updated_at = db.Column(
         db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
     )
+    suspicion_score = db.Column(db.Integer, nullable=False, default=0)
+    suspicion_flags = db.Column(db.Text, nullable=False, default="[]")
 
     user = db.relationship("HealthUser", back_populates="workouts")
     sets = db.relationship(

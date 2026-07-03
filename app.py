@@ -57,6 +57,9 @@ MAX_MEMO_LENGTH = 500
 MAX_SETS_PER_WORKOUT = 30
 MAX_REPS_PER_SET = 1000
 MAX_WEIGHT_KG = 2000
+CHEAT_WARNING_LIMIT = 2
+CHEAT_PENALTY_THRESHOLD = 3
+COMPLAINT_EMAIL = ""
 REQUIRED_SCHEMA = {
     "health_users": {
         "id",
@@ -67,7 +70,15 @@ REQUIRED_SCHEMA = {
         "legacy_claimable",
     },
     "health_exercises": {"id", "name", "created_at"},
-    "health_workouts": {"id", "user_id", "workout_date", "created_at", "updated_at"},
+    "health_workouts": {
+        "id",
+        "user_id",
+        "workout_date",
+        "created_at",
+        "updated_at",
+        "suspicion_score",
+        "suspicion_flags",
+    },
     "health_sets": {
         "id",
         "workout_id",
@@ -133,11 +144,20 @@ def upgrade_schema():
     if "health_users" not in schema.get_table_names():
         return
     user_columns = {column["name"] for column in schema.get_columns("health_users")}
+    workout_columns = {column["name"] for column in schema.get_columns("health_workouts")}
     with db.engine.begin() as connection:
         if "nickname" not in user_columns:
             connection.execute(text("ALTER TABLE health_users ADD COLUMN nickname VARCHAR(24)"))
         if "nickname_updated_at" not in user_columns:
             connection.execute(text("ALTER TABLE health_users ADD COLUMN nickname_updated_at TIMESTAMPTZ"))
+        if "suspicion_score" not in workout_columns:
+            connection.execute(
+                text("ALTER TABLE health_workouts ADD COLUMN suspicion_score INTEGER NOT NULL DEFAULT 0")
+            )
+        if "suspicion_flags" not in workout_columns:
+            connection.execute(
+                text("ALTER TABLE health_workouts ADD COLUMN suspicion_flags TEXT NOT NULL DEFAULT '[]'")
+            )
         connection.execute(
             text(
                 """
@@ -413,6 +433,14 @@ def load_workouts(query):
     return db.session.execute(query).unique().scalars().all()
 
 
+def parsed_suspicion_flags(value):
+    try:
+        flags = json.loads(value or "[]")
+        return flags if isinstance(flags, list) else []
+    except (TypeError, ValueError):
+        return []
+
+
 def workout_to_log(workout):
     rows = sorted(workout.sets, key=lambda item: item.set_index)
     set_rows = [
@@ -441,6 +469,8 @@ def workout_to_log(workout):
         "targetSets": len(set_rows),
         "completedSets": len(set_rows),
         "notes": rows[0].memo if rows else "",
+        "suspicionScore": workout.suspicion_score or 0,
+        "suspicionFlags": parsed_suspicion_flags(workout.suspicion_flags),
         "createdAt": workout.created_at.isoformat().replace("+00:00", "Z"),
     }
 
@@ -452,6 +482,44 @@ def excuse_to_dict(excuse):
         "reason": excuse.excuse_text,
         "createdAt": excuse.created_at.isoformat().replace("+00:00", "Z"),
     }
+
+
+def suspicious_training_flags(candidate, previous_logs):
+    flags = []
+    previous_same = [log for log in previous_logs if log["exercise"] == candidate["exercise"]]
+    previous = previous_same[-1] if previous_same else None
+    if previous and previous["volume"] > 0 and candidate["volume"] >= previous["volume"] * 2:
+        flags.append("previous_volume_doubled")
+    if previous:
+        previous_max_weight = max(previous["setWeights"], default=0)
+        candidate_max_weight = max(candidate["setWeights"], default=0)
+        if (
+            previous_max_weight > 0
+            and candidate_max_weight >= previous_max_weight * 1.75
+            and candidate_max_weight - previous_max_weight >= 16
+        ):
+            flags.append("weight_spike")
+    daily_totals = {}
+    for log in previous_logs:
+        daily_totals[log["date"]] = daily_totals.get(log["date"], 0) + log["volume"]
+    previous_day_totals = [volume for day, volume in daily_totals.items() if day < candidate["date"]]
+    if len(previous_day_totals) >= 3:
+        average_daily = sum(previous_day_totals) / len(previous_day_totals)
+        candidate_day_total = daily_totals.get(candidate["date"], 0) + candidate["volume"]
+        if average_daily > 0 and candidate_day_total >= average_daily * 3 and candidate_day_total >= average_daily + 1000:
+            flags.append("daily_volume_outlier")
+    if (
+        candidate["completedSets"] > 12
+        or candidate["totalReps"] > 300
+        or max(candidate["setReps"], default=0) > 100
+    ):
+        flags.append("extreme_sets_or_reps")
+    return flags
+
+
+def cheat_penalty_from_logs(logs):
+    suspicious_count = sum(1 for log in logs if log.get("suspicionScore", 0) > 0)
+    return suspicious_count if suspicious_count >= CHEAT_PENALTY_THRESHOLD else 0
 
 
 def iso_date_range(start_key, end_key):
@@ -503,12 +571,20 @@ def stats_from_logs(logs, excuse_dates):
                 downs += 1
         previous_by_exercise[log["exercise"]] = log["volume"]
     challenge = daily_challenge_penalty(logs, excuse_dates)
+    suspicious_count = sum(1 for log in logs if log.get("suspicionScore", 0) > 0)
+    cheat_penalty = cheat_penalty_from_logs(logs)
+    total_penalty = challenge["penalty"] + cheat_penalty
     return {
-        "level": max(level_changes + 1 - challenge["penalty"], 1),
-        "rule": "previous_record_delta_with_daily_challenge",
+        "level": max(level_changes + 1 - total_penalty, 1),
+        "rule": "previous_record_delta_with_daily_challenge_and_cheat_guard",
         "levelUps": ups,
         "levelDowns": downs,
         "dailyPenalty": challenge["penalty"],
+        "cheatWarnings": min(suspicious_count, CHEAT_WARNING_LIMIT),
+        "cheatSuspicionCount": suspicious_count,
+        "cheatPenalty": cheat_penalty,
+        "cheatPenaltyThreshold": CHEAT_PENALTY_THRESHOLD,
+        "complaintEmail": COMPLAINT_EMAIL,
         "failedDates": challenge["failedDates"],
         "passedDates": challenge["passedDates"],
         "trackedExercises": len(previous_by_exercise),
@@ -913,12 +989,38 @@ def create_log():
         set_data = normalized_set_data(payload, exercise_name)
     except (TypeError, ValueError):
         return jsonify({"error": "valid date, weight, reps, and completed sets are required"}), 400
+    existing_logs = [
+        workout_to_log(workout)
+        for workout in load_workouts(
+            workout_query(user.id).order_by(
+                HealthWorkout.workout_date.asc(),
+                HealthWorkout.created_at.asc(),
+                HealthWorkout.id.asc(),
+            )
+        )
+    ]
+    candidate_log = {
+        "date": workout_date.isoformat(),
+        "exercise": exercise_name,
+        "setWeights": [weight for weight, _reps in set_data],
+        "setReps": [reps for _weight, reps in set_data],
+        "totalReps": sum(reps for _weight, reps in set_data),
+        "volume": sum(weight * reps for weight, reps in set_data),
+        "completedSets": len(set_data),
+    }
+    comparable_logs = [log for log in existing_logs if log["date"] <= candidate_log["date"]]
+    suspicion_flags = suspicious_training_flags(candidate_log, comparable_logs)
     exercise = db.session.scalar(select(HealthExercise).where(HealthExercise.name == exercise_name))
     if exercise is None:
         exercise = HealthExercise(name=exercise_name)
         db.session.add(exercise)
         db.session.flush()
-    workout = HealthWorkout(user_id=user.id, workout_date=workout_date)
+    workout = HealthWorkout(
+        user_id=user.id,
+        workout_date=workout_date,
+        suspicion_score=len(suspicion_flags),
+        suspicion_flags=json.dumps(suspicion_flags, ensure_ascii=False),
+    )
     db.session.add(workout)
     db.session.flush()
     memo = str(payload.get("notes", "")).strip()[:MAX_MEMO_LENGTH]
