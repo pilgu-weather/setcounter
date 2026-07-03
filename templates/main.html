@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=24">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=25">
   </head>
   <body>
     <main class="app-shell">
@@ -32,7 +32,6 @@
         <div>
           <p class="eyebrow user-badge" id="userBadgeLabel">
             <span class="level-badge rookie" aria-label="레벨 1">
-              <span class="level-badge-label">LV</span>
               <span class="level-badge-number">1</span>
             </span>
             <span class="nickname-text">닉네임</span>
@@ -145,18 +144,19 @@
         <button class="confirm-button" id="confirmWorkoutButton" type="button" disabled>확인하고 기록 저장</button>
       </section>
 
-      <section class="chart-section" aria-labelledby="chartTitle">
+      <section class="board-section" aria-labelledby="boardTitle">
         <div class="section-head plain">
           <div>
-            <h2 id="chartTitle">운동 그래프</h2>
-            <p class="section-copy" id="chartSummary">이번 달 기록을 기준으로 보여줍니다.</p>
+            <h2 id="boardTitle">게시판</h2>
+            <p class="section-copy">레벨 달고 오늘 운동 인증하기</p>
           </div>
         </div>
-        <div class="chart-tabs" role="tablist" aria-label="그래프 기준">
-          <button class="chart-tab is-active" id="volumeChartButton" type="button">볼륨</button>
-          <button class="chart-tab" id="setsChartButton" type="button">세트</button>
-        </div>
-        <canvas id="progressChart" width="640" height="280" aria-label="운동 진행 그래프"></canvas>
+        <form class="board-form" id="boardForm">
+          <div class="board-author" id="boardAuthor">1 닉네임</div>
+          <textarea id="boardInput" rows="3" maxlength="180" placeholder="오늘 운동 인증, 기록 자랑, 한 줄 다짐"></textarea>
+          <button class="confirm-button" type="submit">글쓰기</button>
+        </form>
+        <div class="board-list" id="boardList" aria-live="polite"></div>
       </section>
 
       <section class="sos-section" aria-labelledby="sosTitle">
@@ -216,6 +216,6 @@
         <button class="confirm-button" id="saveNicknameButton" type="submit">저장</button>
       </form>
     </div>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=31"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=32"></script>
   </body>
 </html>

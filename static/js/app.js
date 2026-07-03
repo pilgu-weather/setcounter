@@ -12,6 +12,7 @@ const exercises = [
 ];
 
 const USER_KEY_STORAGE = "healthUserKey";
+const BOARD_STORAGE = "setCounterBoardPosts";
 const USER_KEY_PATTERN = /^[A-Za-z0-9._:-]{16,128}$/;
 
 function createUserKey() {
@@ -59,6 +60,20 @@ function levelBadgeClass(level) {
   return "level-badge rookie";
 }
 
+function loadBoardPosts() {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(BOARD_STORAGE) || "[]");
+    if (Array.isArray(stored)) return stored;
+  } catch (error) {
+    window.localStorage.removeItem(BOARD_STORAGE);
+  }
+  return [];
+}
+
+function saveBoardPosts(posts) {
+  window.localStorage.setItem(BOARD_STORAGE, JSON.stringify(posts.slice(0, 30)));
+}
+
 function toDateKey(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
@@ -76,7 +91,7 @@ const todayKey = toDateKey(new Date());
 
 const state = {
   currentMonth: new Date(),
-  chartMode: "volume",
+  boardPosts: loadBoardPosts(),
   excuses: [],
   lastRecord: null,
   logs: [],
@@ -127,10 +142,10 @@ const els = {
   levelCopy: document.querySelector("#levelCopy"),
   reminderStatus: document.querySelector("#reminderStatus"),
   enableReminderButton: document.querySelector("#enableReminderButton"),
-  chartSummary: document.querySelector("#chartSummary"),
-  progressChart: document.querySelector("#progressChart"),
-  volumeChartButton: document.querySelector("#volumeChartButton"),
-  setsChartButton: document.querySelector("#setsChartButton"),
+  boardForm: document.querySelector("#boardForm"),
+  boardInput: document.querySelector("#boardInput"),
+  boardAuthor: document.querySelector("#boardAuthor"),
+  boardList: document.querySelector("#boardList"),
   calendarTitle: document.querySelector("#calendarTitle"),
   calendarGrid: document.querySelector("#calendarGrid"),
   calendarDayDetail: document.querySelector("#calendarDayDetail"),
@@ -475,12 +490,12 @@ function renderProfile(profile = state.profile) {
   if (els.userBadgeLabel) {
     els.userBadgeLabel.innerHTML = `
       <span class="${levelBadgeClass(level)}" aria-label="레벨 ${level}">
-        <span class="level-badge-label">LV</span>
         <span class="level-badge-number">${level}</span>
       </span>
       <span class="nickname-text">${escapeHtml(nickname)}</span>
     `;
   }
+  renderBoard();
   if (state.profile?.nicknameRequired) {
     openNicknameModal(true);
   }
@@ -577,7 +592,7 @@ async function selectExercise(exercise) {
   resetSession(true);
   renderExerciseCards();
   await loadLatestRecord();
-  renderChart();
+  renderBoard();
 }
 
 function renderLatestRecord(latest) {
@@ -625,7 +640,7 @@ async function loadBootstrap() {
   renderLatestRecord(data.latestByExercise[state.selectedExercise.name] || null);
   renderCalendar();
   renderHistory();
-  renderChart();
+  renderBoard();
   if (data.claimedLegacy) showToast(`기존 운동 기록 ${data.stats.totalRecords}건을 연결했습니다.`);
   return data;
 }
@@ -802,90 +817,68 @@ async function chooseDate(dateKey, options = {}) {
   target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function groupedLogsForChart() {
-  const daily = new Map();
-  state.logs
-    .filter((log) => log.exercise === state.selectedExercise.name)
-    .forEach((log) => {
-      const existing = daily.get(log.date) || { date: log.date, volume: 0, sets: 0 };
-      existing.volume += log.volume || 0;
-      existing.sets += log.completedSets || 0;
-      daily.set(log.date, existing);
-    });
-  return Array.from(daily.values()).sort((a, b) => a.date.localeCompare(b.date));
+function boardAuthorText() {
+  const nickname = state.profile?.nickname || "닉네임";
+  const level = state.stats?.level || state.profile?.level || 1;
+  return `${level} ${nickname}`;
 }
 
-function renderChart() {
-  const canvas = els.progressChart;
-  const ctx = canvas.getContext("2d");
-  const width = canvas.width;
-  const height = canvas.height;
-  const points = groupedLogsForChart();
-  const metric = state.chartMode;
-  const label = metric === "volume" ? "볼륨" : "세트";
-  const unit = metric === "volume" ? "kg" : "세트";
+function defaultBoardPosts() {
+  return [
+    {
+      id: "sample-1",
+      author: "12 쇠질왕",
+      content: "오늘 기록 넘긴 사람은 여기 인증.",
+      createdAt: "방금 전",
+    },
+    {
+      id: "sample-2",
+      author: "7 꾸준맨",
+      content: "하루 한 종목이라도 찍으면 레벨은 지킨다.",
+      createdAt: "어제",
+    },
+  ];
+}
 
-  ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#fffdf2";
-  ctx.fillRect(0, 0, width, height);
-  ctx.strokeStyle = "#e3d48d";
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 4; i += 1) {
-    const y = 34 + i * 52;
-    ctx.beginPath();
-    ctx.moveTo(46, y);
-    ctx.lineTo(width - 18, y);
-    ctx.stroke();
-  }
-  if (!points.length) {
-    els.chartSummary.textContent = `${state.selectedExercise.name} 이번 달 기록 없음`;
-    ctx.fillStyle = "#5d5330";
-    ctx.font = "24px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("기록하면 그래프가 생깁니다", width / 2, height / 2);
+function renderBoard() {
+  if (!els.boardList) return;
+  if (els.boardAuthor) els.boardAuthor.textContent = boardAuthorText();
+  els.boardList.replaceChildren();
+  const posts = state.boardPosts.length ? state.boardPosts : defaultBoardPosts();
+  posts.forEach((post) => {
+    const item = document.createElement("article");
+    item.className = "board-post";
+    const meta = document.createElement("div");
+    meta.className = "board-post-meta";
+    const author = document.createElement("strong");
+    author.textContent = post.author;
+    const time = document.createElement("span");
+    time.textContent = post.createdAt;
+    meta.append(author, time);
+    const content = document.createElement("p");
+    content.textContent = post.content;
+    item.append(meta, content);
+    els.boardList.append(item);
+  });
+}
+
+function submitBoardPost(event) {
+  event.preventDefault();
+  const content = els.boardInput.value.trim();
+  if (!content) {
+    showToast("게시글 내용을 입력해주세요.");
     return;
   }
-
-  const values = points.map((point) => point[metric]);
-  const maxValue = Math.max(...values, 1);
-  const chartLeft = 46;
-  const chartRight = width - 18;
-  const chartTop = 24;
-  const chartBottom = height - 46;
-  const step = points.length === 1 ? 0 : (chartRight - chartLeft) / (points.length - 1);
-
-  ctx.strokeStyle = "#111111";
-  ctx.lineWidth = 5;
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  points.forEach((point, index) => {
-    const x = points.length === 1 ? (chartLeft + chartRight) / 2 : chartLeft + index * step;
-    const y = chartBottom - (point[metric] / maxValue) * (chartBottom - chartTop);
-    if (index === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+  state.boardPosts.unshift({
+    id: `${Date.now()}`,
+    author: boardAuthorText(),
+    content,
+    createdAt: "방금 전",
   });
-  ctx.stroke();
-
-  ctx.fillStyle = "#ffd21f";
-  points.forEach((point, index) => {
-    const x = points.length === 1 ? (chartLeft + chartRight) / 2 : chartLeft + index * step;
-    const y = chartBottom - (point[metric] / maxValue) * (chartBottom - chartTop);
-    ctx.beginPath();
-    ctx.arc(x, y, 8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#111111";
-    ctx.font = "16px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(`${Math.round(point[metric])}${unit}`, x, y - 14);
-    ctx.fillStyle = "#5d5330";
-    ctx.font = "15px Arial";
-    ctx.fillText(point.date.slice(5), x, chartBottom + 28);
-    ctx.fillStyle = "#ffd21f";
-  });
-
-  const total = values.reduce((sum, value) => sum + value, 0);
-  els.chartSummary.textContent = `${state.selectedExercise.name} 이번 달 ${label}: 총 ${Math.round(total)}${unit}`;
+  saveBoardPosts(state.boardPosts);
+  els.boardInput.value = "";
+  renderBoard();
+  showToast("게시글을 올렸습니다.");
 }
 
 function renderHistory() {
@@ -992,13 +985,6 @@ function changeMonth(offset) {
   loadBootstrap().catch((error) => showToast(error.message));
 }
 
-function setChartMode(mode) {
-  state.chartMode = mode;
-  els.volumeChartButton.classList.toggle("is-active", mode === "volume");
-  els.setsChartButton.classList.toggle("is-active", mode === "sets");
-  renderChart();
-}
-
 function bindEvents() {
   els.menuButton.addEventListener("click", () => {
     const nextHidden = !els.menuPopover.hidden;
@@ -1046,8 +1032,7 @@ function bindEvents() {
   });
   els.enableReminderButton.addEventListener("click", () => enableReminder().catch((error) => showToast(error.message)));
   els.sosButton.addEventListener("click", () => saveSosExcuse().catch((error) => showToast(error.message)));
-  els.volumeChartButton.addEventListener("click", () => setChartMode("volume"));
-  els.setsChartButton.addEventListener("click", () => setChartMode("sets"));
+  els.boardForm.addEventListener("submit", submitBoardPost);
   els.prevMonthButton.addEventListener("click", () => changeMonth(-1));
   els.nextMonthButton.addEventListener("click", () => changeMonth(1));
 }

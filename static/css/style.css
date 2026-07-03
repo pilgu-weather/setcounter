@@ -131,10 +131,10 @@ button {
 
 .level-badge {
   display: inline-grid;
-  grid-template-columns: auto auto;
+  place-items: center;
   align-items: center;
-  min-width: 48px;
-  min-height: 28px;
+  min-width: 34px;
+  min-height: 30px;
   overflow: hidden;
   border: 1px solid rgba(242, 242, 238, 0.18);
   border-radius: 6px;
@@ -145,20 +145,8 @@ button {
   line-height: 1;
 }
 
-.level-badge-label {
-  display: grid;
-  place-items: center;
-  min-height: 28px;
-  padding: 0 6px;
-  background: rgba(0, 0, 0, 0.32);
-  color: var(--muted);
-  font-size: 9px;
-  letter-spacing: 0;
-}
-
 .level-badge-number {
-  min-width: 26px;
-  padding: 0 7px;
+  padding: 0 8px;
   color: var(--ink);
   font-size: 16px;
   text-align: center;
@@ -174,7 +162,6 @@ button {
   background: linear-gradient(135deg, #f2f2ee, #747b86 52%, #151618);
 }
 
-.level-badge.elite .level-badge-label,
 .level-badge.elite .level-badge-number {
   color: #0b0b0b;
 }
@@ -690,7 +677,7 @@ textarea:focus {
   line-height: 1;
 }
 
-.chart-section,
+.board-section,
 .calendar-section,
 .history-section {
   margin-top: 16px;
@@ -741,7 +728,7 @@ textarea:focus {
   display: none;
 }
 
-.chart-section {
+.board-section {
   background: rgba(34, 35, 38, 0.96);
   border: 1px solid rgba(52, 52, 52, 0.95);
   border-radius: 8px;
@@ -848,34 +835,66 @@ textarea:focus {
   font-weight: 800;
 }
 
-.chart-tabs {
+.board-form {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.board-author {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  min-height: 32px;
+  border: 1px solid rgba(242, 242, 238, 0.16);
+  border-radius: 6px;
+  background: #202226;
+  color: var(--ink);
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.board-list {
+  display: grid;
   gap: 8px;
-  padding: 0 12px 10px;
+  padding: 0 12px 14px;
 }
 
-.chart-tab {
-  border: 0;
-  border-radius: 8px;
-  background: #202020;
-  color: var(--muted);
-  font-weight: 800;
-}
-
-.chart-tab.is-active {
-  background: var(--accent);
-  color: var(--accent-dark);
-}
-
-#progressChart {
-  display: block;
-  width: calc(100% - 24px);
-  height: auto;
-  margin: 0 12px 14px;
+.board-post {
+  display: grid;
+  gap: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
+  padding: 11px 12px;
+}
+
+.board-post-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.board-post-meta strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.board-post-meta span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.board-post p {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .calendar-weekdays,
