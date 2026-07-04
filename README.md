@@ -80,6 +80,11 @@ python verify_health_app.py
 The verifier creates an isolated temporary user, checks save/read/reconnect,
 statistics, SOS, ownership isolation and delete, then removes its test data.
 
+## Discord complaints
+
+Set `DISCORD_COMPLAINT_WEBHOOK_URL` in Render to receive cheat-penalty complaint
+messages in Discord. Do not commit the webhook URL to the repository.
+
 ## Daily push reminder
 
 The reminder uses standards-based Web Push rather than an in-page timer. VAPID

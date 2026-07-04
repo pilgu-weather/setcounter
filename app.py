@@ -3,6 +3,8 @@ import os
 import re
 import base64
 import json
+from urllib import request as urlrequest
+from urllib.error import URLError
 from datetime import date, datetime, timedelta, timezone
 
 from dotenv import load_dotenv
@@ -57,6 +59,7 @@ MAX_MEMO_LENGTH = 500
 MAX_SETS_PER_WORKOUT = 30
 MAX_REPS_PER_SET = 1000
 MAX_WEIGHT_KG = 2000
+MAX_COMPLAINT_LENGTH = 1200
 CHEAT_WARNING_LIMIT = 2
 CHEAT_PENALTY_THRESHOLD = 3
 COMPLAINT_EMAIL = ""
@@ -289,6 +292,39 @@ def profile_to_dict(user, stats=None):
         ),
         "level": stats["level"] if stats else None,
     }
+
+
+def send_discord_complaint(user, message, stats):
+    webhook_url = os.environ.get("DISCORD_COMPLAINT_WEBHOOK_URL", "").strip()
+    if not webhook_url:
+        raise RuntimeError("DISCORD_COMPLAINT_WEBHOOK_URL is not configured")
+    nickname = user.nickname or "닉네임 없음"
+    payload = {
+        "content": "\n".join(
+            [
+                "Set Counter 컴플레인 접수",
+                f"닉네임: {nickname}",
+                f"레벨: {stats.get('level')}",
+                f"부정 페널티: {stats.get('cheatPenalty', 0)}",
+                f"의심 기록 수: {stats.get('cheatSuspicionCount', 0)}",
+                f"사용자 ID: {user.id}",
+                f"내용: {message}",
+            ]
+        )
+    }
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    request_data = urlrequest.Request(
+        webhook_url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlrequest.urlopen(request_data, timeout=5) as response:
+            if response.status >= 400:
+                raise RuntimeError(f"Discord webhook failed with {response.status}")
+    except URLError as error:
+        raise RuntimeError("Discord webhook request failed") from error
 
 
 @app.before_request
@@ -764,6 +800,23 @@ def update_profile():
     user.nickname_updated_at = now
     db.session.commit()
     return jsonify(profile_to_dict(user, volume_stats(user.id)))
+
+
+@app.route("/api/complaints", methods=["POST"])
+def create_complaint():
+    user = request_user()
+    payload = request.get_json(silent=True) or {}
+    message = str(payload.get("message", "")).strip()
+    if not message:
+        return jsonify({"error": "complaint message is required"}), 400
+    if len(message) > MAX_COMPLAINT_LENGTH:
+        return jsonify({"error": "complaint message is too long"}), 400
+    stats_data = volume_stats(user.id)
+    try:
+        send_discord_complaint(user, message, stats_data)
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 503
+    return jsonify({"ok": True})
 
 
 @app.route("/api/bootstrap", methods=["GET"])

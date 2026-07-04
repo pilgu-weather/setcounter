@@ -1227,6 +1227,12 @@ textarea:focus {
   font-weight: 900;
 }
 
+.complaint-actions {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 10px;
+}
+
 @media (max-width: 390px) {
   .exercise-grid {
     gap: 7px;

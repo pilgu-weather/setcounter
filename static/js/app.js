@@ -115,6 +115,11 @@ const els = {
   profileModalCopy: document.querySelector("#profileModalCopy"),
   nicknameInput: document.querySelector("#nicknameInput"),
   profileError: document.querySelector("#profileError"),
+  complaintModal: document.querySelector("#complaintModal"),
+  complaintForm: document.querySelector("#complaintForm"),
+  complaintInput: document.querySelector("#complaintInput"),
+  complaintError: document.querySelector("#complaintError"),
+  closeComplaintButton: document.querySelector("#closeComplaintButton"),
   counterTitle: document.querySelector("#counterTitle"),
   selectedDateBanner: document.querySelector("#selectedDateBanner"),
   selectedDateLabel: document.querySelector("#selectedDateLabel"),
@@ -565,6 +570,7 @@ function announceCheatGuard(previousStats, nextStats) {
   if (nextPenalty > previousPenalty) {
     const email = nextStats.complaintEmail || "";
     showToast(`부정행위로 인한 레벨다운입니다. 컴플레인 이메일: ${email}`);
+    openComplaintModal();
     return true;
   }
   if (nextCount > previousCount) {
@@ -572,6 +578,38 @@ function announceCheatGuard(previousStats, nextStats) {
     return true;
   }
   return false;
+}
+
+function openComplaintModal() {
+  if (!els.complaintModal) return;
+  els.complaintError.textContent = "";
+  els.complaintInput.value = "";
+  els.complaintModal.hidden = false;
+  window.setTimeout(() => els.complaintInput.focus(), 0);
+}
+
+function closeComplaintModal() {
+  if (els.complaintModal) els.complaintModal.hidden = true;
+}
+
+async function submitComplaint(event) {
+  event.preventDefault();
+  const message = els.complaintInput.value.trim();
+  els.complaintError.textContent = "";
+  if (!message) {
+    els.complaintError.textContent = "컴플레인 내용을 입력해주세요.";
+    return;
+  }
+  try {
+    await api("/api/complaints", {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    });
+    closeComplaintModal();
+    showToast("컴플레인을 보냈습니다.");
+  } catch (error) {
+    els.complaintError.textContent = error.message;
+  }
 }
 
 function makeExerciseArt(exercise) {
@@ -1051,6 +1089,13 @@ function bindEvents() {
   els.profileModal.addEventListener("click", (event) => {
     if (event.target === els.profileModal) {
       closeNicknameModal();
+    }
+  });
+  els.complaintForm.addEventListener("submit", submitComplaint);
+  els.closeComplaintButton.addEventListener("click", closeComplaintModal);
+  els.complaintModal.addEventListener("click", (event) => {
+    if (event.target === els.complaintModal) {
+      closeComplaintModal();
     }
   });
   els.countSetButton.addEventListener("click", countSet);

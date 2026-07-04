@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=26">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=27">
   </head>
   <body>
     <main class="app-shell">
@@ -221,6 +221,21 @@
         <button class="confirm-button" id="saveNicknameButton" type="submit">저장</button>
       </form>
     </div>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=34"></script>
+    <div class="profile-modal" id="complaintModal" hidden>
+      <form class="profile-dialog complaint-dialog" id="complaintForm">
+        <h2>컴플레인 보내기</h2>
+        <p>부정행위 판정이 잘못됐다고 생각하면 사유를 적어주세요. 제출하면 운영자 Discord로 전송됩니다.</p>
+        <label>
+          <span>내용</span>
+          <textarea id="complaintInput" rows="5" maxlength="1200" placeholder="예: 실제로 기록한 운동이고, 지난 기록이 낮게 저장돼 있었습니다."></textarea>
+        </label>
+        <p class="profile-error" id="complaintError" role="alert"></p>
+        <div class="complaint-actions">
+          <button class="ghost-button" id="closeComplaintButton" type="button">닫기</button>
+          <button class="confirm-button" type="submit">보내기</button>
+        </div>
+      </form>
+    </div>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=35"></script>
   </body>
 </html>
