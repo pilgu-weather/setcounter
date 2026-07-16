@@ -243,6 +243,16 @@ class AuthSystemTestCase(unittest.TestCase):
         deleted = self.client.delete(f"/api/logs/{log_id}", headers=self.csrf_headers(self.client, key))
         self.assertEqual(deleted.status_code, 204)
 
+    def test_korean_nickname_is_accepted(self):
+        key = "korean-nickname-key-0001"
+        response = self.client.post(
+            "/api/profile",
+            headers=self.csrf_headers(self.client, key),
+            json={"nickname": "운동친구"},
+        )
+        self.assertEqual(response.status_code, 200, response.get_json())
+        self.assertEqual(response.get_json()["nickname"], "운동친구")
+
     def test_login_rate_limit_blocks_repeated_invalid_passwords(self):
         key = "rate-limit-account-key-0001"
         email = self.email("rate-limit")
