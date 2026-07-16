@@ -3,17 +3,25 @@ import os
 import re
 import base64
 import json
+import hmac
+import secrets
 from urllib import request as urlrequest
 from urllib.error import URLError
 from datetime import date, datetime, timedelta, timezone
 
 from dotenv import load_dotenv
-from flask import Flask, g, jsonify, redirect, render_template, request, send_from_directory
+from flask import Flask, g, jsonify, redirect, render_template, request, send_from_directory, session
 from sqlalchemy import func, inspect, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from models import (
+    AuthAccount,
+    HealthBoardComment,
+    HealthBoardLike,
+    HealthBoardPost,
+    HealthBoardReport,
     HealthExercise,
     HealthExcuse,
     HealthPushConfig,
@@ -28,6 +36,7 @@ from models import (
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USER_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{16,128}$")
+EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 NICKNAME_PATTERN = re.compile(r"^[0-9A-Za-z가-힣_]{2,12}$")
 NICKNAME_CHANGE_INTERVAL = timedelta(days=7)
 FORBIDDEN_NICKNAME_WORDS = {
@@ -60,10 +69,26 @@ MAX_SETS_PER_WORKOUT = 30
 MAX_REPS_PER_SET = 1000
 MAX_WEIGHT_KG = 2000
 MAX_COMPLAINT_LENGTH = 1200
+MAX_BOARD_POST_LENGTH = 180
+MAX_BOARD_COMMENT_LENGTH = 120
+MAX_BOARD_REPORT_LENGTH = 500
+MAX_BOARD_POSTS_PER_PAGE = 50
 CHEAT_WARNING_LIMIT = 2
 CHEAT_PENALTY_THRESHOLD = 3
 COMPLAINT_EMAIL = ""
 REQUIRED_SCHEMA = {
+    "auth_accounts": {
+        "id",
+        "email",
+        "password_hash",
+        "email_verified",
+        "status",
+        "provider",
+        "provider_user_id",
+        "created_at",
+        "updated_at",
+        "last_login_at",
+    },
     "health_users": {
         "id",
         "user_key",
@@ -71,6 +96,9 @@ REQUIRED_SCHEMA = {
         "nickname_updated_at",
         "created_at",
         "legacy_claimable",
+        "account_id",
+        "is_anonymous",
+        "last_seen_at",
     },
     "health_exercises": {"id", "name", "created_at"},
     "health_workouts": {
@@ -99,6 +127,10 @@ REQUIRED_SCHEMA = {
         "excuse_text",
         "created_at",
     },
+    "health_board_posts": {"id", "user_id", "level", "nickname", "content", "created_at"},
+    "health_board_likes": {"id", "post_id", "user_id", "created_at"},
+    "health_board_comments": {"id", "post_id", "user_id", "level", "nickname", "content", "created_at"},
+    "health_board_reports": {"id", "reporter_user_id", "post_id", "comment_id", "reason", "created_at"},
     "health_push_config": {"id", "private_key", "public_key", "created_at"},
     "health_push_subscriptions": {
         "id",
@@ -118,7 +150,13 @@ KST = timezone(timedelta(hours=9))
 def normalize_database_url(value):
     value = (value or "").strip()
     if not value:
+        if os.environ.get("SETCOUNTER_ALLOW_LOCAL_SQLITE") == "1":
+            return "sqlite:///" + os.path.join(BASE_DIR, "app.sqlite3").replace("\\", "/")
         raise RuntimeError("DATABASE_URL is required; SQLite fallback is disabled")
+    if value.startswith("sqlite:///"):
+        if os.environ.get("SETCOUNTER_ALLOW_LOCAL_SQLITE") == "1":
+            return value
+        raise RuntimeError("SQLite is allowed only for local preview")
     if value.startswith("postgres://"):
         value = "postgresql://" + value[len("postgres://") :]
     if value.startswith("postgresql+psycopg2://"):
@@ -138,7 +176,7 @@ def validate_schema():
         if missing:
             raise RuntimeError(
                 f"{table_name} schema is incompatible; missing: {', '.join(sorted(missing))}. "
-                "Run migrate_health_data.py before starting the app."
+                "Run the applicable explicit migration script before starting the app."
             )
 
 
@@ -161,34 +199,59 @@ def upgrade_schema():
             connection.execute(
                 text("ALTER TABLE health_workouts ADD COLUMN suspicion_flags TEXT NOT NULL DEFAULT '[]'")
             )
-        connection.execute(
-            text(
-                """
-                UPDATE health_users u
-                SET nickname='테스트'
-                WHERE u.nickname IS NULL
-                  AND (
-                    EXISTS (SELECT 1 FROM health_workouts w WHERE w.user_id = u.id)
-                    OR EXISTS (SELECT 1 FROM health_excuses e WHERE e.user_id = u.id)
-                  )
-                """
+        if db.engine.url.get_backend_name() == "sqlite":
+            connection.execute(
+                text(
+                    """
+                    UPDATE health_users
+                    SET nickname='테스트'
+                    WHERE nickname IS NULL
+                      AND (
+                        EXISTS (SELECT 1 FROM health_workouts w WHERE w.user_id = health_users.id)
+                        OR EXISTS (SELECT 1 FROM health_excuses e WHERE e.user_id = health_users.id)
+                      )
+                    """
+                )
             )
-        )
+        else:
+            connection.execute(
+                text(
+                    """
+                    UPDATE health_users u
+                    SET nickname='테스트'
+                    WHERE u.nickname IS NULL
+                      AND (
+                        EXISTS (SELECT 1 FROM health_workouts w WHERE w.user_id = u.id)
+                        OR EXISTS (SELECT 1 FROM health_excuses e WHERE e.user_id = u.id)
+                      )
+                    """
+                )
+            )
 
 
 def create_app():
     load_dotenv()
+    secret_key = os.environ.get("SECRET_KEY", "").strip()
+    if not secret_key:
+        raise RuntimeError("SECRET_KEY is required")
     app = Flask(__name__)
     app.config.update(
+        SECRET_KEY=secret_key,
         SQLALCHEMY_DATABASE_URI=normalize_database_url(os.environ.get("DATABASE_URL")),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SQLALCHEMY_ENGINE_OPTIONS={"pool_pre_ping": True, "pool_recycle": 300},
+        TEMPLATES_AUTO_RELOAD=True,
         MAX_CONTENT_LENGTH=64 * 1024,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=os.environ.get("SETCOUNTER_SESSION_COOKIE_SECURE") == "1",
     )
+    app.jinja_env.auto_reload = True
     db.init_app(app)
     with app.app_context():
-        db.create_all()
-        upgrade_schema()
+        # Existing databases must be changed by an explicit migration, never at app startup.
+        if "health_users" not in inspect(db.engine).get_table_names():
+            db.create_all()
         validate_schema()
     return app
 
@@ -235,23 +298,123 @@ def parse_date(value):
         raise ValueError("date must use YYYY-MM-DD")
 
 
-def request_user():
-    if "health_user" in g:
-        return g.health_user
+def request_anonymous_user():
+    """Resolve only an unlinked legacy/anonymous user from the browser key."""
+    if "anonymous_health_user" in g:
+        return g.anonymous_health_user
     user_key = request.headers.get("X-User-Key", "").strip()
     if not USER_KEY_PATTERN.fullmatch(user_key):
         return None
     user = db.session.scalar(select(HealthUser).where(HealthUser.user_key == user_key))
+    if user is not None and user.account_id is not None:
+        # A key from an account-linked profile is never an authentication credential.
+        return None
     if user is None:
-        user = HealthUser(user_key=user_key)
+        user = HealthUser(user_key=user_key, is_anonymous=True)
         db.session.add(user)
         try:
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
             user = db.session.scalar(select(HealthUser).where(HealthUser.user_key == user_key))
-    g.health_user = user
+            if user is not None and user.account_id is not None:
+                return None
+    g.anonymous_health_user = user
     return user
+
+
+def get_current_health_user():
+    """Resolve the signed-in account first, then an unlinked anonymous profile."""
+    if "current_health_user" in g:
+        return g.current_health_user
+    account_id = session.get("account_id")
+    if account_id is not None:
+        try:
+            account_id = int(account_id)
+        except (TypeError, ValueError):
+            session.clear()
+            return None
+        user = db.session.scalar(select(HealthUser).where(HealthUser.account_id == account_id))
+        if user is None:
+            session.clear()
+            return None
+        g.current_health_user = user
+        return user
+    user = request_anonymous_user()
+    if user is not None:
+        g.current_health_user = user
+    return user
+
+
+def request_user():
+    """Compatibility wrapper while endpoint ownership moves to session-aware lookup."""
+    return get_current_health_user()
+
+
+def normalize_email(value):
+    email = str(value or "").strip().lower()
+    if not EMAIL_PATTERN.fullmatch(email) or len(email) > 320:
+        raise ValueError("유효한 이메일 주소를 입력해주세요.")
+    return email
+
+
+def mask_email(email):
+    local, _, domain = email.partition("@")
+    visible = local[:1] if local else ""
+    return f"{visible}{'*' * max(len(local) - 1, 1)}@{domain}"
+
+
+def csrf_token_for_session():
+    token = session.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["csrf_token"] = token
+    return token
+
+
+def require_auth_csrf():
+    expected = session.get("csrf_token", "")
+    supplied = request.headers.get("X-CSRF-Token", "")
+    if not expected or not supplied or not hmac.compare_digest(expected, supplied):
+        return jsonify({"error": "csrf_invalid"}), 403
+    return None
+
+
+def get_user_data_summary(user):
+    """Count meaningful user-owned data without treating an empty profile as a conflict."""
+    workout_count = db.session.scalar(
+        select(func.count()).select_from(HealthWorkout).where(HealthWorkout.user_id == user.id)
+    ) or 0
+    set_count = db.session.scalar(
+        select(func.count())
+        .select_from(HealthSet)
+        .join(HealthWorkout, HealthSet.workout_id == HealthWorkout.id)
+        .where(HealthWorkout.user_id == user.id)
+    ) or 0
+    excuse_count = db.session.scalar(
+        select(func.count()).select_from(HealthExcuse).where(HealthExcuse.user_id == user.id)
+    ) or 0
+    post_count = db.session.scalar(
+        select(func.count()).select_from(HealthBoardPost).where(HealthBoardPost.user_id == user.id)
+    ) or 0
+    comment_count = db.session.scalar(
+        select(func.count()).select_from(HealthBoardComment).where(HealthBoardComment.user_id == user.id)
+    ) or 0
+    like_count = db.session.scalar(
+        select(func.count()).select_from(HealthBoardLike).where(HealthBoardLike.user_id == user.id)
+    ) or 0
+    has_profile_activity = bool(user.nickname and user.nickname_updated_at)
+    has_data = any((workout_count, set_count, excuse_count, post_count, comment_count, like_count, has_profile_activity))
+    return {
+        "workoutCount": workout_count,
+        "setCount": set_count,
+        "excuseCount": excuse_count,
+        "postCount": post_count,
+        "commentCount": comment_count,
+        "likeCount": like_count,
+        "hasProfileActivity": has_profile_activity,
+        "hasData": has_data,
+    }
 
 
 def nickname_available_at(user):
@@ -294,24 +457,11 @@ def profile_to_dict(user, stats=None):
     }
 
 
-def send_discord_complaint(user, message, stats):
+def send_discord_message(lines):
     webhook_url = os.environ.get("DISCORD_COMPLAINT_WEBHOOK_URL", "").strip()
     if not webhook_url:
         raise RuntimeError("DISCORD_COMPLAINT_WEBHOOK_URL is not configured")
-    nickname = user.nickname or "닉네임 없음"
-    payload = {
-        "content": "\n".join(
-            [
-                "Set Counter 컴플레인 접수",
-                f"닉네임: {nickname}",
-                f"레벨: {stats.get('level')}",
-                f"부정 페널티: {stats.get('cheatPenalty', 0)}",
-                f"의심 기록 수: {stats.get('cheatSuspicionCount', 0)}",
-                f"사용자 ID: {user.id}",
-                f"내용: {message}",
-            ]
-        )
-    }
+    payload = {"content": "\n".join(lines)}
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request_data = urlrequest.Request(
         webhook_url,
@@ -327,12 +477,56 @@ def send_discord_complaint(user, message, stats):
         raise RuntimeError("Discord webhook request failed") from error
 
 
+def send_discord_complaint(user, message, stats, category="complaint"):
+    nickname = user.nickname or "닉네임 없음"
+    title = "Set Counter 피드백 접수" if category == "feedback" else "Set Counter 이의제기 접수"
+    send_discord_message(
+        [
+            title,
+            f"닉네임: {nickname}",
+            f"레벨: {stats.get('level')}",
+            f"부정 페널티: {stats.get('cheatPenalty', 0)}",
+            f"의심 기록 수: {stats.get('cheatSuspicionCount', 0)}",
+            f"사용자 ID: {user.id}",
+            f"내용: {message}",
+        ]
+    )
+
+
+def send_discord_board_report(user, post, comment, reason):
+    nickname = user.nickname or "닉네임 없음"
+    lines = [
+        "Set Counter 게시판 신고 접수",
+        f"신고자: {nickname} (user_id={user.id})",
+        f"게시글 ID: {post.id}",
+        f"게시글 작성자: {post.nickname} / LV.{post.level}",
+        f"게시글 내용: {post.content}",
+    ]
+    if comment is not None:
+        lines.extend(
+            [
+                f"댓글 ID: {comment.id}",
+                f"댓글 작성자: {comment.nickname} / LV.{comment.level}",
+                f"댓글 내용: {comment.content}",
+            ]
+        )
+    lines.append(f"신고 사유: {reason}")
+    send_discord_message(lines)
+
+
 @app.before_request
 def require_api_user():
-    public_api_paths = {"/api/storage", "/api/reminders/send"}
+    public_api_paths = {
+        "/api/storage",
+        "/api/reminders/send",
+        "/api/auth/status",
+        "/api/auth/register",
+        "/api/auth/login",
+        "/api/auth/logout",
+    }
     if request.path.startswith("/api/") and request.path not in public_api_paths:
-        if request_user() is None:
-            return jsonify({"error": "valid X-User-Key header is required"}), 400
+        if get_current_health_user() is None:
+            return jsonify({"error": "authentication or a valid anonymous X-User-Key is required"}), 401
 
 
 @app.errorhandler(413)
@@ -520,6 +714,88 @@ def excuse_to_dict(excuse):
     }
 
 
+def board_comment_to_dict(comment):
+    return {
+        "id": comment.id,
+        "postId": comment.post_id,
+        "level": comment.level,
+        "nickname": comment.nickname,
+        "author": f"{comment.level} {comment.nickname}",
+        "content": comment.content,
+        "createdAt": comment.created_at.isoformat().replace("+00:00", "Z"),
+    }
+
+
+def board_post_to_dict(post, current_user_id=None, like_counts=None, comments_by_post=None, liked_post_ids=None):
+    like_counts = like_counts or {}
+    comments_by_post = comments_by_post or {}
+    liked_post_ids = liked_post_ids or set()
+    comments = comments_by_post.get(post.id, [])
+    return {
+        "id": post.id,
+        "level": post.level,
+        "nickname": post.nickname,
+        "author": f"{post.level} {post.nickname}",
+        "content": post.content,
+        "createdAt": post.created_at.isoformat().replace("+00:00", "Z"),
+        "likeCount": like_counts.get(post.id, 0),
+        "likedByMe": post.id in liked_post_ids,
+        "commentCount": len(comments),
+        "comments": [board_comment_to_dict(comment) for comment in comments],
+    }
+
+
+def load_board_post_dicts(user_id, sort="latest"):
+    posts = db.session.scalars(
+        select(HealthBoardPost).order_by(HealthBoardPost.created_at.desc()).limit(MAX_BOARD_POSTS_PER_PAGE)
+    ).all()
+    post_ids = [post.id for post in posts]
+    like_counts = {}
+    comments_by_post = {}
+    liked_post_ids = set()
+    if post_ids:
+        like_rows = db.session.execute(
+            select(HealthBoardLike.post_id, func.count(HealthBoardLike.id))
+            .where(HealthBoardLike.post_id.in_(post_ids))
+            .group_by(HealthBoardLike.post_id)
+        ).all()
+        like_counts = {post_id: count for post_id, count in like_rows}
+        liked_post_ids = {
+            row[0]
+            for row in db.session.execute(
+                select(HealthBoardLike.post_id).where(
+                    HealthBoardLike.post_id.in_(post_ids),
+                    HealthBoardLike.user_id == user_id,
+                )
+            ).all()
+        }
+        comments = db.session.scalars(
+            select(HealthBoardComment)
+            .where(HealthBoardComment.post_id.in_(post_ids))
+            .order_by(HealthBoardComment.created_at.asc())
+        ).all()
+        for comment in comments:
+            comments_by_post.setdefault(comment.post_id, []).append(comment)
+    if sort == "popular":
+        posts.sort(
+            key=lambda post: (
+                like_counts.get(post.id, 0) * 2 + len(comments_by_post.get(post.id, [])),
+                post.created_at,
+            ),
+            reverse=True,
+        )
+    return [
+        board_post_to_dict(
+            post,
+            current_user_id=user_id,
+            like_counts=like_counts,
+            comments_by_post=comments_by_post,
+            liked_post_ids=liked_post_ids,
+        )
+        for post in posts
+    ]
+
+
 def suspicious_training_flags(candidate, previous_logs):
     flags = []
     previous_same = [log for log in previous_logs if log["exercise"] == candidate["exercise"]]
@@ -593,28 +869,71 @@ def daily_challenge_penalty(logs, excuse_dates):
     return {"penalty": len(failed_dates), "failedDates": failed_dates, "passedDates": passed_dates}
 
 
+def breakthrough_rate_for_level(level):
+    if level >= 90:
+        return 0.05
+    if level >= 80:
+        return 0.1
+    if level >= 70:
+        return 0.16
+    if level >= 60:
+        return 0.25
+    if level >= 50:
+        return 0.35
+    if level >= 40:
+        return 0.5
+    if level >= 30:
+        return 0.65
+    if level >= 20:
+        return 0.8
+    if level >= 15:
+        return 0.85
+    if level >= 10:
+        return 0.9
+    return 1
+
+
 def stats_from_logs(logs, excuse_dates):
     previous_by_exercise = {}
-    level_changes = ups = downs = 0
+    xp = 0.0
+    ups = downs = 0
     for log in logs:
         previous = previous_by_exercise.get(log["exercise"])
         if previous is not None:
             if log["volume"] > previous:
-                level_changes += 1
+                current_level = max(math.floor(xp) + 1, 1)
+                if current_level >= 20:
+                    xp += 0.8
+                elif current_level >= 15:
+                    xp += 0.85
+                elif current_level >= 10:
+                    xp += 0.9
+                else:
+                    xp += 1
                 ups += 1
             elif log["volume"] < previous:
-                level_changes -= 1
+                xp -= 1
                 downs += 1
         previous_by_exercise[log["exercise"]] = log["volume"]
     challenge = daily_challenge_penalty(logs, excuse_dates)
     suspicious_count = sum(1 for log in logs if log.get("suspicionScore", 0) > 0)
     cheat_penalty = cheat_penalty_from_logs(logs)
     total_penalty = challenge["penalty"] + cheat_penalty
+    total_xp = max(xp - total_penalty, 0)
+    if total_xp >= 98:
+        level = 99
+        progress = 1
+    else:
+        level = max(math.floor(total_xp) + 1, 1)
+        progress = total_xp - math.floor(total_xp)
     return {
-        "level": max(level_changes + 1 - total_penalty, 1),
-        "rule": "previous_record_delta_with_daily_challenge_and_cheat_guard",
+        "level": level,
+        "rule": "weighted_previous_record_delta_with_daily_challenge_and_cheat_guard",
         "levelUps": ups,
         "levelDowns": downs,
+        "experience": round(total_xp, 2),
+        "experiencePercent": round(progress * 100, 1),
+        "nextBreakthroughRate": breakthrough_rate_for_level(level),
         "dailyPenalty": challenge["penalty"],
         "cheatWarnings": min(suspicious_count, CHEAT_WARNING_LIMIT),
         "cheatSuspicionCount": suspicious_count,
@@ -628,7 +947,7 @@ def stats_from_logs(logs, excuse_dates):
         "totalVolume": sum(log["volume"] for log in logs),
         "totalReps": sum(log["totalReps"] for log in logs),
         "totalSets": sum(log["completedSets"] for log in logs),
-        "progressPercent": 100 if logs else 0,
+        "progressPercent": round(progress * 100, 1) if logs else 0,
         "latestRecords": [
             {"exercise": exercise, "volume": volume}
             for exercise, volume in sorted(previous_by_exercise.items())
@@ -650,6 +969,10 @@ def volume_stats(user_id):
 
 
 def claim_legacy_records(user):
+    # This is a one-time recovery path for the pre-account anonymous import only.
+    # It must never transfer data into an account-linked profile.
+    if user.account_id is not None or not user.is_anonymous:
+        return False
     legacy = db.session.scalar(
         select(HealthUser)
         .where(HealthUser.legacy_claimable.is_(True))
@@ -802,18 +1125,163 @@ def update_profile():
     return jsonify(profile_to_dict(user, volume_stats(user.id)))
 
 
+@app.route("/api/auth/status", methods=["GET"])
+def auth_status():
+    csrf_token = csrf_token_for_session()
+    account_id = session.get("account_id")
+    if account_id is not None:
+        user = get_current_health_user()
+        if user is not None and user.account is not None:
+            return jsonify(
+                {
+                    "authenticated": True,
+                    "anonymous": False,
+                    "accountLinked": True,
+                    "emailMasked": mask_email(user.account.email),
+                    "hasAnonymousData": False,
+                    "csrfToken": csrf_token,
+                }
+            )
+    anonymous_user = request_anonymous_user()
+    summary = get_user_data_summary(anonymous_user) if anonymous_user is not None else {"hasData": False}
+    return jsonify(
+        {
+            "authenticated": False,
+            "anonymous": True,
+            "accountLinked": False,
+            "emailMasked": None,
+            "hasAnonymousData": summary["hasData"],
+            "csrfToken": csrf_token,
+        }
+    )
+
+
+@app.route("/api/auth/register", methods=["POST"])
+def auth_register():
+    csrf_error = require_auth_csrf()
+    if csrf_error:
+        return csrf_error
+    if session.get("account_id") is not None:
+        return jsonify({"error": "already_authenticated"}), 409
+    anonymous_user = request_anonymous_user()
+    if anonymous_user is None:
+        return jsonify({"error": "anonymous_user_required"}), 401
+    payload = request.get_json(silent=True) or {}
+    try:
+        email = normalize_email(payload.get("email"))
+    except ValueError as error:
+        return jsonify({"error": "invalid_email", "message": str(error)}), 400
+    password = str(payload.get("password") or "")
+    password_confirm = str(payload.get("passwordConfirm") or "")
+    if len(password) < 8:
+        return jsonify({"error": "password_too_short"}), 400
+    if password != password_confirm:
+        return jsonify({"error": "password_confirmation_mismatch"}), 400
+    if payload.get("termsAccepted") is not True:
+        return jsonify({"error": "terms_required"}), 400
+    if db.session.scalar(select(AuthAccount.id).where(AuthAccount.email == email)) is not None:
+        return jsonify({"error": "email_already_registered"}), 409
+
+    account = AuthAccount(email=email, password_hash=generate_password_hash(password))
+    try:
+        # One commit keeps account creation and the existing anonymous profile link atomic.
+        db.session.add(account)
+        anonymous_user.account = account
+        anonymous_user.is_anonymous = False
+        anonymous_user.last_seen_at = utc_now()
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "email_already_registered"}), 409
+    except Exception:
+        db.session.rollback()
+        raise
+    session.clear()
+    session["account_id"] = account.id
+    g.current_health_user = anonymous_user
+    return jsonify(
+        {
+            "authenticated": True,
+            "anonymous": False,
+            "accountLinked": True,
+            "emailMasked": mask_email(account.email),
+            "healthUserId": anonymous_user.id,
+        }
+    ), 201
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def auth_login():
+    csrf_error = require_auth_csrf()
+    if csrf_error:
+        return csrf_error
+    if session.get("account_id") is not None:
+        return jsonify({"error": "already_authenticated"}), 409
+    payload = request.get_json(silent=True) or {}
+    try:
+        email = normalize_email(payload.get("email"))
+    except ValueError:
+        return jsonify({"error": "invalid_credentials", "message": "Email or password is incorrect."}), 401
+    password = str(payload.get("password") or "")
+    account = db.session.scalar(select(AuthAccount).where(AuthAccount.email == email))
+    if account is None or account.status != "active" or not check_password_hash(account.password_hash, password):
+        return jsonify({"error": "invalid_credentials", "message": "Email or password is incorrect."}), 401
+    account_user = db.session.scalar(select(HealthUser).where(HealthUser.account_id == account.id))
+    if account_user is None:
+        return jsonify({"error": "account_profile_missing"}), 409
+    anonymous_user = request_anonymous_user()
+    anonymous_summary = get_user_data_summary(anonymous_user) if anonymous_user is not None else {"hasData": False}
+    account_summary = get_user_data_summary(account_user)
+    if anonymous_user is not None and anonymous_user.id != account_user.id and anonymous_summary["hasData"] and account_summary["hasData"]:
+        return jsonify(
+            {
+                "error": "anonymous_data_conflict",
+                "message": "Current device has anonymous records.",
+                "anonymousSummary": anonymous_summary,
+                "accountSummary": account_summary,
+            }
+        ), 409
+    account.last_login_at = utc_now()
+    account_user.last_seen_at = utc_now()
+    db.session.commit()
+    session.clear()
+    session["account_id"] = account.id
+    g.current_health_user = account_user
+    return jsonify(
+        {
+            "authenticated": True,
+            "anonymous": False,
+            "accountLinked": True,
+            "emailMasked": mask_email(account.email),
+            "healthUserId": account_user.id,
+        }
+    )
+
+
+@app.route("/api/auth/logout", methods=["POST"])
+def auth_logout():
+    csrf_error = require_auth_csrf()
+    if csrf_error:
+        return csrf_error
+    session.clear()
+    return jsonify({"success": True, "requiresNewAnonymousKey": True})
+
+
 @app.route("/api/complaints", methods=["POST"])
 def create_complaint():
     user = request_user()
     payload = request.get_json(silent=True) or {}
     message = str(payload.get("message", "")).strip()
+    category = str(payload.get("category", "complaint")).strip().lower()
+    if category not in {"complaint", "feedback"}:
+        return jsonify({"error": "invalid complaint category"}), 400
     if not message:
         return jsonify({"error": "complaint message is required"}), 400
     if len(message) > MAX_COMPLAINT_LENGTH:
         return jsonify({"error": "complaint message is too long"}), 400
     stats_data = volume_stats(user.id)
     try:
-        send_discord_complaint(user, message, stats_data)
+        send_discord_complaint(user, message, stats_data, category)
     except RuntimeError as error:
         return jsonify({"error": str(error)}), 503
     return jsonify({"ok": True})
@@ -863,8 +1331,115 @@ def bootstrap():
             "latestByExercise": latest_by_exercise,
             "stats": stats_data,
             "profile": profile_to_dict(user, stats_data),
+            "boardPosts": load_board_post_dicts(user.id),
         }
     )
+
+
+@app.route("/api/board/posts", methods=["GET"])
+def list_board_posts():
+    user = request_user()
+    sort = request.args.get("sort", "latest").strip()
+    return jsonify(load_board_post_dicts(user.id, sort="popular" if sort == "popular" else "latest"))
+
+
+@app.route("/api/board/posts", methods=["POST"])
+def create_board_post():
+    user = request_user()
+    payload = request.get_json(silent=True) or {}
+    content = str(payload.get("content", "")).strip()
+    if not content:
+        return jsonify({"error": "board post content is required"}), 400
+    if len(content) > MAX_BOARD_POST_LENGTH:
+        return jsonify({"error": "board post content is too long"}), 400
+    stats_data = volume_stats(user.id)
+    post = HealthBoardPost(
+        user_id=user.id,
+        level=stats_data["level"],
+        nickname=user.nickname or "닉네임",
+        content=content,
+    )
+    db.session.add(post)
+    db.session.commit()
+    return jsonify(load_board_post_dicts(user.id)[0]), 201
+
+
+@app.route("/api/board/posts/<int:post_id>/like", methods=["POST"])
+def toggle_board_like(post_id):
+    user = request_user()
+    post = db.session.get(HealthBoardPost, post_id)
+    if post is None:
+        return jsonify({"error": "board post not found"}), 404
+    existing = db.session.scalar(
+        select(HealthBoardLike).where(
+            HealthBoardLike.post_id == post_id,
+            HealthBoardLike.user_id == user.id,
+        )
+    )
+    if existing is None:
+        db.session.add(HealthBoardLike(post_id=post_id, user_id=user.id))
+    else:
+        db.session.delete(existing)
+    db.session.commit()
+    return jsonify(load_board_post_dicts(user.id))
+
+
+@app.route("/api/board/posts/<int:post_id>/comments", methods=["POST"])
+def create_board_comment(post_id):
+    user = request_user()
+    post = db.session.get(HealthBoardPost, post_id)
+    if post is None:
+        return jsonify({"error": "board post not found"}), 404
+    payload = request.get_json(silent=True) or {}
+    content = str(payload.get("content", "")).strip()
+    if not content:
+        return jsonify({"error": "comment content is required"}), 400
+    if len(content) > MAX_BOARD_COMMENT_LENGTH:
+        return jsonify({"error": "comment content is too long"}), 400
+    stats_data = volume_stats(user.id)
+    db.session.add(
+        HealthBoardComment(
+            post_id=post_id,
+            user_id=user.id,
+            level=stats_data["level"],
+            nickname=user.nickname or "닉네임",
+            content=content,
+        )
+    )
+    db.session.commit()
+    return jsonify(load_board_post_dicts(user.id))
+
+
+@app.route("/api/board/reports", methods=["POST"])
+def report_board_content():
+    user = request_user()
+    payload = request.get_json(silent=True) or {}
+    post_id = payload.get("postId")
+    comment_id = payload.get("commentId")
+    reason = str(payload.get("reason", "")).strip() or "비상식적인 게시글/댓글"
+    if len(reason) > MAX_BOARD_REPORT_LENGTH:
+        return jsonify({"error": "report reason is too long"}), 400
+    post = db.session.get(HealthBoardPost, post_id)
+    if post is None:
+        return jsonify({"error": "board post not found"}), 404
+    comment = None
+    if comment_id:
+        comment = db.session.get(HealthBoardComment, comment_id)
+        if comment is None or comment.post_id != post.id:
+            return jsonify({"error": "board comment not found"}), 404
+    report = HealthBoardReport(
+        reporter_user_id=user.id,
+        post_id=post.id,
+        comment_id=comment.id if comment else None,
+        reason=reason,
+    )
+    db.session.add(report)
+    db.session.commit()
+    try:
+        send_discord_board_report(user, post, comment, reason)
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 502
+    return jsonify({"ok": True})
 
 
 @app.route("/api/storage", methods=["GET"])

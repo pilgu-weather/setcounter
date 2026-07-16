@@ -3,212 +3,387 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#191a1c">
+    <meta name="theme-color" content="#080b10">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Set Counter">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='assets/app-icon-180.png') }}?v=8">
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=27">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=52">
   </head>
   <body>
-    <main class="app-shell">
-      <header class="topbar">
-        <img class="brand-logo" src="{{ url_for('static', filename='assets/newlogo.webp') }}?v=1" alt="Set Counter 로고" decoding="async">
-        <div class="brand-copy">
-          <p class="eyebrow">오늘의 운동</p>
-          <h1>Set Counter</h1>
-        </div>
-        <div class="top-menu">
-          <button class="menu-button" id="menuButton" type="button" aria-haspopup="true" aria-expanded="false" aria-label="메뉴">☰</button>
-          <div class="menu-popover" id="menuPopover" hidden>
-            <button id="changeNicknameButton" type="button">닉네임 변경</button>
+    <main class="app-shell" id="home">
+      <section class="app-screen is-active" data-screen="home" aria-labelledby="homeTitle">
+        <header class="home-header">
+          <div class="hero-top">
+            <div class="home-brand">
+              <img class="brand-logo" src="{{ url_for('static', filename='assets/newlogo.webp') }}?v=1" alt="Set Counter 로고" decoding="async">
+              <div><p class="eyebrow">SET COUNTER</p><h1 id="homeTitle">오늘의 플랜</h1></div>
+            </div>
+            <button class="menu-button" id="menuButton" type="button" aria-haspopup="true" aria-expanded="false" aria-label="메뉴">☰</button>
+            <div class="menu-popover" id="menuPopover" hidden>
+              <button id="changeNicknameButton" type="button">닉네임 변경</button>
+            </div>
           </div>
-        </div>
-      </header>
+          <div class="home-profile-row">
+            <p class="user-badge" id="userBadgeLabel">
+              <span class="level-badge rookie" aria-label="레벨 1"><span class="level-badge-number">1</span></span>
+              <span class="nickname-text">닉네임</span>
+            </p>
+            <span>LV. <strong id="levelValue">1</strong> · 누적 <strong id="totalVolumeValue">0kg</strong></span>
+          </div>
+        </header>
 
-      <section class="level-section" aria-labelledby="levelTitle">
-        <div>
-          <p class="eyebrow user-badge" id="userBadgeLabel">
-            <span class="level-badge rookie" aria-label="레벨 1">
-              <span class="level-badge-number">1</span>
-            </span>
-            <span class="nickname-text">닉네임</span>
-          </p>
-          <h2 id="levelTitle">LV. <span id="levelValue">1</span></h2>
-        </div>
-        <div class="level-stat">
-          <strong id="totalVolumeValue">0kg</strong>
-          <span>누적 볼륨</span>
-        </div>
-        <div class="level-progress" aria-hidden="true">
-          <div id="levelProgressBar"></div>
-        </div>
-        <p class="level-copy" id="levelCopy">이전 기록을 깨면 레벨업</p>
+        <section class="plan-section" aria-label="추천 운동 플랜">
+          <div class="home-section-head">
+            <div>
+              <p class="eyebrow">TODAY'S PROGRAM</p>
+              <h2>운동을 묶어서 시작하세요</h2>
+            </div>
+            <span id="homeDateLabel">오늘</span>
+          </div>
+          <div class="workout-plan-rail" id="workoutPlanRail"></div>
+        </section>
+
+        <section class="home-progress-card" aria-label="오늘의 진행">
+          <div class="home-progress-head">
+            <div><p class="eyebrow">TODAY</p><h2>오늘의 진행</h2></div>
+            <strong id="homeExerciseCount">0개 완료</strong>
+          </div>
+          <div class="home-progress-stats">
+            <span><strong id="homeSetCount">0세트</strong>세트</span>
+            <span><strong id="homeVolume">0kg</strong>볼륨</span>
+            <span><strong id="homeReps">0회</strong>횟수</span>
+          </div>
+          <div class="home-progress-bar" aria-hidden="true"><div id="levelProgressBar"></div></div>
+          <p class="level-copy" id="levelCopy">이전 기록을 깨면 레벨업</p>
+        </section>
+
+        <section class="home-log-section" aria-label="오늘 저장한 운동">
+          <div class="home-section-head">
+            <div>
+              <p class="eyebrow">LOG</p>
+              <h2>오늘 저장한 운동</h2>
+            </div>
+            <button class="mini-button" type="button" data-go-screen="record">직접 기록</button>
+          </div>
+          <div class="today-routine" id="homeTodayList"></div>
+        </section>
+
+        <section class="reminder-section is-blocked" hidden aria-labelledby="reminderTitle">
+          <div>
+            <p class="eyebrow">알림</p>
+            <h2 id="reminderTitle">매일 오전 11시</h2>
+            <p class="reminder-copy" id="reminderStatus">운동 기록 알림을 켜주세요.</p>
+          </div>
+          <button class="reminder-button" id="enableReminderButton" type="button">알림 켜기</button>
+        </section>
       </section>
 
+      <section class="app-screen plan-detail-screen" data-screen="plan" aria-labelledby="planDetailTitle">
+        <header class="screen-header plan-detail-header">
+          <button class="back-button" id="closePlanDetailButton" type="button" aria-label="홈으로">‹</button>
+          <h1 id="planDetailTitle">운동 플랜</h1>
+          <span></span>
+        </header>
+        <article class="plan-detail-hero" id="planDetailHero">
+          <p id="planDetailLabel">3종목 · 덤벨 중심</p>
+          <h2 id="planDetailHeroTitle">상체 밀기 볼륨</h2>
+          <span id="planDetailDifficulty">중급</span>
+        </article>
+        <div class="plan-detail-body">
+          <p class="plan-detail-intro" id="planDetailIntro"></p>
+          <div class="plan-detail-tags" id="planDetailTags"></div>
 
+          <section class="plan-workout-section" aria-labelledby="planWorkoutTitle">
+            <h2 id="planWorkoutTitle">운동 구성</h2>
+            <div id="planWorkoutSections"></div>
+          </section>
 
-      <section class="exercise-section" aria-labelledby="exerciseTitle">
-        <div class="section-head compact">
-          <div>
-            <h2 id="exerciseTitle">운동 선택</h2>
-            <p class="section-copy">달력에서 날짜를 누르고 운동을 저장하세요.</p>
-          </div>
+          <section aria-labelledby="planInfoTitle">
+            <h2 id="planInfoTitle">플랜 세부 내용</h2>
+            <div class="plan-info-grid" id="planInfoGrid"></div>
+          </section>
+
+          <section aria-labelledby="planBenefitsTitle">
+            <h2 id="planBenefitsTitle">이 플랜으로 얻는 것</h2>
+            <ul class="plan-benefit-list" id="planBenefitList"></ul>
+          </section>
+
+          <section aria-labelledby="planScheduleTitle">
+            <h2 id="planScheduleTitle">플랜 일정</h2>
+            <div class="plan-schedule" id="planSchedule"></div>
+          </section>
         </div>
-        <div class="exercise-grid" id="exerciseGrid"></div>
+        <div class="plan-detail-cta"><button id="startPlanDetailButton" type="button">지금 시작 <span aria-hidden="true">→</span></button></div>
       </section>
 
-      <section class="counter-panel" aria-labelledby="counterTitle">
-        <div class="selected-date-banner" id="selectedDateBanner">
-          <span>선택 날짜</span>
-          <strong id="selectedDateLabel">오늘</strong>
-        </div>
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">선택한 운동</p>
-            <h2 id="counterTitle">숄더 프레스</h2>
+      <section class="app-screen" data-screen="record" aria-labelledby="recordTitle">
+        <header class="screen-header">
+          <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로">‹</button>
+          <h1 id="recordTitle">운동 기록하기</h1>
+          <button class="ghost-icon" id="resetSessionButton" type="button">초기화</button>
+        </header>
+
+        <section class="exercise-section" id="record" aria-labelledby="exerciseTitle">
+          <div class="section-head">
+            <div>
+              <h2 id="exerciseTitle">운동 종목 선택</h2>
+              <p class="section-copy">오늘 할 운동을 고르세요.</p>
+            </div>
+            <div class="exercise-tools">
+              <button class="edit-exercise-button" id="toggleExerciseEditButton" type="button" aria-label="운동종목 빼기 모드">-</button>
+              <button class="add-exercise-button" id="openExerciseLibraryButton" type="button" aria-label="운동 라이브러리 열기">+</button>
+            </div>
           </div>
-          <button class="ghost-button" id="resetSessionButton" type="button">초기화</button>
-        </div>
+          <div class="exercise-edit-bar" id="exerciseEditBar" hidden>
+            <span id="exerciseEditCount">0개 선택</span>
+            <button class="delete-selected-exercises" id="deleteSelectedExercisesButton" type="button">삭제하기</button>
+          </div>
+          <div class="exercise-grid" id="exerciseGrid"></div>
+        </section>
 
-        <div class="last-record" id="lastRecord">지난 기록을 불러오는 중...</div>
-
-        <form class="workout-form" id="workoutForm">
-          <label class="date-field">
+        <section class="counter-panel" aria-labelledby="counterTitle">
+          <div class="selected-date-banner" id="selectedDateBanner">
             <span>기록 날짜</span>
-            <input id="workoutDateInput" name="workoutDate" type="date">
-          </label>
-          <div class="field-grid three">
-            <label>
-              <span>무게 kg</span>
-              <div class="input-stepper">
-                <button class="stepper-button" type="button" data-step-for="weightInput" data-step="-8" aria-label="무게 내리기">-</button>
-                <input id="weightInput" name="weight" type="number" min="8" step="8" value="8" inputmode="numeric">
-                <button class="stepper-button" type="button" data-step-for="weightInput" data-step="8" aria-label="무게 올리기">+</button>
-              </div>
-            </label>
-            <label>
-              <span>이번 세트 횟수</span>
-              <div class="input-stepper">
-                <button class="stepper-button" type="button" data-step-for="currentRepsInput" data-step="-1" aria-label="횟수 내리기">-</button>
-                <input id="currentRepsInput" name="currentReps" type="number" min="1" max="200" step="1" value="12" inputmode="numeric">
-                <button class="stepper-button" type="button" data-step-for="currentRepsInput" data-step="1" aria-label="횟수 올리기">+</button>
-              </div>
-            </label>
-            <label>
-              <span>목표 세트</span>
-              <div class="input-stepper">
-                <button class="stepper-button" type="button" data-step-for="setsInput" data-step="-1" aria-label="세트 내리기">-</button>
-                <input id="setsInput" name="sets" type="number" min="1" max="30" step="1" value="3" inputmode="numeric">
-                <button class="stepper-button" type="button" data-step-for="setsInput" data-step="1" aria-label="세트 올리기">+</button>
-              </div>
-            </label>
+            <strong id="selectedDateLabel">오늘</strong>
           </div>
-          <label>
-            <span>메모</span>
-            <input id="notesInput" name="notes" autocomplete="off" placeholder="가볍게, RPE 7 등">
-          </label>
-        </form>
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">선택한 운동</p>
+              <h2 id="counterTitle">숄더 프레스</h2>
+            </div>
+          </div>
+          <article class="exercise-detail-card is-visible" id="exerciseDetailCard">
+            <div class="exercise-detail-head">
+              <div>
+                <p class="eyebrow">운동 상세</p>
+                <h3>숄더 프레스</h3>
+                <small>운동을 선택하면 상세 정보가 여기에 표시됩니다.</small>
+              </div>
+            </div>
+          </article>
+          <div class="last-record" id="lastRecord">지난 기록을 불러오는 중...</div>
 
-        <div class="planned-record" id="plannedRecord">오늘: 8kg · 0회 완료 · 볼륨 0kg</div>
-        <div class="record-compare" id="recordCompare"></div>
-        <div class="set-table-wrap">
-          <table class="set-table" aria-label="현재 세트 기록">
-            <thead>
-              <tr>
-                <th>세트</th>
-                <th>무게</th>
-                <th>횟수</th>
-                <th>볼륨</th>
-              </tr>
-            </thead>
-            <tbody id="setTableBody"></tbody>
-          </table>
-        </div>
+          <form class="workout-form" id="workoutForm">
+            <label class="date-field">
+              <span>기록 날짜</span>
+              <input id="workoutDateInput" name="workoutDate" type="date">
+            </label>
+            <div class="field-grid three">
+              <label>
+                <span>무게 kg</span>
+                <div class="input-stepper">
+                  <button class="stepper-button" type="button" data-step-for="weightInput" data-step="-8" aria-label="무게 내리기">-</button>
+                  <input id="weightInput" name="weight" type="number" min="8" step="8" value="8" inputmode="numeric">
+                  <button class="stepper-button" type="button" data-step-for="weightInput" data-step="8" aria-label="무게 올리기">+</button>
+                </div>
+              </label>
+              <label>
+                <span>이번 세트 횟수</span>
+                <div class="input-stepper">
+                  <button class="stepper-button" type="button" data-step-for="currentRepsInput" data-step="-1" aria-label="횟수 내리기">-</button>
+                  <input id="currentRepsInput" name="currentReps" type="number" min="1" max="200" step="1" value="12" inputmode="numeric">
+                  <button class="stepper-button" type="button" data-step-for="currentRepsInput" data-step="1" aria-label="횟수 올리기">+</button>
+                </div>
+              </label>
+              <label>
+                <span>목표 세트</span>
+                <div class="input-stepper">
+                  <button class="stepper-button" type="button" data-step-for="setsInput" data-step="-1" aria-label="세트 내리기">-</button>
+                  <input id="setsInput" name="sets" type="number" min="1" max="30" step="1" value="3" inputmode="numeric">
+                  <button class="stepper-button" type="button" data-step-for="setsInput" data-step="1" aria-label="세트 올리기">+</button>
+                </div>
+              </label>
+            </div>
+            <label>
+              <span>메모</span>
+              <input id="notesInput" name="notes" autocomplete="off" placeholder="가볍게, RPE 7 등">
+            </label>
+          </form>
 
-        <div class="set-meter" aria-live="polite">
-          <span id="completedSets">0</span>
-          <small>/ <span id="targetSets">3</span> sets</small>
-        </div>
+          <div class="planned-record" id="plannedRecord">오늘: 8kg · 0회 완료 · 볼륨 0kg</div>
+          <div class="record-compare" id="recordCompare"></div>
+          <div class="set-table-wrap">
+            <table class="set-table" aria-label="현재 세트 기록">
+              <thead>
+                <tr><th>세트</th><th>무게</th><th>횟수</th><th>볼륨</th></tr>
+              </thead>
+              <tbody id="setTableBody"></tbody>
+            </table>
+          </div>
 
-        <div class="progress-track" aria-hidden="true">
-          <div id="progressBar"></div>
-        </div>
-
-        <div class="action-row">
-          <button class="secondary-button" id="undoSetButton" type="button">-1</button>
-          <button class="count-button" id="countSetButton" type="button">이번 세트 완료</button>
-        </div>
-        <button class="confirm-button" id="confirmWorkoutButton" type="button" disabled>확인하고 기록 저장</button>
+          <div class="set-meter" aria-live="polite">
+            <span id="completedSets">0</span>
+            <small>/ <span id="targetSets">3</span> 세트</small>
+          </div>
+          <div class="progress-track" aria-hidden="true"><div id="progressBar"></div></div>
+          <div class="action-row">
+            <button class="secondary-button" id="undoSetButton" type="button">-1</button>
+            <button class="count-button" id="countSetButton" type="button">이번 세트 완료</button>
+          </div>
+          <button class="confirm-button" id="confirmWorkoutButton" type="button" disabled>기록 저장</button>
+        </section>
       </section>
 
-      <section class="board-section" aria-labelledby="boardTitle">
-        <div class="section-head plain">
+      <section class="app-screen" data-screen="calendar" aria-labelledby="calendarTitle">
+        <header class="screen-header">
+          <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로">‹</button>
+          <h1>달력</h1>
+          <button class="ghost-icon" type="button" data-go-screen="menu">SOS</button>
+        </header>
+        <section class="calendar-section" id="calendar" aria-labelledby="calendarTitle">
+          <div class="section-head calendar-nav">
+            <button class="icon-button" id="prevMonthButton" type="button" aria-label="이전 달">‹</button>
+            <h2 id="calendarTitle"></h2>
+            <button class="icon-button" id="nextMonthButton" type="button" aria-label="다음 달">›</button>
+          </div>
+          <div class="calendar-weekdays" aria-hidden="true">
+            <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+          <div class="calendar-day-detail" id="calendarDayDetail" aria-live="polite"></div>
+          <div class="calendar-excuses" id="calendarExcuseList" aria-live="polite"></div>
+        </section>
+        <section class="history-section" aria-labelledby="historyTitle">
+          <div class="section-head plain">
+            <h2 id="historyTitle">이번 달 요약</h2>
+            <span id="monthSummary"></span>
+          </div>
+          <div class="history-list" id="historyList"></div>
+        </section>
+      </section>
+
+      <section class="app-screen" data-screen="board" aria-labelledby="boardTitle">
+        <header class="screen-header">
+          <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로">‹</button>
+          <h1 id="boardTitle">게시판</h1>
+          <span></span>
+        </header>
+        <section class="board-section">
+          <div class="section-head">
+            <div>
+              <h2>레벨 인증</h2>
+              <p class="section-copy">닉네임 앞에 레벨이 붙습니다.</p>
+            </div>
+          </div>
+          <form class="board-form" id="boardForm">
+            <div class="board-author" id="boardAuthor">
+              <span class="level-badge rookie" aria-label="레벨 1"><span class="level-badge-number">1</span></span>
+              <span class="nickname-text">닉네임</span>
+            </div>
+            <textarea id="boardInput" rows="4" maxlength="180" placeholder="오늘 운동 인증, 기록 자랑, 한 줄 다짐"></textarea>
+            <button class="confirm-button" type="submit">작성하기</button>
+          </form>
+          <div class="board-tabs">
+            <button class="is-active" id="boardLatestButton" type="button" data-board-sort="latest">최신</button>
+            <button id="boardPopularButton" type="button" data-board-sort="popular">인기순</button>
+          </div>
+          <div class="board-list" id="boardList" aria-live="polite"></div>
+        </section>
+      </section>
+
+      <section class="app-screen" data-screen="menu" aria-labelledby="menuTitle">
+        <header class="screen-header">
+          <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로">‹</button>
+          <h1 id="menuTitle">메뉴</h1>
+          <span></span>
+        </header>
+        <section class="menu-profile">
+          <div class="avatar-frame"><img src="{{ url_for('static', filename='assets/newlogo.webp') }}?v=1" alt=""></div>
           <div>
-            <h2 id="boardTitle">게시판</h2>
-            <p class="section-copy">레벨 달고 오늘 운동 인증하기</p>
+            <p class="user-badge" id="menuUserBadge">
+              <span class="level-badge rookie" aria-label="레벨 1"><span class="level-badge-number">1</span></span>
+              <span class="nickname-text">닉네임</span>
+            </p>
+            <p class="section-copy" id="menuExpCopy">경험치 0 / 0</p>
           </div>
-        </div>
-        <form class="board-form" id="boardForm">
-          <div class="board-author" id="boardAuthor">
-            <span class="level-badge rookie" aria-label="레벨 1">
-              <span class="level-badge-number">1</span>
-            </span>
-            <span class="nickname-text">닉네임</span>
+        </section>
+        <section class="account-panel" id="accountPanel" aria-live="polite">
+          <p class="eyebrow">ACCOUNT</p>
+          <h2 id="accountPanelTitle">기록을 안전하게 보관하기</h2>
+          <p id="accountPanelCopy">계정을 연결하면 휴대폰을 바꾸거나 앱을 다시 설치해도 운동 기록을 이어서 볼 수 있어요.</p>
+          <p class="account-email" id="accountEmail" hidden></p>
+          <div class="account-actions" id="anonymousAccountActions">
+            <button class="confirm-button" id="openRegisterButton" type="button">계정 연결</button>
+            <button class="ghost-button" id="openLoginButton" type="button">이미 계정이 있어요</button>
           </div>
-          <textarea id="boardInput" rows="3" maxlength="180" placeholder="오늘 운동 인증, 기록 자랑, 한 줄 다짐"></textarea>
-          <button class="confirm-button" type="submit">글쓰기</button>
-        </form>
-        <div class="board-list" id="boardList" aria-live="polite"></div>
+          <div class="account-actions" id="authenticatedAccountActions" hidden>
+            <button class="ghost-button" id="logoutButton" type="button">로그아웃</button>
+          </div>
+        </section>
+        <section class="menu-list" aria-label="메뉴 목록">
+          <button type="button" id="menuNicknameButton">닉네임 변경 <span>7일 제한</span></button>
+          <button type="button" data-go-screen="calendar">운동 달력 <span>기록 확인</span></button>
+          <button type="button" data-go-screen="board">게시판 <span>레벨 인증</span></button>
+          <button type="button" data-go-screen="record">운동 기록 <span>세트 저장</span></button>
+        </section>
+        <section class="sos-section" aria-labelledby="sosTitle">
+          <div class="sos-orbit">SOS</div>
+          <div>
+            <p class="eyebrow danger">SOS 기록</p>
+            <h2 id="sosTitle">선택 날짜 운동 면제</h2>
+            <p class="sos-copy">아프거나 바쁜 날은 달력에서 날짜를 고르고 사유를 남기세요.</p>
+          </div>
+          <textarea id="sosReasonInput" rows="4" placeholder="감기, 야근, 가족 일정"></textarea>
+          <button class="sos-button" id="sosButton" type="button">SOS 저장</button>
+        </section>
+        <section class="support-menu" aria-label="고객 지원">
+          <button type="button" id="openFeedbackButton">
+            <span><strong>피드백 보내기</strong><small>Discord로 의견 전달</small></span>
+            <b aria-hidden="true">›</b>
+          </button>
+          <button type="button" id="openFaqButton">
+            <span><strong>자주 묻는 질문</strong><small>사용법과 기록 안내</small></span>
+            <b aria-hidden="true">›</b>
+          </button>
+          <button type="button" id="openPrivacyButton">
+            <span><strong>개인정보 처리방침</strong><small>수집 및 이용 안내</small></span>
+            <b aria-hidden="true">›</b>
+          </button>
+          <button type="button" id="versionButton">
+            <span><strong>버전</strong><small>Set Counter</small></span>
+            <b class="version-value">v1.0.0</b>
+          </button>
+        </section>
       </section>
 
-      <section class="sos-section" aria-labelledby="sosTitle">
-        <div>
-          <p class="eyebrow">SOS</p>
-          <h2 id="sosTitle">선택 날짜 운동 면제</h2>
-          <p class="sos-copy">아프거나 바쁜 날은 달력에서 날짜를 고르고 사유를 남기세요.</p>
-        </div>
-        <textarea id="sosReasonInput" rows="3" placeholder="감기, 야근, 가족 일정"></textarea>
-        <button class="sos-button" id="sosButton" type="button">SOS 저장</button>
-      </section>
-
-      <details class="calendar-section collapsible-section" aria-labelledby="calendarTitle">
-        <summary>달력 보기</summary>
-        <div class="section-head">
-          <button class="icon-button" id="prevMonthButton" type="button" aria-label="이전 달">‹</button>
-          <h2 id="calendarTitle"></h2>
-          <button class="icon-button" id="nextMonthButton" type="button" aria-label="다음 달">›</button>
-        </div>
-        <div class="calendar-weekdays" aria-hidden="true">
-          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
-        </div>
-        <div class="calendar-grid" id="calendarGrid"></div>
-        <div class="calendar-day-detail" id="calendarDayDetail" aria-live="polite"></div>
-        <div class="calendar-excuses" id="calendarExcuseList" aria-live="polite"></div>
-      </details>
-
-      <details class="history-section collapsible-section" aria-labelledby="historyTitle">
-        <summary>이번 달 요약 보기</summary>
-        <div class="section-head plain">
-          <h2 id="historyTitle">이번 달 요약</h2>
-          <span id="monthSummary"></span>
-        </div>
-        <div class="history-list" id="historyList"></div>
-      </details>
-
-      <section class="reminder-section is-blocked" hidden aria-labelledby="reminderTitle">
-        <div>
-          <p class="eyebrow">알림</p>
-          <h2 id="reminderTitle">매일 오전 11시</h2>
-          <p class="reminder-copy" id="reminderStatus">운동 기록 알림을 켜주세요.</p>
-        </div>
-        <button class="reminder-button" id="enableReminderButton" type="button">알림 켜기</button>
-      </section>
+      <nav class="bottom-nav" aria-label="주요 메뉴">
+        <button type="button" class="is-active" data-tab="home">홈</button>
+        <button type="button" data-tab="record">기록</button>
+        <button type="button" data-tab="calendar">달력</button>
+        <button type="button" data-tab="board">게시판</button>
+        <button type="button" data-tab="menu">메뉴</button>
+      </nav>
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="exercise-library-modal" id="exerciseLibraryModal" hidden>
+      <section class="exercise-library-dialog" aria-labelledby="exerciseLibraryTitle">
+        <div class="library-head">
+          <div>
+            <p class="eyebrow">운동 라이브러리</p>
+            <h2 id="exerciseLibraryTitle">운동 추가 선택</h2>
+          </div>
+          <button class="library-close" id="closeExerciseLibraryButton" type="button" aria-label="닫기">×</button>
+        </div>
+        <label class="library-search">
+          <span>검색</span>
+          <input id="exerciseLibrarySearch" type="search" placeholder="벤치, 로우, 스쿼트, 컬...">
+        </label>
+        <div class="library-filter-block">
+          <p>부위</p>
+          <div class="library-filter-row" id="bodyFilterRow"></div>
+        </div>
+        <div class="library-filter-block">
+          <p>도구</p>
+          <div class="library-filter-row" id="equipmentFilterRow"></div>
+        </div>
+        <p class="library-count" id="exerciseLibraryCount">0개 운동</p>
+        <div class="exercise-library-list" id="exerciseLibraryList"></div>
+      </section>
+    </div>
     <div class="profile-modal" id="profileModal" hidden>
       <form class="profile-dialog" id="profileForm">
         <h2 id="profileModalTitle">닉네임 만들기</h2>
@@ -223,11 +398,11 @@
     </div>
     <div class="profile-modal" id="complaintModal" hidden>
       <form class="profile-dialog complaint-dialog" id="complaintForm">
-        <h2>컴플레인 보내기</h2>
-        <p>부정행위 판정이 잘못됐다고 생각하면 사유를 적어주세요. 제출하면 운영자 Discord로 전송됩니다.</p>
+        <h2 id="complaintModalTitle">피드백 보내기</h2>
+        <p id="complaintModalCopy">Set Counter에 바라는 점이나 불편한 점을 남겨주세요. 운영자 Discord로 전송됩니다.</p>
         <label>
           <span>내용</span>
-          <textarea id="complaintInput" rows="5" maxlength="1200" placeholder="예: 실제로 기록한 운동이고, 지난 기록이 낮게 저장돼 있었습니다."></textarea>
+          <textarea id="complaintInput" rows="5" maxlength="1200" placeholder="의견을 자유롭게 적어주세요."></textarea>
         </label>
         <p class="profile-error" id="complaintError" role="alert"></p>
         <div class="complaint-actions">
@@ -236,6 +411,161 @@
         </div>
       </form>
     </div>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=35"></script>
+    <div class="profile-modal" id="registerModal" hidden>
+      <form class="profile-dialog auth-dialog" id="registerForm">
+        <p class="eyebrow">ACCOUNT</p>
+        <h2>기록을 안전하게 보관하기</h2>
+        <p>계정을 연결하면 다른 기기에서도 운동 기록을 이어서 볼 수 있어요.</p>
+        <label><span>이메일</span><input id="registerEmailInput" type="email" autocomplete="email" inputmode="email" maxlength="320" required></label>
+        <label><span>비밀번호</span><input id="registerPasswordInput" type="password" autocomplete="new-password" minlength="8" required></label>
+        <label><span>비밀번호 확인</span><input id="registerPasswordConfirmInput" type="password" autocomplete="new-password" minlength="8" required></label>
+        <label class="terms-check"><input id="registerTermsInput" type="checkbox" required><span>이용약관 및 개인정보 처리방침에 동의합니다.</span></label>
+        <p class="profile-error" id="registerError" role="alert"></p>
+        <div class="complaint-actions"><button class="ghost-button" id="closeRegisterButton" type="button">취소</button><button class="confirm-button" id="registerSubmitButton" type="submit">기록 안전하게 보관하기</button></div>
+      </form>
+    </div>
+    <div class="profile-modal" id="loginModal" hidden>
+      <form class="profile-dialog auth-dialog" id="loginForm">
+        <p class="eyebrow">SIGN IN</p>
+        <h2>로그인</h2>
+        <p>다른 기기에서 연결한 기록을 불러옵니다.</p>
+        <label><span>이메일</span><input id="loginEmailInput" type="email" autocomplete="email" inputmode="email" maxlength="320" required></label>
+        <label><span>비밀번호</span><input id="loginPasswordInput" type="password" autocomplete="current-password" required></label>
+        <p class="profile-error" id="loginError" role="alert"></p>
+        <div class="complaint-actions"><button class="ghost-button" id="closeLoginButton" type="button">취소</button><button class="confirm-button" id="loginSubmitButton" type="submit">로그인</button></div>
+      </form>
+    </div>
+    <div class="profile-modal" id="authConflictModal" hidden>
+      <section class="profile-dialog auth-dialog" aria-labelledby="authConflictTitle">
+        <p class="eyebrow danger">RECORD SAFETY</p>
+        <h2 id="authConflictTitle">이 기기에 저장된 기록이 있습니다</h2>
+        <p>현재 기기의 익명 기록과 로그인하려는 계정의 기록이 모두 존재합니다. 기록이 사라지지 않도록 자동으로 합치지 않았습니다.</p>
+        <div class="auth-conflict-summary"><div><strong>현재 기기 기록</strong><span id="anonymousConflictSummary"></span></div><div><strong>계정 기록</strong><span id="accountConflictSummary"></span></div></div>
+        <button class="confirm-button" id="closeAuthConflictButton" type="button">확인</button>
+      </section>
+    </div>
+    <div class="profile-modal support-modal" id="faqModal" hidden>
+      <section class="support-dialog" aria-labelledby="faqTitle">
+        <header class="support-dialog-head">
+          <div>
+            <p class="eyebrow">HELP</p>
+            <h2 id="faqTitle">자주 묻는 질문</h2>
+          </div>
+          <button class="library-close" id="closeFaqButton" type="button" aria-label="닫기">×</button>
+        </header>
+        <div class="faq-list">
+          <details>
+            <summary>Set Counter는 무료인가요?</summary>
+            <p>네. 현재 Set Counter의 운동 기록, 달력, 레벨, 게시판 기능은 무료로 사용할 수 있습니다.</p>
+          </details>
+          <details>
+            <summary>어떤 기기에서 사용할 수 있나요?</summary>
+            <p>최신 웹 브라우저가 설치된 휴대폰과 PC에서 사용할 수 있습니다. iPhone에서는 홈 화면에 추가하면 앱처럼 이용할 수 있습니다.</p>
+          </details>
+          <details>
+            <summary>오프라인에서도 작동하나요?</summary>
+            <p>이미 열어 본 화면 일부는 표시될 수 있지만, 운동 기록 저장과 게시판 등 주요 기능에는 인터넷 연결이 필요합니다.</p>
+          </details>
+          <details>
+            <summary>어떤 운동을 기록할 수 있나요?</summary>
+            <p>기본 운동을 선택하거나 운동 라이브러리에서 원하는 종목을 추가해 무게, 횟수, 세트와 메모를 기록할 수 있습니다.</p>
+          </details>
+          <details>
+            <summary>세트는 어떻게 기록하나요?</summary>
+            <p>무게와 이번 세트 횟수, 목표 세트를 정한 뒤 ‘이번 세트 완료’를 누르세요. 모든 세트가 끝나면 ‘기록 저장’을 누르면 됩니다.</p>
+          </details>
+          <details>
+            <summary>레벨은 어떻게 올라가나요?</summary>
+            <p>이전 운동 기록을 경신하면 경험치를 얻습니다. 누적 경험치가 기준에 도달하면 레벨이 올라갑니다.</p>
+          </details>
+          <details>
+            <summary>지난 기록은 어디에서 확인하나요?</summary>
+            <p>달력에서 날짜를 선택하면 해당 날짜의 운동 종목, 세트, 횟수와 볼륨을 확인할 수 있습니다.</p>
+          </details>
+          <details>
+            <summary>SOS 기록은 무엇인가요?</summary>
+            <p>아프거나 바빠 운동하지 못한 날을 면제 처리하는 기능입니다. 달력에서 날짜를 고른 뒤 메뉴의 SOS 기록에 사유를 남기세요.</p>
+          </details>
+          <details>
+            <summary>운동 알림을 설정할 수 있나요?</summary>
+            <p>홈 화면의 운동 알림에서 알림을 켤 수 있습니다. iPhone은 홈 화면에 추가한 앱에서 알림 권한을 허용해야 합니다.</p>
+          </details>
+          <details>
+            <summary>운동 데이터는 어디에 저장되나요?</summary>
+            <p>운동 기록과 프로필은 서버 데이터베이스에 저장되며, 이 브라우저에 보관된 사용자 키로 내 기록을 불러옵니다.</p>
+          </details>
+          <details>
+            <summary>기록이 부정행위로 감지되면 어떻게 하나요?</summary>
+            <p>갑작스러운 큰 폭의 기록 증가 등 의심 패턴이 감지될 수 있습니다. 잘못 감지됐다면 표시되는 이의제기 창으로 운영자에게 알려주세요.</p>
+          </details>
+        </div>
+      </section>
+    </div>
+    <div class="profile-modal support-modal" id="privacyModal" hidden>
+      <section class="support-dialog privacy-dialog" aria-labelledby="privacyTitle">
+        <header class="support-dialog-head">
+          <div>
+            <p class="eyebrow">PRIVACY</p>
+            <h2 id="privacyTitle">개인정보 처리방침</h2>
+          </div>
+          <button class="library-close" id="closePrivacyButton" type="button" aria-label="닫기">×</button>
+        </header>
+        <div class="privacy-content">
+          <p class="policy-date">시행일: 2026년 7월 16일</p>
+          <h3>수집하는 정보</h3>
+          <p>닉네임, 운동 기록, SOS 사유, 게시판 글과 댓글, 알림 구독 정보 및 서비스 이용에 필요한 사용자 식별 키를 처리합니다.</p>
+          <h3>이용 목적</h3>
+          <p>운동 기록 저장과 조회, 레벨 계산, 게시판 운영, 운동 알림 제공, 부정 이용 방지 및 사용자 문의 처리를 위해 사용합니다.</p>
+          <h3>보관 및 보호</h3>
+          <p>기록은 서비스 제공에 필요한 기간 동안 서버 데이터베이스에 보관합니다. 사용자 식별 키는 현재 브라우저에 저장되므로 브라우저 데이터를 지우면 기존 기록 연결이 어려울 수 있습니다.</p>
+          <h3>외부 전송</h3>
+          <p>피드백이나 이의제기를 보내면 닉네임, 레벨, 사용자 ID와 작성 내용이 운영자 Discord 채널로 전송됩니다.</p>
+          <h3>문의</h3>
+          <p>개인정보 관련 문의는 메뉴의 ‘피드백 보내기’를 이용해 주세요.</p>
+        </div>
+      </section>
+    </div>
+    <div class="exercise-step-modal" id="planExerciseDetailModal" hidden>
+      <section class="exercise-step-dialog" aria-labelledby="planExerciseDetailTitle">
+        <div class="exercise-step-handle"></div>
+        <header class="exercise-step-head">
+          <h2 id="planExerciseDetailTitle">운동 상세</h2>
+          <button id="closePlanExerciseDetailButton" type="button">닫기</button>
+        </header>
+        <img class="exercise-step-image" id="planExerciseDetailImage" src="" alt="">
+        <div class="exercise-step-tabs" aria-hidden="true"><span class="is-active">동작</span><span>튜토리얼</span></div>
+        <div class="exercise-step-scroll">
+          <div class="exercise-step-meta"><span id="planExerciseDetailMetaLabel">지속시간</span><strong id="planExerciseDetailMeta">00:30</strong></div>
+          <section>
+            <h3>설명</h3>
+            <p id="planExerciseDetailDescription"></p>
+          </section>
+          <section>
+            <h3>집중 영역</h3>
+            <div class="exercise-focus-chips" id="planExerciseDetailMuscles"></div>
+          </section>
+          <div class="exercise-focus-visual" aria-hidden="true"><span></span><span></span></div>
+        </div>
+        <footer class="exercise-step-footer">
+          <button id="previousPlanExerciseButton" type="button" aria-label="이전 운동">‹</button>
+          <strong id="planExerciseDetailPage">1/1</strong>
+          <button id="nextPlanExerciseButton" type="button" aria-label="다음 운동">›</button>
+          <button id="confirmPlanExerciseDetailButton" type="button">닫기</button>
+        </footer>
+      </section>
+    </div>
+    <div class="profile-modal" id="nextRecommendationModal" hidden>
+      <section class="profile-dialog next-recommendation-dialog" aria-labelledby="nextRecommendationTitle">
+        <p class="eyebrow">추천 업데이트</p>
+        <h2 id="nextRecommendationTitle">다음 추천 운동</h2>
+        <strong class="next-recommendation-name" id="nextRecommendationName"></strong>
+        <p id="nextRecommendationReason"></p>
+        <div class="complaint-actions">
+          <button class="ghost-button" id="closeNextRecommendationButton" type="button">나중에</button>
+          <button class="confirm-button" id="startNextRecommendationButton" type="button">바로 선택</button>
+        </div>
+      </section>
+    </div>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=72"></script>
   </body>
 </html>
