@@ -10,7 +10,7 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, inspect, text
 
-from models import AuthAccount
+from models import AuthAccount, AuthRateLimit
 
 
 COUNT_TABLES = (
@@ -96,6 +96,10 @@ def migrate(engine):
         print("Before sample users:", before_samples)
 
         AuthAccount.__table__.create(bind=connection, checkfirst=True)
+        AuthRateLimit.__table__.create(bind=connection, checkfirst=True)
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_auth_rate_limits_updated_at ON auth_rate_limits(updated_at)")
+        )
         add_column_if_missing(connection, "health_users", "account_id", "account_id INTEGER")
         add_column_if_missing(connection, "health_users", "is_anonymous", "is_anonymous BOOLEAN NOT NULL DEFAULT 1")
         timestamp_type = "TIMESTAMPTZ" if backend == "postgresql" else "DATETIME"

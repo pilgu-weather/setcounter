@@ -83,6 +83,25 @@ class AuthAccount(db.Model):
     health_user = db.relationship("HealthUser", back_populates="account", uselist=False)
 
 
+class AuthRateLimit(db.Model):
+    """Shared, privacy-preserving authentication throttling state."""
+
+    __tablename__ = "auth_rate_limits"
+    __table_args__ = (
+        UniqueConstraint("scope", "subject_hash", name="uq_auth_rate_limit_scope_subject"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    scope = db.Column(db.String(64), nullable=False)
+    subject_hash = db.Column(db.String(64), nullable=False)
+    window_started_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
+    blocked_until = db.Column(db.DateTime(timezone=True))
+    updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now, index=True
+    )
+
+
 class HealthExercise(db.Model):
     __tablename__ = "health_exercises"
 

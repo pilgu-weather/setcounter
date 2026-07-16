@@ -2,6 +2,7 @@ import math
 import os
 import re
 import base64
+import hashlib
 import json
 import hmac
 import secrets
@@ -11,13 +12,14 @@ from datetime import date, datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 from flask import Flask, g, jsonify, redirect, render_template, request, send_from_directory, session
-from sqlalchemy import func, inspect, select, text, update
+from sqlalchemy import delete, func, inspect, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from models import (
     AuthAccount,
+    AuthRateLimit,
     HealthBoardComment,
     HealthBoardLike,
     HealthBoardPost,
@@ -73,6 +75,9 @@ MAX_BOARD_POST_LENGTH = 180
 MAX_BOARD_COMMENT_LENGTH = 120
 MAX_BOARD_REPORT_LENGTH = 500
 MAX_BOARD_POSTS_PER_PAGE = 50
+AUTH_RATE_LIMIT_WINDOW = timedelta(minutes=15)
+AUTH_LOGIN_RATE_LIMIT = 8
+AUTH_REGISTER_RATE_LIMIT = 5
 CHEAT_WARNING_LIMIT = 2
 CHEAT_PENALTY_THRESHOLD = 3
 COMPLAINT_EMAIL = ""
@@ -245,6 +250,7 @@ def create_app():
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=os.environ.get("SETCOUNTER_SESSION_COOKIE_SECURE") == "1",
+        PERMANENT_SESSION_LIFETIME=timedelta(days=30),
     )
     app.jinja_env.auto_reload = True
     db.init_app(app)
@@ -380,6 +386,125 @@ def require_auth_csrf():
     return None
 
 
+def request_ip_address():
+    """Honor forwarded IPs only when the hosting environment explicitly opts in."""
+    if os.environ.get("SETCOUNTER_TRUST_PROXY") == "1":
+        forwarded = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+        if forwarded:
+            return forwarded
+    return request.remote_addr or "unknown"
+
+
+def auth_rate_limit_subject(scope, value):
+    value = str(value or "unknown")
+    return hmac.new(
+        app.config["SECRET_KEY"].encode("utf-8"),
+        f"{scope}:{value}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def aware_datetime(value):
+    if value is not None and value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
+def auth_rate_limit_response(retry_after):
+    response = jsonify({"error": "auth_rate_limited", "retryAfter": retry_after})
+    response.status_code = 429
+    response.headers["Retry-After"] = str(retry_after)
+    return response
+
+
+def auth_rate_limit_exceeded(scope, value, limit):
+    subject_hash = auth_rate_limit_subject(scope, value)
+    row = db.session.scalar(
+        select(AuthRateLimit).where(
+            AuthRateLimit.scope == scope,
+            AuthRateLimit.subject_hash == subject_hash,
+        )
+    )
+    if row is None:
+        return None
+    now = utc_now()
+    blocked_until = aware_datetime(row.blocked_until)
+    if blocked_until is not None and blocked_until > now:
+        return auth_rate_limit_response(max(1, int((blocked_until - now).total_seconds())))
+    window_started_at = aware_datetime(row.window_started_at)
+    if now - window_started_at >= AUTH_RATE_LIMIT_WINDOW:
+        db.session.delete(row)
+        db.session.commit()
+        return None
+    if row.attempts < limit:
+        return None
+    row.blocked_until = now + AUTH_RATE_LIMIT_WINDOW
+    db.session.commit()
+    return auth_rate_limit_response(int(AUTH_RATE_LIMIT_WINDOW.total_seconds()))
+
+
+def record_auth_attempt(scope, value):
+    subject_hash = auth_rate_limit_subject(scope, value)
+    row = db.session.scalar(
+        select(AuthRateLimit).where(
+            AuthRateLimit.scope == scope,
+            AuthRateLimit.subject_hash == subject_hash,
+        )
+    )
+    now = utc_now()
+    if row is None:
+        db.session.add(
+            AuthRateLimit(
+                scope=scope,
+                subject_hash=subject_hash,
+                window_started_at=now,
+                attempts=1,
+            )
+        )
+    else:
+        window_started_at = aware_datetime(row.window_started_at)
+        if now - window_started_at >= AUTH_RATE_LIMIT_WINDOW:
+            row.window_started_at = now
+            row.attempts = 1
+            row.blocked_until = None
+        else:
+            row.attempts += 1
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # A concurrent first attempt can race on the unique scope/hash pair.
+        db.session.rollback()
+        row = db.session.scalar(
+            select(AuthRateLimit).where(
+                AuthRateLimit.scope == scope,
+                AuthRateLimit.subject_hash == subject_hash,
+            )
+        )
+        if row is not None:
+            row.attempts += 1
+            db.session.commit()
+
+    # Expired hashed rate-limit rows have no product value after a short retention period.
+    if secrets.randbelow(100) == 0:
+        db.session.execute(
+            delete(AuthRateLimit).where(AuthRateLimit.updated_at < now - timedelta(days=7))
+        )
+        db.session.commit()
+
+
+def clear_auth_attempts(scope, value):
+    subject_hash = auth_rate_limit_subject(scope, value)
+    row = db.session.scalar(
+        select(AuthRateLimit).where(
+            AuthRateLimit.scope == scope,
+            AuthRateLimit.subject_hash == subject_hash,
+        )
+    )
+    if row is not None:
+        db.session.delete(row)
+        db.session.commit()
+
+
 def get_user_data_summary(user):
     """Count meaningful user-owned data without treating an empty profile as a conflict."""
     workout_count = db.session.scalar(
@@ -512,6 +637,14 @@ def send_discord_board_report(user, post, comment, reason):
         )
     lines.append(f"신고 사유: {reason}")
     send_discord_message(lines)
+
+
+@app.before_request
+def require_api_csrf():
+    if request.path == "/api/reminders/send":
+        return None
+    if request.path.startswith("/api/") and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        return require_auth_csrf()
 
 
 @app.before_request
@@ -1158,11 +1291,13 @@ def auth_status():
 
 @app.route("/api/auth/register", methods=["POST"])
 def auth_register():
-    csrf_error = require_auth_csrf()
-    if csrf_error:
-        return csrf_error
     if session.get("account_id") is not None:
         return jsonify({"error": "already_authenticated"}), 409
+    ip_address = request_ip_address()
+    limited = auth_rate_limit_exceeded("register_ip", ip_address, AUTH_REGISTER_RATE_LIMIT)
+    if limited:
+        return limited
+    record_auth_attempt("register_ip", ip_address)
     anonymous_user = request_anonymous_user()
     if anonymous_user is None:
         return jsonify({"error": "anonymous_user_required"}), 401
@@ -1197,6 +1332,7 @@ def auth_register():
         db.session.rollback()
         raise
     session.clear()
+    session.permanent = True
     session["account_id"] = account.id
     g.current_health_user = anonymous_user
     return jsonify(
@@ -1212,19 +1348,27 @@ def auth_register():
 
 @app.route("/api/auth/login", methods=["POST"])
 def auth_login():
-    csrf_error = require_auth_csrf()
-    if csrf_error:
-        return csrf_error
     if session.get("account_id") is not None:
         return jsonify({"error": "already_authenticated"}), 409
     payload = request.get_json(silent=True) or {}
+    ip_address = request_ip_address()
     try:
         email = normalize_email(payload.get("email"))
     except ValueError:
+        limited = auth_rate_limit_exceeded("login_ip", ip_address, AUTH_LOGIN_RATE_LIMIT)
+        if limited:
+            return limited
+        record_auth_attempt("login_ip", ip_address)
         return jsonify({"error": "invalid_credentials", "message": "Email or password is incorrect."}), 401
+    for scope, value in (("login_ip", ip_address), ("login_email", email)):
+        limited = auth_rate_limit_exceeded(scope, value, AUTH_LOGIN_RATE_LIMIT)
+        if limited:
+            return limited
     password = str(payload.get("password") or "")
     account = db.session.scalar(select(AuthAccount).where(AuthAccount.email == email))
     if account is None or account.status != "active" or not check_password_hash(account.password_hash, password):
+        record_auth_attempt("login_ip", ip_address)
+        record_auth_attempt("login_email", email)
         return jsonify({"error": "invalid_credentials", "message": "Email or password is incorrect."}), 401
     account_user = db.session.scalar(select(HealthUser).where(HealthUser.account_id == account.id))
     if account_user is None:
@@ -1244,7 +1388,10 @@ def auth_login():
     account.last_login_at = utc_now()
     account_user.last_seen_at = utc_now()
     db.session.commit()
+    clear_auth_attempts("login_ip", ip_address)
+    clear_auth_attempts("login_email", email)
     session.clear()
+    session.permanent = True
     session["account_id"] = account.id
     g.current_health_user = account_user
     return jsonify(
@@ -1260,9 +1407,6 @@ def auth_login():
 
 @app.route("/api/auth/logout", methods=["POST"])
 def auth_logout():
-    csrf_error = require_auth_csrf()
-    if csrf_error:
-        return csrf_error
     session.clear()
     return jsonify({"success": True, "requiresNewAnonymousKey": True})
 
@@ -1523,7 +1667,9 @@ def test_push():
 @app.route("/api/reminders/send", methods=["POST"])
 def send_daily_reminders():
     cron_token = os.environ.get("REMINDER_CRON_TOKEN", "").strip()
-    if cron_token and request.headers.get("X-Cron-Token", "") != cron_token:
+    if not cron_token:
+        return jsonify({"error": "reminder cron is not configured"}), 503
+    if not hmac.compare_digest(request.headers.get("X-Cron-Token", ""), cron_token):
         return jsonify({"error": "forbidden"}), 403
     return jsonify(deliver_reminders())
 

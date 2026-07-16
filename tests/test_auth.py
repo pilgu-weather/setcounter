@@ -15,7 +15,7 @@ os.environ["SECRET_KEY"] = secrets.token_urlsafe(48)
 
 from app import app, db
 from migrate_auth_data import migrate
-from models import AuthAccount, HealthExercise, HealthSet, HealthUser, HealthWorkout
+from models import AuthAccount, AuthRateLimit, HealthExercise, HealthSet, HealthUser, HealthWorkout
 
 
 class AuthSystemTestCase(unittest.TestCase):
@@ -44,7 +44,7 @@ class AuthSystemTestCase(unittest.TestCase):
     def create_workout(self, user_key, exercise_name="Bench Press"):
         response = self.client.post(
             "/api/logs",
-            headers=self.headers(user_key),
+            headers=self.csrf_headers(self.client, user_key),
             json={"exercise": exercise_name, "date": "2026-07-16", "weight": 40, "reps": 10, "completedSets": 2},
         )
         self.assertEqual(response.status_code, 201, response.get_json())
@@ -152,7 +152,7 @@ class AuthSystemTestCase(unittest.TestCase):
         anonymous_key = "device-conflict-key-0001"
         create = anonymous_client.post(
             "/api/logs",
-            headers=self.headers(anonymous_key),
+            headers=self.csrf_headers(anonymous_client, anonymous_key),
             json={"exercise": "Squat", "date": "2026-07-16", "weight": 30, "reps": 8, "completedSets": 2},
         )
         self.assertEqual(create.status_code, 201)
@@ -185,7 +185,12 @@ class AuthSystemTestCase(unittest.TestCase):
     def test_logout_clears_session_without_exposing_account_data(self):
         key = "logout-key-00001"
         self.create_workout(key)
-        self.assertEqual(self.register(key, self.email("logout")).status_code, 201)
+        registered = self.register(key, self.email("logout"))
+        self.assertEqual(registered.status_code, 201)
+        session_cookie = registered.headers.get("Set-Cookie", "")
+        self.assertIn("HttpOnly", session_cookie)
+        self.assertIn("SameSite=Lax", session_cookie)
+        self.assertIn("Expires=", session_cookie)
         response = self.client.post("/api/auth/logout", headers=self.csrf_headers(self.client))
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.get_json()["requiresNewAnonymousKey"])
@@ -215,7 +220,7 @@ class AuthSystemTestCase(unittest.TestCase):
         key = "transaction-rollback-key-0001"
         email = self.email("rollback")
         self.create_workout(key)
-        with patch.object(db.session, "commit", side_effect=RuntimeError("forced failure")):
+        with patch.object(db.session, "commit", side_effect=[None, RuntimeError("forced failure")]):
             response = self.register(key, email)
         self.assertEqual(response.status_code, 500)
         with app.app_context():
@@ -223,6 +228,44 @@ class AuthSystemTestCase(unittest.TestCase):
             user = self.user_for_key(key)
             self.assertIsNone(user.account_id)
             self.assertTrue(user.is_anonymous)
+
+    def test_csrf_protects_regular_state_changes(self):
+        key = "csrf-regular-api-key-0001"
+        blocked = self.client.post(
+            "/api/logs",
+            headers=self.headers(key),
+            json={"exercise": "Bench Press", "date": "2026-07-16", "weight": 40, "reps": 10, "completedSets": 2},
+        )
+        self.assertEqual(blocked.status_code, 403)
+        self.create_workout(key)
+        with app.app_context():
+            log_id = db.session.query(HealthWorkout.id).one()[0]
+        deleted = self.client.delete(f"/api/logs/{log_id}", headers=self.csrf_headers(self.client, key))
+        self.assertEqual(deleted.status_code, 204)
+
+    def test_login_rate_limit_blocks_repeated_invalid_passwords(self):
+        key = "rate-limit-account-key-0001"
+        email = self.email("rate-limit")
+        self.create_workout(key)
+        self.assertEqual(self.register(key, email).status_code, 201)
+        client = app.test_client()
+        wrong_password = f"wrong-{secrets.token_urlsafe(18)}"
+        for _ in range(8):
+            response = client.post(
+                "/api/auth/login",
+                headers=self.csrf_headers(client),
+                json={"email": email, "password": wrong_password},
+            )
+            self.assertEqual(response.status_code, 401)
+        blocked = client.post(
+            "/api/auth/login",
+            headers=self.csrf_headers(client),
+            json={"email": email, "password": self.password},
+        )
+        self.assertEqual(blocked.status_code, 429)
+        self.assertEqual(blocked.get_json()["error"], "auth_rate_limited")
+        with app.app_context():
+            self.assertGreaterEqual(db.session.query(AuthRateLimit).count(), 2)
 
 
 if __name__ == "__main__":
