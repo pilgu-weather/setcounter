@@ -21,7 +21,7 @@
               <img class="brand-logo" src="{{ url_for('static', filename='assets/newlogo.webp') }}?v=1" alt="Set Counter 로고" decoding="async">
               <div><p class="eyebrow">SET COUNTER</p><h1 id="homeTitle">오늘의 플랜</h1></div>
             </div>
-            <button class="menu-button" id="menuButton" type="button" aria-haspopup="true" aria-expanded="false" aria-label="메뉴">☰</button>
+            <button class="menu-button" id="menuButton" type="button" aria-haspopup="true" aria-expanded="false" aria-label="메뉴"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12h16"/><path d="M4 6h16"/><path d="M4 18h16"/></svg></button>
             <div class="menu-popover" id="menuPopover" hidden>
               <button id="changeNicknameButton" type="button">닉네임 변경</button>
             </div>
@@ -83,7 +83,7 @@
 
       <section class="app-screen plan-detail-screen" data-screen="plan" aria-labelledby="planDetailTitle">
         <header class="screen-header plan-detail-header">
-          <button class="back-button" id="closePlanDetailButton" type="button" aria-label="홈으로">‹</button>
+          <button class="back-button" id="closePlanDetailButton" type="button" aria-label="홈으로"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
           <h1 id="planDetailTitle">운동 플랜</h1>
           <span></span>
         </header>
@@ -121,7 +121,7 @@
 
       <section class="app-screen" data-screen="record" aria-labelledby="recordTitle">
         <header class="screen-header">
-          <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로">‹</button>
+          <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
           <h1 id="recordTitle">운동 기록하기</h1>
           <button class="ghost-icon" id="resetSessionButton" type="button">초기화</button>
         </header>
@@ -133,8 +133,8 @@
               <p class="section-copy">오늘 할 운동을 고르세요.</p>
             </div>
             <div class="exercise-tools">
-              <button class="edit-exercise-button" id="toggleExerciseEditButton" type="button" aria-label="운동종목 빼기 모드">-</button>
-              <button class="add-exercise-button" id="openExerciseLibraryButton" type="button" aria-label="운동 라이브러리 열기">+</button>
+              <button class="edit-exercise-button" id="toggleExerciseEditButton" type="button" aria-label="운동종목 빼기 모드"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+              <button class="add-exercise-button" id="openExerciseLibraryButton" type="button" aria-label="운동 라이브러리 열기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
             </div>
           </div>
           <div class="exercise-edit-bar" id="exerciseEditBar" hidden>
@@ -229,15 +229,15 @@
 
       <section class="app-screen" data-screen="calendar" aria-labelledby="calendarTitle">
         <header class="screen-header">
-          <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로">‹</button>
+          <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
           <h1>달력</h1>
           <button class="ghost-icon" type="button" data-go-screen="menu">SOS</button>
         </header>
         <section class="calendar-section" id="calendar" aria-labelledby="calendarTitle">
           <div class="section-head calendar-nav">
-            <button class="icon-button" id="prevMonthButton" type="button" aria-label="이전 달">‹</button>
+            <button class="icon-button" id="prevMonthButton" type="button" aria-label="이전 달"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
             <h2 id="calendarTitle"></h2>
-            <button class="icon-button" id="nextMonthButton" type="button" aria-label="다음 달">›</button>
+            <button class="icon-button" id="nextMonthButton" type="button" aria-label="다음 달"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
           </div>
           <div class="calendar-weekdays" aria-hidden="true">
             <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
@@ -257,7 +257,7 @@
 
       <section class="app-screen" data-screen="board" aria-labelledby="boardTitle">
         <header class="screen-header">
-          <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로">‹</button>
+          <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
           <h1 id="boardTitle">게시판</h1>
           <span></span>
         </header>
@@ -286,7 +286,7 @@
 
       <section class="app-screen" data-screen="menu" aria-labelledby="menuTitle">
         <header class="screen-header">
-          <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로">‹</button>
+          <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
           <h1 id="menuTitle">메뉴</h1>
           <span></span>
         </header>
@@ -366,7 +366,7 @@
             <p class="eyebrow">운동 라이브러리</p>
             <h2 id="exerciseLibraryTitle">운동 추가 선택</h2>
           </div>
-          <button class="library-close" id="closeExerciseLibraryButton" type="button" aria-label="닫기">×</button>
+          <button class="library-close" id="closeExerciseLibraryButton" type="button" aria-label="닫기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </div>
         <label class="library-search">
           <span>검색</span>
@@ -451,7 +451,7 @@
             <p class="eyebrow">HELP</p>
             <h2 id="faqTitle">자주 묻는 질문</h2>
           </div>
-          <button class="library-close" id="closeFaqButton" type="button" aria-label="닫기">×</button>
+          <button class="library-close" id="closeFaqButton" type="button" aria-label="닫기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </header>
         <div class="faq-list">
           <details>
@@ -508,7 +508,7 @@
             <p class="eyebrow">PRIVACY</p>
             <h2 id="privacyTitle">개인정보 처리방침</h2>
           </div>
-          <button class="library-close" id="closePrivacyButton" type="button" aria-label="닫기">×</button>
+          <button class="library-close" id="closePrivacyButton" type="button" aria-label="닫기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </header>
         <div class="privacy-content">
           <p class="policy-date">시행일: 2026년 7월 16일</p>
@@ -547,9 +547,9 @@
           <div class="exercise-focus-visual" aria-hidden="true"><span></span><span></span></div>
         </div>
         <footer class="exercise-step-footer">
-          <button id="previousPlanExerciseButton" type="button" aria-label="이전 운동">‹</button>
+          <button id="previousPlanExerciseButton" type="button" aria-label="이전 운동"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
           <strong id="planExerciseDetailPage">1/1</strong>
-          <button id="nextPlanExerciseButton" type="button" aria-label="다음 운동">›</button>
+          <button id="nextPlanExerciseButton" type="button" aria-label="다음 운동"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
           <button id="confirmPlanExerciseDetailButton" type="button">닫기</button>
         </footer>
       </section>
