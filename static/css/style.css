@@ -3391,6 +3391,55 @@ h3 { font-size: 17px; font-weight: 750; line-height: 1.3; }
   color: #a8afba;
 }
 
+/* Explicit button variants for every existing and future app surface. */
+.danger-button {
+  min-height: 48px;
+  border: 1px solid rgba(240, 91, 100, 0.42);
+  border-radius: var(--sc-radius-control);
+  background: rgba(240, 91, 100, 0.13);
+  color: #ffadb3;
+  font-weight: 800;
+}
+
+.danger-button:hover {
+  border-color: rgba(255, 142, 149, 0.64);
+  background: rgba(240, 91, 100, 0.22);
+}
+
+.floating-button {
+  position: fixed;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(96px, calc(env(safe-area-inset-bottom) + 88px));
+  z-index: 45;
+  display: inline-grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border: 1px solid rgba(133, 181, 255, 0.52);
+  border-radius: 18px;
+  background: var(--sc-primary);
+  box-shadow: var(--sc-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  color: #f8fbff;
+}
+
+button.is-loading,
+button[aria-busy="true"] {
+  color: transparent !important;
+  pointer-events: none;
+}
+
+button.is-loading::before,
+button[aria-busy="true"]::before {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.34);
+  border-top-color: #fff;
+  border-radius: 50%;
+  content: "";
+  animation: sc-spin 650ms linear infinite;
+}
+
 /* Inputs */
 input,
 textarea,
@@ -3699,6 +3748,10 @@ select:focus {
 @keyframes sc-sheet-in {
   from { opacity: 0; transform: translateY(22px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sc-spin {
+  to { transform: rotate(360deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
