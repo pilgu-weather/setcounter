@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=54">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=57">
   </head>
   <body>
     <main class="app-shell" id="home">
@@ -302,24 +302,52 @@
       </section>
 
       <section class="app-screen" data-screen="menu" aria-labelledby="menuTitle">
-        <header class="screen-header">
+        <header class="screen-header menu-screen-header">
           <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
-          <h1 id="menuTitle">메뉴</h1>
+          <h1 id="menuTitle">내 정보</h1>
           <span></span>
         </header>
-        <section class="menu-profile">
-          <div class="avatar-frame"><img src="{{ url_for('static', filename='assets/newlogo.webp') }}?v=1" alt=""></div>
-          <div>
-            <p class="user-badge" id="menuUserBadge">
-              <span class="level-badge rookie" aria-label="레벨 1"><span class="level-badge-number">1</span></span>
-              <span class="nickname-text">닉네임</span>
-            </p>
-            <p class="section-copy" id="menuExpCopy">경험치 0 / 0</p>
+        <section class="menu-profile menu-profile-hero" aria-labelledby="menuProfileTitle">
+          <div class="menu-profile-topline">
+            <div class="avatar-frame"><img src="{{ url_for('static', filename='assets/newlogo.webp') }}?v=1" alt="SetCounter"></div>
+            <div class="menu-profile-copy">
+              <p class="menu-section-kicker">ATHLETE PROFILE</p>
+              <div class="user-badge" id="menuUserBadge">
+                <span class="level-badge rookie" aria-label="레벨 1"><span class="level-badge-number">1</span></span>
+                <h2 class="nickname-text" id="menuProfileTitle">닉네임</h2>
+              </div>
+            </div>
+          </div>
+          <div class="menu-volume" id="menuExpCopy"><span>누적 운동 볼륨</span><strong>0kg</strong></div>
+          <button class="menu-profile-action" type="button" id="menuNicknameButton">
+            <svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            <span>닉네임 변경</span><small id="menuNicknameAvailability">7일에 한 번 변경</small>
+          </button>
+        </section>
+
+        <section class="menu-hub-section" aria-labelledby="menuQuickTitle">
+          <div class="menu-section-heading"><div><p class="menu-section-kicker">QUICK START</p><h2 id="menuQuickTitle">빠른 실행</h2></div></div>
+          <div class="menu-list menu-quick-links" aria-label="주요 화면 바로가기">
+            <button type="button" data-go-screen="record">
+              <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/><path d="m8 14-6 6"/></svg></span>
+              <span class="menu-row-copy"><strong>운동 기록</strong><small>세트와 무게를 바로 기록합니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <button type="button" data-go-screen="calendar">
+              <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg></span>
+              <span class="menu-row-copy"><strong>운동 달력</strong><small>운동일과 쉬는 날을 확인합니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <button type="button" data-go-screen="board">
+              <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/></svg></span>
+              <span class="menu-row-copy"><strong>커뮤니티</strong><small>운동 인증과 기록을 공유합니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
           </div>
         </section>
+
         <section class="account-panel" id="accountPanel" aria-live="polite">
-          <p class="eyebrow">ACCOUNT</p>
-          <h2 id="accountPanelTitle">기록을 안전하게 보관하기</h2>
+          <div class="account-panel-heading">
+            <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+            <div><p class="menu-section-kicker">ACCOUNT &amp; STORAGE</p><h2 id="accountPanelTitle">기록을 안전하게 보관하기</h2></div>
+          </div>
           <p id="accountPanelCopy">계정을 연결하면 휴대폰을 바꾸거나 앱을 다시 설치해도 운동 기록을 이어서 볼 수 있어요.</p>
           <p class="account-email" id="accountEmail" hidden></p>
           <div class="account-actions" id="anonymousAccountActions">
@@ -330,40 +358,37 @@
             <button class="ghost-button" id="logoutButton" type="button">로그아웃</button>
           </div>
         </section>
-        <section class="menu-list" aria-label="메뉴 목록">
-          <button type="button" id="menuNicknameButton">닉네임 변경 <span>7일 제한</span></button>
-          <button type="button" data-go-screen="calendar">운동 달력 <span>기록 확인</span></button>
-          <button type="button" data-go-screen="board">게시판 <span>레벨 인증</span></button>
-          <button type="button" data-go-screen="record">운동 기록 <span>세트 저장</span></button>
-        </section>
+
         <section class="sos-section" aria-labelledby="sosTitle">
-          <div class="sos-orbit">SOS</div>
-          <div>
-            <p class="eyebrow danger">SOS 기록</p>
-            <h2 id="sosTitle">선택 날짜 운동 면제</h2>
-            <p class="sos-copy">아프거나 바쁜 날은 달력에서 날짜를 고르고 사유를 남기세요.</p>
+          <div class="sos-section-head">
+            <span class="menu-row-icon is-warning"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span>
+            <div><p class="menu-section-kicker is-warning">RECOVERY LOG</p><h2 id="sosTitle">쉬는 날도 계획의 일부</h2></div>
+            <span class="sos-date" id="sosSelectedDate">오늘</span>
           </div>
-          <textarea id="sosReasonInput" rows="4" placeholder="감기, 야근, 가족 일정"></textarea>
-          <button class="sos-button" id="sosButton" type="button">SOS 저장</button>
+          <p class="sos-copy">오늘 쉬어야 하는 이유를 기록해두세요. 저장된 회복일은 달력과 통계에 반영됩니다.</p>
+          <div class="sos-reason-chips" aria-label="빠른 사유 선택">
+            <button type="button" data-sos-reason="감기">감기</button><button type="button" data-sos-reason="몸살">몸살</button><button type="button" data-sos-reason="야근">야근</button><button type="button" data-sos-reason="가족 일정">가족 일정</button><button type="button" data-sos-reason="출장">출장</button><button type="button" data-sos-reason="회복 필요">회복 필요</button>
+          </div>
+          <label class="sos-input-wrap"><span>회복 사유</span><textarea id="sosReasonInput" rows="4" maxlength="500" placeholder="직접 사유를 입력하거나 위 항목을 선택하세요."></textarea><small id="sosReasonCounter">0 / 500</small></label>
+          <div class="sos-status" id="sosStatus" role="status">선택한 날짜에 저장된 회복 기록이 없습니다.</div>
+          <button class="sos-button" id="sosButton" type="button"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg><span>SOS 저장</span></button>
         </section>
-        <section class="support-menu" aria-label="고객 지원">
+
+        <section class="menu-hub-section" aria-labelledby="menuSupportTitle">
+          <div class="menu-section-heading"><div><p class="menu-section-kicker">SUPPORT</p><h2 id="menuSupportTitle">앱 설정 및 고객지원</h2></div></div>
+          <div class="support-menu" aria-label="고객 지원">
           <button type="button" id="openFeedbackButton">
-            <span><strong>피드백 보내기</strong><small>Discord로 의견 전달</small></span>
-            <b aria-hidden="true">›</b>
+            <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M8 9h8"/><path d="M8 13h6"/></svg></span><span class="menu-row-copy"><strong>피드백 보내기</strong><small>불편한 점이나 제안을 운영자에게 보냅니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </button>
           <button type="button" id="openFaqButton">
-            <span><strong>자주 묻는 질문</strong><small>사용법과 기록 안내</small></span>
-            <b aria-hidden="true">›</b>
+            <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 1 1 5.83 1c0 2-3 2-3 4"/><path d="M12 18h.01"/></svg></span><span class="menu-row-copy"><strong>자주 묻는 질문</strong><small>기록, 레벨, SOS 사용법을 확인합니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </button>
           <button type="button" id="openPrivacyButton">
-            <span><strong>개인정보 처리방침</strong><small>수집 및 이용 안내</small></span>
-            <b aria-hidden="true">›</b>
+            <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/></svg></span><span class="menu-row-copy"><strong>개인정보 처리방침</strong><small>수집 및 보관되는 정보를 확인합니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </button>
-          <button type="button" id="versionButton">
-            <span><strong>버전</strong><small>Set Counter</small></span>
-            <b class="version-value">v1.0.0</b>
-          </button>
+          </div>
         </section>
+        <button class="menu-version" type="button" id="versionButton"><span>SetCounter</span><b>Version 1.0.0</b></button>
       </section>
 
       <nav class="bottom-nav" aria-label="주요 메뉴">
@@ -403,30 +428,34 @@
         </div>
       </section>
     </div>
-    <div class="profile-modal" id="profileModal" hidden>
-      <form class="profile-dialog" id="profileForm">
-        <h2 id="profileModalTitle">닉네임 만들기</h2>
+    <div class="profile-modal" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle" hidden>
+      <form class="profile-dialog menu-dialog" id="profileForm">
+        <header class="menu-dialog-head"><div><p class="eyebrow">ATHLETE ID</p><h2 id="profileModalTitle">닉네임 만들기</h2></div><button class="library-close" id="closeProfileButton" type="button" aria-label="닫기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></header>
         <p id="profileModalCopy">커뮤니티와 레벨 표시에 사용할 닉네임을 정하세요.</p>
         <label>
           <span>닉네임</span>
           <input id="nicknameInput" name="nickname" autocomplete="nickname" maxlength="12" placeholder="예: 테스트">
+          <small class="field-meta"><span>한글, 영문, 숫자, _ 조합 2~12자</span><b id="nicknameCounter">0 / 12</b></small>
         </label>
+        <p class="menu-dialog-note" id="nicknameAvailabilityNote">닉네임은 7일에 한 번 변경할 수 있습니다.</p>
         <p class="profile-error" id="profileError" role="alert"></p>
         <button class="confirm-button" id="saveNicknameButton" type="submit">저장</button>
+        <button class="ghost-button" id="profileLoginButton" type="button" hidden>이미 계정이 있어요</button>
       </form>
     </div>
-    <div class="profile-modal" id="complaintModal" hidden>
-      <form class="profile-dialog complaint-dialog" id="complaintForm">
-        <h2 id="complaintModalTitle">피드백 보내기</h2>
+    <div class="profile-modal" id="complaintModal" role="dialog" aria-modal="true" aria-labelledby="complaintModalTitle" hidden>
+      <form class="profile-dialog complaint-dialog menu-dialog" id="complaintForm">
+        <header class="menu-dialog-head"><div><p class="eyebrow">DIRECT SUPPORT</p><h2 id="complaintModalTitle">피드백 보내기</h2></div><button class="library-close" id="closeComplaintTopButton" type="button" aria-label="닫기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></header>
         <p id="complaintModalCopy">Set Counter에 바라는 점이나 불편한 점을 남겨주세요. 운영자 Discord로 전송됩니다.</p>
         <label>
           <span>내용</span>
           <textarea id="complaintInput" rows="5" maxlength="1200" placeholder="의견을 자유롭게 적어주세요."></textarea>
+          <small class="field-meta"><span>운영자에게 직접 전달됩니다.</span><b id="complaintCounter">0 / 1200</b></small>
         </label>
         <p class="profile-error" id="complaintError" role="alert"></p>
         <div class="complaint-actions">
           <button class="ghost-button" id="closeComplaintButton" type="button">닫기</button>
-          <button class="confirm-button" type="submit">보내기</button>
+          <button class="confirm-button" id="complaintSubmitButton" type="submit">보내기</button>
         </div>
       </form>
     </div>
@@ -460,23 +489,23 @@
         </div>
       </form>
     </div>
-    <div class="profile-modal" id="registerModal" hidden>
+    <div class="profile-modal" id="registerModal" role="dialog" aria-modal="true" aria-labelledby="registerModalTitle" hidden>
       <form class="profile-dialog auth-dialog" id="registerForm">
         <p class="eyebrow">ACCOUNT</p>
-        <h2>기록을 안전하게 보관하기</h2>
+        <h2 id="registerModalTitle">현재 기록을 계정에 연결하기</h2>
         <p>계정을 연결하면 다른 기기에서도 운동 기록을 이어서 볼 수 있어요.</p>
         <label><span>이메일</span><input id="registerEmailInput" type="email" autocomplete="email" inputmode="email" maxlength="320" required></label>
         <label><span>비밀번호</span><input id="registerPasswordInput" type="password" autocomplete="new-password" minlength="8" required></label>
         <label><span>비밀번호 확인</span><input id="registerPasswordConfirmInput" type="password" autocomplete="new-password" minlength="8" required></label>
         <label class="terms-check"><input id="registerTermsInput" type="checkbox" required><span>이용약관 및 개인정보 처리방침에 동의합니다.</span></label>
         <p class="profile-error" id="registerError" role="alert"></p>
-        <div class="complaint-actions"><button class="ghost-button" id="closeRegisterButton" type="button">취소</button><button class="confirm-button" id="registerSubmitButton" type="submit">기록 안전하게 보관하기</button></div>
+        <div class="complaint-actions"><button class="ghost-button" id="closeRegisterButton" type="button">취소</button><button class="confirm-button" id="registerSubmitButton" type="submit">계정에 기록 연결</button></div>
       </form>
     </div>
-    <div class="profile-modal" id="loginModal" hidden>
+    <div class="profile-modal" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle" hidden>
       <form class="profile-dialog auth-dialog" id="loginForm">
         <p class="eyebrow">SIGN IN</p>
-        <h2>로그인</h2>
+        <h2 id="loginModalTitle">기존 기록 불러오기</h2>
         <p>다른 기기에서 연결한 기록을 불러옵니다.</p>
         <label><span>이메일</span><input id="loginEmailInput" type="email" autocomplete="email" inputmode="email" maxlength="320" required></label>
         <label><span>비밀번호</span><input id="loginPasswordInput" type="password" autocomplete="current-password" required></label>
@@ -493,7 +522,7 @@
         <button class="confirm-button" id="closeAuthConflictButton" type="button">확인</button>
       </section>
     </div>
-    <div class="profile-modal support-modal" id="faqModal" hidden>
+    <div class="profile-modal support-modal" id="faqModal" role="dialog" aria-modal="true" aria-labelledby="faqTitle" hidden>
       <section class="support-dialog" aria-labelledby="faqTitle">
         <header class="support-dialog-head">
           <div>
@@ -550,7 +579,7 @@
         </div>
       </section>
     </div>
-    <div class="profile-modal support-modal" id="privacyModal" hidden>
+    <div class="profile-modal support-modal" id="privacyModal" role="dialog" aria-modal="true" aria-labelledby="privacyTitle" hidden>
       <section class="support-dialog privacy-dialog" aria-labelledby="privacyTitle">
         <header class="support-dialog-head">
           <div>
@@ -615,6 +644,6 @@
         </div>
       </section>
     </div>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=73"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=76"></script>
   </body>
 </html>

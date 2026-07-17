@@ -516,6 +516,7 @@ const state = {
   boardReportSubmitting: false,
   boardReportTarget: null,
   boardSortLoading: false,
+  complaintSubmitting: false,
   editingExercises: false,
   excuses: [],
   lastRecord: null,
@@ -528,6 +529,8 @@ const state = {
   selectedExercise: exercises[0],
   selectedExercisesForDelete: new Set(),
   serviceWorkerReady: null,
+  sosSubmitting: false,
+  menuOverlayTrigger: null,
   setRows: [],
   stats: null,
   profile: null,
@@ -559,6 +562,7 @@ const els = {
   userBadgeLabel: document.querySelector("#userBadgeLabel"),
   menuUserBadge: document.querySelector("#menuUserBadge"),
   menuExpCopy: document.querySelector("#menuExpCopy"),
+  menuNicknameAvailability: document.querySelector("#menuNicknameAvailability"),
   homeDateLabel: document.querySelector("#homeDateLabel"),
   homeExerciseCount: document.querySelector("#homeExerciseCount"),
   homeSetCount: document.querySelector("#homeSetCount"),
@@ -598,15 +602,23 @@ const els = {
   profileForm: document.querySelector("#profileForm"),
   profileModalTitle: document.querySelector("#profileModalTitle"),
   profileModalCopy: document.querySelector("#profileModalCopy"),
+  closeProfileButton: document.querySelector("#closeProfileButton"),
   nicknameInput: document.querySelector("#nicknameInput"),
+  nicknameCounter: document.querySelector("#nicknameCounter"),
+  nicknameAvailabilityNote: document.querySelector("#nicknameAvailabilityNote"),
+  saveNicknameButton: document.querySelector("#saveNicknameButton"),
+  profileLoginButton: document.querySelector("#profileLoginButton"),
   profileError: document.querySelector("#profileError"),
   complaintModal: document.querySelector("#complaintModal"),
   complaintForm: document.querySelector("#complaintForm"),
   complaintModalTitle: document.querySelector("#complaintModalTitle"),
   complaintModalCopy: document.querySelector("#complaintModalCopy"),
   complaintInput: document.querySelector("#complaintInput"),
+  complaintCounter: document.querySelector("#complaintCounter"),
+  complaintSubmitButton: document.querySelector("#complaintSubmitButton"),
   complaintError: document.querySelector("#complaintError"),
   closeComplaintButton: document.querySelector("#closeComplaintButton"),
+  closeComplaintTopButton: document.querySelector("#closeComplaintTopButton"),
   openFeedbackButton: document.querySelector("#openFeedbackButton"),
   openFaqButton: document.querySelector("#openFaqButton"),
   faqModal: document.querySelector("#faqModal"),
@@ -670,6 +682,10 @@ const els = {
   resetSessionButton: document.querySelector("#resetSessionButton"),
   recordCompare: document.querySelector("#recordCompare"),
   sosReasonInput: document.querySelector("#sosReasonInput"),
+  sosReasonCounter: document.querySelector("#sosReasonCounter"),
+  sosReasonButtons: document.querySelectorAll("[data-sos-reason]"),
+  sosSelectedDate: document.querySelector("#sosSelectedDate"),
+  sosStatus: document.querySelector("#sosStatus"),
   sosButton: document.querySelector("#sosButton"),
   levelValue: document.querySelector("#levelValue"),
   totalVolumeValue: document.querySelector("#totalVolumeValue"),
@@ -726,6 +742,7 @@ function setActiveScreen(screenName) {
     button.classList.toggle("is-active", button.dataset.tab === screenName);
   });
   if (screenName === "record") syncCounter();
+  if (screenName === "menu") renderMenuSos();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -766,23 +783,47 @@ async function loadAuthStatus() {
 function renderAuthPanel() {
   const authenticated = state.auth.authenticated;
   els.accountPanel.classList.toggle("authenticated-account-panel", authenticated);
+  els.accountPanel.classList.toggle("anonymous-account-panel", !authenticated);
   els.accountPanelTitle.textContent = authenticated ? "계정에 안전하게 연결됨" : "기록을 안전하게 보관하기";
-  els.accountPanelCopy.textContent = authenticated ? "다른 기기에서도 이 계정으로 로그인하면 운동 기록을 이어서 볼 수 있어요." : "계정을 연결하면 휴대폰을 바꾸거나 앱을 다시 설치해도 운동 기록을 이어서 볼 수 있어요.";
+  els.accountPanelCopy.textContent = authenticated ? "운동 기록이 계정에 안전하게 연결되어 있습니다. 다른 기기에서도 이어서 볼 수 있어요." : "계정을 연결하면 기기를 바꿔도 운동 기록을 안전하게 이어갈 수 있습니다.";
   els.accountEmail.hidden = !authenticated;
   els.accountEmail.textContent = authenticated ? state.auth.emailMasked || "연결된 계정" : "";
   els.anonymousAccountActions.hidden = authenticated;
   els.authenticatedAccountActions.hidden = !authenticated;
 }
 
+function rememberMenuOverlayTrigger() {
+  if (document.activeElement && typeof document.activeElement.focus === "function") {
+    state.menuOverlayTrigger = document.activeElement;
+  }
+}
+
+function syncMenuOverlayLock() {
+  const overlays = [els.profileModal, els.complaintModal, els.registerModal, els.loginModal, els.authConflictModal, els.faqModal, els.privacyModal];
+  document.body.classList.toggle("has-modal-open", overlays.some((overlay) => overlay && !overlay.hidden));
+}
+
+function restoreMenuOverlayFocus() {
+  const trigger = state.menuOverlayTrigger;
+  state.menuOverlayTrigger = null;
+  if (trigger && trigger.isConnected) window.setTimeout(() => trigger.focus(), 0);
+}
+
 function clearAuthForm(form, errorElement) { form.reset(); errorElement.textContent = ""; }
 function setAuthSubmitting(button, submitting, label) { button.disabled = submitting; button.textContent = submitting ? "처리 중..." : label; }
 function openAuthModal(kind) {
   const modal = kind === "register" ? els.registerModal : els.loginModal;
+  rememberMenuOverlayTrigger();
   clearAuthForm(kind === "register" ? els.registerForm : els.loginForm, kind === "register" ? els.registerError : els.loginError);
   modal.hidden = false;
+  syncMenuOverlayLock();
   window.setTimeout(() => (kind === "register" ? els.registerEmailInput : els.loginEmailInput).focus(), 0);
 }
-function closeAuthModal(kind) { (kind === "register" ? els.registerModal : els.loginModal).hidden = true; }
+function closeAuthModal(kind) {
+  (kind === "register" ? els.registerModal : els.loginModal).hidden = true;
+  syncMenuOverlayLock();
+  restoreMenuOverlayFocus();
+}
 function renderConflictSummary(element, summary) { element.textContent = `운동 ${summary.workoutCount || 0}회 · 세트 ${summary.setCount || 0}개`; }
 async function refreshAuthenticatedApp() { await loadAuthStatus(); await loadBootstrap(); }
 
@@ -793,13 +834,13 @@ async function submitRegister(event) {
   if (password.length < 8) return (els.registerError.textContent = "비밀번호는 8자 이상이어야 합니다.");
   if (password !== passwordConfirm) return (els.registerError.textContent = "비밀번호 확인이 일치하지 않습니다.");
   if (!els.registerTermsInput.checked) return (els.registerError.textContent = "이용약관 및 개인정보 처리방침 동의가 필요합니다.");
-  els.registerError.textContent = ""; setAuthSubmitting(els.registerSubmitButton, true, "기록 안전하게 보관하기");
+  els.registerError.textContent = ""; setAuthSubmitting(els.registerSubmitButton, true, "계정에 기록 연결");
   try {
     await api("/api/auth/register", { method: "POST", body: JSON.stringify({ email, password, passwordConfirm, termsAccepted: true }) });
     clearAuthForm(els.registerForm, els.registerError); closeAuthModal("register"); await refreshAuthenticatedApp(); showToast("기록이 계정에 안전하게 연결되었습니다.");
   } catch (error) {
     els.registerError.textContent = error.body?.error === "email_already_registered" ? "이미 등록된 이메일입니다." : "계정 연결에 실패했습니다. 입력 내용을 확인해주세요.";
-  } finally { setAuthSubmitting(els.registerSubmitButton, false, "기록 안전하게 보관하기"); }
+  } finally { setAuthSubmitting(els.registerSubmitButton, false, "계정에 기록 연결"); }
 }
 
 async function submitLogin(event) {
@@ -812,7 +853,7 @@ async function submitLogin(event) {
     clearAuthForm(els.loginForm, els.loginError); closeAuthModal("login"); await refreshAuthenticatedApp(); showToast("로그인했습니다.");
   } catch (error) {
     if (error.status === 409 && error.body?.error === "anonymous_data_conflict") {
-      renderConflictSummary(els.anonymousConflictSummary, error.body.anonymousSummary || {}); renderConflictSummary(els.accountConflictSummary, error.body.accountSummary || {}); els.authConflictModal.hidden = false; return;
+      renderConflictSummary(els.anonymousConflictSummary, error.body.anonymousSummary || {}); renderConflictSummary(els.accountConflictSummary, error.body.accountSummary || {}); els.authConflictModal.hidden = false; syncMenuOverlayLock(); return;
     }
     els.loginError.textContent = error.status === 429 ? "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요." : "이메일 또는 비밀번호가 올바르지 않습니다.";
   } finally { setAuthSubmitting(els.loginSubmitButton, false, "로그인"); }
@@ -1150,13 +1191,22 @@ function renderProfile(profile = state.profile) {
       <span class="${levelBadgeClass(level)}" aria-label="레벨 ${level}">
         <span class="level-badge-number">${level}</span>
       </span>
-      <span class="nickname-text">${escapeHtml(nickname)}</span>
+      <span class="menu-athlete-copy"><small>LEVEL ${level}</small><strong class="nickname-text" id="menuProfileTitle">${escapeHtml(nickname)}</strong></span>
     `;
   }
   if (els.menuExpCopy) {
     const total = state.stats?.totalVolume || 0;
-    els.menuExpCopy.textContent = `누적 볼륨 ${formatNumber(total)}kg`;
+    els.menuExpCopy.innerHTML = `<span>누적 운동 볼륨</span><strong>${formatNumber(total)}<small>kg</small></strong>`;
   }
+  if (els.menuNicknameAvailability) {
+    const availableAt = state.profile?.nextNicknameChangeAt ? new Date(state.profile.nextNicknameChangeAt) : null;
+    const availableLabel = availableAt && !Number.isNaN(availableAt.getTime())
+      ? `${availableAt.toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 변경 가능`
+      : "7일에 한 번 변경";
+    els.menuNicknameAvailability.textContent = state.profile?.canChangeNickname === false ? availableLabel : "지금 변경 가능";
+    els.menuNicknameButton.disabled = state.profile?.canChangeNickname === false;
+  }
+  renderMenuSos();
   renderBoard();
   if (state.profile?.nicknameRequired) {
     openNicknameModal(true);
@@ -1164,20 +1214,39 @@ function renderProfile(profile = state.profile) {
 }
 
 function openNicknameModal(required = false) {
+  rememberMenuOverlayTrigger();
   els.profileError.textContent = "";
   els.profileModalTitle.textContent = required ? "닉네임 만들기" : "닉네임 변경";
   els.profileModalCopy.textContent = required
     ? "운동 레벨과 커뮤니티에 표시할 닉네임을 먼저 정하세요."
     : "닉네임 변경은 7일에 한 번만 가능합니다.";
   els.nicknameInput.value = state.profile?.nickname || "";
+  els.closeProfileButton.hidden = required;
+  els.profileLoginButton.hidden = !required;
+  const availableAt = state.profile?.nextNicknameChangeAt ? new Date(state.profile.nextNicknameChangeAt) : null;
+  els.nicknameAvailabilityNote.textContent = state.profile?.canChangeNickname === false && availableAt
+    ? `${availableAt.toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}부터 다시 변경할 수 있습니다.`
+    : "닉네임은 7일에 한 번 변경할 수 있습니다.";
+  syncNicknameInput();
   els.profileModal.hidden = false;
+  syncMenuOverlayLock();
   window.setTimeout(() => els.nicknameInput.focus(), 0);
 }
 
-function closeNicknameModal() {
-  if (!state.profile?.nicknameRequired) {
+function closeNicknameModal(force = false) {
+  if (force || !state.profile?.nicknameRequired) {
     els.profileModal.hidden = true;
+    syncMenuOverlayLock();
+    restoreMenuOverlayFocus();
   }
+}
+
+function syncNicknameInput() {
+  if (!els.nicknameInput || !els.nicknameCounter) return;
+  const value = els.nicknameInput.value;
+  els.nicknameCounter.textContent = `${value.length} / 12`;
+  const valid = /^[가-힣A-Za-z0-9_]{2,12}$/.test(value);
+  els.saveNicknameButton.disabled = !valid || state.profile?.canChangeNickname === false;
 }
 
 function percentChange(current, previous) {
@@ -1443,6 +1512,8 @@ async function saveNickname(event) {
   event.preventDefault();
   const nickname = els.nicknameInput.value.trim();
   els.profileError.textContent = "";
+  if (els.saveNicknameButton.disabled) return;
+  setAuthSubmitting(els.saveNicknameButton, true, "저장");
   try {
     const profile = await api("/api/profile", {
       method: "POST",
@@ -1455,11 +1526,48 @@ async function saveNickname(event) {
     showToast("닉네임을 저장했습니다.");
   } catch (error) {
     els.profileError.textContent = error.message;
+  } finally {
+    setAuthSubmitting(els.saveNicknameButton, false, "저장");
+    syncNicknameInput();
   }
 }
 
 function selectedDateText() {
   return state.selectedDate === todayKey ? "오늘" : state.selectedDate;
+}
+
+function menuSelectedDateText() {
+  if (state.selectedDate === todayKey) return "오늘";
+  const date = new Date(`${state.selectedDate}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return state.selectedDate;
+  return date.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
+}
+
+function syncSosReasonInput() {
+  if (!els.sosReasonInput) return;
+  const length = els.sosReasonInput.value.length;
+  if (els.sosReasonCounter) els.sosReasonCounter.textContent = `${length} / 500`;
+  if (els.sosButton) els.sosButton.disabled = state.sosSubmitting || !els.sosReasonInput.value.trim() || length > 500;
+  els.sosReasonButtons.forEach((button) => {
+    button.classList.toggle("is-selected", button.dataset.sosReason === els.sosReasonInput.value.trim());
+  });
+}
+
+function renderMenuSos() {
+  if (!els.sosSelectedDate || !els.sosStatus) return;
+  const excuse = excuseForDate(state.selectedDate);
+  els.sosSelectedDate.textContent = menuSelectedDateText();
+  els.sosStatus.classList.toggle("has-record", Boolean(excuse));
+  els.sosStatus.textContent = excuse
+    ? `저장된 회복 사유 · ${excuse.reason}`
+    : "선택한 날짜에 저장된 회복 기록이 없습니다.";
+  if (excuse && document.activeElement !== els.sosReasonInput) {
+    els.sosReasonInput.value = excuse.reason || "";
+  }
+  if (!excuse && document.activeElement !== els.sosReasonInput) els.sosReasonInput.value = "";
+  const buttonLabel = els.sosButton?.querySelector("span");
+  if (buttonLabel && !state.sosSubmitting) buttonLabel.textContent = excuse ? "SOS 업데이트" : "SOS 저장";
+  syncSosReasonInput();
 }
 
 function syncSelectedDateUi() {
@@ -1470,6 +1578,7 @@ function syncSelectedDateUi() {
   if (els.selectedDateBanner) {
     els.selectedDateBanner.classList.toggle("is-past", state.selectedDate !== todayKey);
   }
+  renderMenuSos();
 }
 
 function announceLevelChange(previousLevel, nextLevel) {
@@ -1498,6 +1607,7 @@ function announceCheatGuard(previousStats, nextStats) {
 
 function openComplaintModal(category = "complaint") {
   if (!els.complaintModal) return;
+  rememberMenuOverlayTrigger();
   const isFeedback = category === "feedback";
   els.complaintForm.dataset.category = category;
   els.complaintModalTitle.textContent = isFeedback ? "피드백 보내기" : "이의제기 보내기";
@@ -1509,12 +1619,37 @@ function openComplaintModal(category = "complaint") {
     : "예: 실제로 기록한 운동이고, 지난 기록이 낮게 저장돼 있었습니다.";
   els.complaintError.textContent = "";
   els.complaintInput.value = "";
+  syncComplaintInput();
   els.complaintModal.hidden = false;
+  syncMenuOverlayLock();
   window.setTimeout(() => els.complaintInput.focus(), 0);
 }
 
-function closeComplaintModal() {
+function closeComplaintModal(force = false) {
+  if (state.complaintSubmitting && !force) return;
   if (els.complaintModal) els.complaintModal.hidden = true;
+  syncMenuOverlayLock();
+  restoreMenuOverlayFocus();
+}
+
+function syncComplaintInput() {
+  if (!els.complaintInput || !els.complaintCounter) return;
+  const length = els.complaintInput.value.length;
+  els.complaintCounter.textContent = `${length} / 1200`;
+  els.complaintSubmitButton.disabled = state.complaintSubmitting || !els.complaintInput.value.trim() || length > 1200;
+}
+
+function openSupportModal(modal, focusTarget) {
+  rememberMenuOverlayTrigger();
+  modal.hidden = false;
+  syncMenuOverlayLock();
+  if (focusTarget) window.setTimeout(() => focusTarget.focus(), 0);
+}
+
+function closeSupportModal(modal) {
+  modal.hidden = true;
+  syncMenuOverlayLock();
+  restoreMenuOverlayFocus();
 }
 
 async function submitComplaint(event) {
@@ -1526,15 +1661,22 @@ async function submitComplaint(event) {
     els.complaintError.textContent = category === "feedback" ? "피드백 내용을 입력해주세요." : "이의제기 내용을 입력해주세요.";
     return;
   }
+  if (state.complaintSubmitting) return;
+  state.complaintSubmitting = true;
+  setAuthSubmitting(els.complaintSubmitButton, true, "보내기");
   try {
     await api("/api/complaints", {
       method: "POST",
       body: JSON.stringify({ message, category }),
     });
-    closeComplaintModal();
+    closeComplaintModal(true);
     showToast(category === "feedback" ? "피드백을 보냈습니다." : "이의제기를 보냈습니다.");
   } catch (error) {
     els.complaintError.textContent = error.message;
+  } finally {
+    state.complaintSubmitting = false;
+    setAuthSubmitting(els.complaintSubmitButton, false, "보내기");
+    syncComplaintInput();
   }
 }
 
@@ -2745,20 +2887,31 @@ function renderHistory() {
 }
 
 async function saveSosExcuse() {
+  if (state.sosSubmitting) return;
   const previousLevel = state.stats?.level;
   const reason = els.sosReasonInput.value.trim();
   if (!reason) {
     showToast("SOS 사유를 입력해주세요.");
     return;
   }
-  await api("/api/excuses", {
-    method: "POST",
-    body: JSON.stringify({ date: state.selectedDate, reason }),
-  });
-  els.sosReasonInput.value = "";
-  const data = await loadBootstrap();
-  showToast(`${state.selectedDate} SOS를 저장했습니다.`);
-  announceLevelChange(previousLevel, data.stats.level);
+  state.sosSubmitting = true;
+  els.sosButton.classList.add("is-loading");
+  els.sosButton.querySelector("span").textContent = "저장 중...";
+  syncSosReasonInput();
+  try {
+    await api("/api/excuses", {
+      method: "POST",
+      body: JSON.stringify({ date: state.selectedDate, reason }),
+    });
+    const data = await loadBootstrap();
+    showToast(`${state.selectedDate} SOS를 저장했습니다.`);
+    announceLevelChange(previousLevel, data.stats.level);
+  } finally {
+    state.sosSubmitting = false;
+    els.sosButton.classList.remove("is-loading");
+    els.sosButton.querySelector("span").textContent = excuseForDate(state.selectedDate) ? "SOS 업데이트" : "SOS 저장";
+    renderMenuSos();
+  }
 }
 
 async function saveWorkout() {
@@ -2888,13 +3041,21 @@ function bindEvents() {
     openNicknameModal(false);
   });
   els.profileForm.addEventListener("submit", saveNickname);
+  els.nicknameInput.addEventListener("input", syncNicknameInput);
+  els.closeProfileButton.addEventListener("click", closeNicknameModal);
+  els.profileLoginButton.addEventListener("click", () => {
+    closeNicknameModal(true);
+    openAuthModal("login");
+  });
   els.profileModal.addEventListener("click", (event) => {
     if (event.target === els.profileModal) {
       closeNicknameModal();
     }
   });
   els.complaintForm.addEventListener("submit", submitComplaint);
+  els.complaintInput.addEventListener("input", syncComplaintInput);
   els.closeComplaintButton.addEventListener("click", closeComplaintModal);
+  els.closeComplaintTopButton.addEventListener("click", closeComplaintModal);
   els.complaintModal.addEventListener("click", (event) => {
     if (event.target === els.complaintModal) {
       closeComplaintModal();
@@ -2925,6 +3086,14 @@ function bindEvents() {
     });
   });
   els.enableReminderButton.addEventListener("click", () => enableReminder().catch((error) => showToast(error.message)));
+  els.sosReasonInput.addEventListener("input", syncSosReasonInput);
+  els.sosReasonButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      els.sosReasonInput.value = button.dataset.sosReason || "";
+      syncSosReasonInput();
+      els.sosReasonInput.focus();
+    });
+  });
   els.sosButton.addEventListener("click", () => saveSosExcuse().catch((error) => showToast(error.message)));
   els.boardForm.addEventListener("submit", submitBoardPost);
   els.boardInput.addEventListener("input", syncBoardPostCounter);
@@ -2946,26 +3115,25 @@ function bindEvents() {
     if (event.target === els.boardReportModal) closeBoardReportModal();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !els.boardReportModal.hidden) closeBoardReportModal();
+    if (event.key !== "Escape") return;
+    if (!els.boardReportModal.hidden) closeBoardReportModal();
+    else if (!els.profileModal.hidden) closeNicknameModal();
+    else if (!els.complaintModal.hidden) closeComplaintModal();
+    else if (!els.registerModal.hidden) closeAuthModal("register");
+    else if (!els.loginModal.hidden) closeAuthModal("login");
+    else if (!els.faqModal.hidden) closeSupportModal(els.faqModal);
+    else if (!els.privacyModal.hidden) closeSupportModal(els.privacyModal);
   });
   els.openFeedbackButton.addEventListener("click", () => openComplaintModal("feedback"));
-  els.openFaqButton.addEventListener("click", () => {
-    els.faqModal.hidden = false;
-  });
-  els.closeFaqButton.addEventListener("click", () => {
-    els.faqModal.hidden = true;
-  });
+  els.openFaqButton.addEventListener("click", () => openSupportModal(els.faqModal, els.closeFaqButton));
+  els.closeFaqButton.addEventListener("click", () => closeSupportModal(els.faqModal));
   els.faqModal.addEventListener("click", (event) => {
-    if (event.target === els.faqModal) els.faqModal.hidden = true;
+    if (event.target === els.faqModal) closeSupportModal(els.faqModal);
   });
-  els.openPrivacyButton.addEventListener("click", () => {
-    els.privacyModal.hidden = false;
-  });
-  els.closePrivacyButton.addEventListener("click", () => {
-    els.privacyModal.hidden = true;
-  });
+  els.openPrivacyButton.addEventListener("click", () => openSupportModal(els.privacyModal, els.closePrivacyButton));
+  els.closePrivacyButton.addEventListener("click", () => closeSupportModal(els.privacyModal));
   els.privacyModal.addEventListener("click", (event) => {
-    if (event.target === els.privacyModal) els.privacyModal.hidden = true;
+    if (event.target === els.privacyModal) closeSupportModal(els.privacyModal);
   });
   els.versionButton.addEventListener("click", () => showToast("Set Counter v1.0.0"));
   els.closeNextRecommendationButton.addEventListener("click", closeNextRecommendation);
@@ -2987,10 +3155,10 @@ function bindAuthEvents() {
   els.registerForm.addEventListener("submit", submitRegister);
   els.loginForm.addEventListener("submit", submitLogin);
   els.logoutButton.addEventListener("click", logoutAccount);
-  els.closeAuthConflictButton.addEventListener("click", () => { els.authConflictModal.hidden = true; });
+  els.closeAuthConflictButton.addEventListener("click", () => { els.authConflictModal.hidden = true; syncMenuOverlayLock(); });
   els.registerModal.addEventListener("click", (event) => { if (event.target === els.registerModal) closeAuthModal("register"); });
   els.loginModal.addEventListener("click", (event) => { if (event.target === els.loginModal) closeAuthModal("login"); });
-  els.authConflictModal.addEventListener("click", (event) => { if (event.target === els.authConflictModal) els.authConflictModal.hidden = true; });
+  els.authConflictModal.addEventListener("click", (event) => { if (event.target === els.authConflictModal) { els.authConflictModal.hidden = true; syncMenuOverlayLock(); } });
 }
 
 async function init() {
