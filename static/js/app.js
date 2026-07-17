@@ -509,6 +509,13 @@ const state = {
   currentMonth: new Date(),
   boardPosts: [],
   boardSort: "latest",
+  boardExpandedPosts: new Set(),
+  boardPendingLikes: new Set(),
+  boardPendingComments: new Set(),
+  boardPosting: false,
+  boardReportSubmitting: false,
+  boardReportTarget: null,
+  boardSortLoading: false,
   editingExercises: false,
   excuses: [],
   lastRecord: null,
@@ -672,9 +679,27 @@ const els = {
   enableReminderButton: document.querySelector("#enableReminderButton"),
   boardForm: document.querySelector("#boardForm"),
   boardInput: document.querySelector("#boardInput"),
+  boardPostCounter: document.querySelector("#boardPostCounter"),
+  boardSubmitButton: document.querySelector("#boardSubmitButton"),
   boardAuthor: document.querySelector("#boardAuthor"),
+  boardWorkoutSummary: document.querySelector("#boardWorkoutSummary"),
+  boardTodayPostCount: document.querySelector("#boardTodayPostCount"),
+  boardLoadedPostCount: document.querySelector("#boardLoadedPostCount"),
+  boardTodayWorkoutMetric: document.querySelector("#boardTodayWorkoutMetric"),
+  boardTodayWorkoutCount: document.querySelector("#boardTodayWorkoutCount"),
   boardList: document.querySelector("#boardList"),
   boardSortButtons: document.querySelectorAll("[data-board-sort]"),
+  boardReportModal: document.querySelector("#boardReportModal"),
+  boardReportForm: document.querySelector("#boardReportForm"),
+  boardReportTitle: document.querySelector("#boardReportTitle"),
+  boardReportTargetCopy: document.querySelector("#boardReportTargetCopy"),
+  boardReportOtherField: document.querySelector("#boardReportOtherField"),
+  boardReportOtherInput: document.querySelector("#boardReportOtherInput"),
+  boardReportCounter: document.querySelector("#boardReportCounter"),
+  boardReportError: document.querySelector("#boardReportError"),
+  closeBoardReportButton: document.querySelector("#closeBoardReportButton"),
+  cancelBoardReportButton: document.querySelector("#cancelBoardReportButton"),
+  submitBoardReportButton: document.querySelector("#submitBoardReportButton"),
   calendarTitle: document.querySelector("#calendarTitle"),
   calendarGrid: document.querySelector("#calendarGrid"),
   calendarDayDetail: document.querySelector("#calendarDayDetail"),
@@ -799,6 +824,7 @@ async function logoutAccount() {
     if (!result?.requiresNewAnonymousKey) throw new Error("logout_failed");
     window.localStorage.removeItem(USER_KEY_STORAGE); replaceHealthUserKey();
     state.logs = []; state.excuses = []; state.boardPosts = []; state.profile = null; state.stats = null; state.recommendationInitialized = false;
+    state.boardExpandedPosts.clear(); state.boardPendingLikes.clear(); state.boardPendingComments.clear(); state.boardReportTarget = null;
     await loadAuthStatus(); await loadBootstrap(); showToast("로그아웃했습니다. 새 익명 기록으로 시작합니다.");
   } catch (error) { showToast("로그아웃에 실패했습니다. 다시 시도해주세요."); }
 }
@@ -1530,6 +1556,18 @@ function makeExerciseArt(exercise) {
   return imageBox;
 }
 
+function exerciseListMeta(exercise, includeLevel = false) {
+  const equipment = translateEquipment(exercise.equipment);
+  const area = String(exercise.area || "기타")
+    .replace(/^덤벨\s+/, "")
+    .replace(/^맨몸\/가방$/, "전신");
+  const values = [area, equipment];
+  if (includeLevel) values.push(translateLevel(exercise.level));
+  return values
+    .filter((value, index, items) => value && value !== "-" && items.indexOf(value) === index)
+    .join(" · ");
+}
+
 function openExerciseLibrary() {
   renderLibraryFilters();
   renderExerciseLibrary();
@@ -1596,7 +1634,7 @@ function renderExerciseLibrary() {
     const name = document.createElement("strong");
     name.textContent = exerciseDisplayName(exercise);
     const area = document.createElement("small");
-    area.textContent = `${exercise.area} · ${translateEquipment(exercise.equipment)} · ${translateLevel(exercise.level)}`;
+    area.textContent = exerciseListMeta(exercise, true);
     body.append(name, area);
     item.append(body);
     item.addEventListener("click", async () => {
@@ -1746,7 +1784,7 @@ function renderExerciseCards() {
     const name = document.createElement("strong");
     name.textContent = exerciseDisplayName(exercise);
     const area = document.createElement("small");
-    area.textContent = `${exercise.area} · ${translateEquipment(exercise.equipment)}`;
+    area.textContent = exerciseListMeta(exercise);
     if (state.editingExercises) {
       const checkbox = document.createElement("span");
       checkbox.className = "exercise-check";
@@ -1771,6 +1809,7 @@ function renderExerciseCards() {
     });
     els.exerciseGrid.append(card);
   });
+  els.exerciseGrid.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: "nearest", inline: "center" });
   syncExerciseEditUi();
 }
 
@@ -1778,8 +1817,7 @@ async function selectExercise(exercise) {
   state.selectedExercise = exercise;
   els.counterTitle.textContent = exerciseDisplayName(exercise);
   renderExerciseDetail(exercise);
-  const scrollTarget = isExerciseDetailCollapsed() ? document.querySelector(".counter-panel") : els.exerciseDetailCard;
-  scrollTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+  document.querySelector(".counter-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
   syncWeightControls();
   resetSession(true);
   renderExerciseCards();
@@ -2222,6 +2260,79 @@ function renderBoardAuthorElement(target, author) {
   `;
 }
 
+function boardActionIcon(name) {
+  const paths = {
+    heart: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+    message: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/>',
+    flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1Z"/><path d="M4 22v-7"/>',
+    chevron: '<path d="m9 18 6-6-6-6"/>',
+  };
+  return `<svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths[name] || ""}</svg>`;
+}
+
+function formatBoardTime(value) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value || "";
+  const seconds = Math.max(0, Math.floor((Date.now() - parsed.getTime()) / 1000));
+  if (seconds < 60) return "방금 전";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}분 전`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}시간 전`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}일 전`;
+  return new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric" }).format(parsed);
+}
+
+function syncBoardPostCounter() {
+  if (!els.boardInput || !els.boardPostCounter || !els.boardSubmitButton) return;
+  const length = els.boardInput.value.length;
+  els.boardPostCounter.textContent = `${length} / 180`;
+  els.boardPostCounter.classList.toggle("is-limit", length >= 180);
+  els.boardSubmitButton.disabled = state.boardPosting || !els.boardInput.value.trim() || length > 180;
+  els.boardSubmitButton.textContent = state.boardPosting ? "작성 중..." : "작성하기";
+}
+
+function renderBoardCommunitySummary() {
+  if (!els.boardTodayPostCount) return;
+  const todayPosts = state.boardPosts.filter((post) => {
+    const date = new Date(post.createdAt);
+    return !Number.isNaN(date.getTime()) && toDateKey(date) === todayKey;
+  });
+  const todayLogs = logsForDate(todayKey);
+  els.boardTodayPostCount.textContent = formatNumber(todayPosts.length);
+  els.boardLoadedPostCount.textContent = formatNumber(state.boardPosts.length);
+  els.boardTodayWorkoutCount.textContent = formatNumber(todayLogs.length);
+  els.boardTodayWorkoutMetric.hidden = !todayLogs.length;
+}
+
+function renderBoardWorkoutSummary() {
+  if (!els.boardWorkoutSummary) return;
+  const logs = logsForDate(state.selectedDate);
+  els.boardWorkoutSummary.replaceChildren();
+  els.boardWorkoutSummary.hidden = !logs.length;
+  if (!logs.length) return;
+
+  const head = document.createElement("div");
+  const label = document.createElement("span");
+  label.textContent = state.selectedDate === todayKey ? "오늘 운동" : `${state.selectedDate} 운동`;
+  const names = document.createElement("strong");
+  const parts = Array.from(new Set(logs.map((log) => exercisePartName(log.exercise))));
+  names.textContent = parts.join(" · ");
+  head.append(label, names);
+
+  const metrics = document.createElement("div");
+  const totalSets = logs.reduce((sum, log) => sum + (log.completedSets || 0), 0);
+  const totalVolume = logs.reduce((sum, log) => sum + (log.volume || 0), 0);
+  [
+    `${logs.length}종목`,
+    `${formatNumber(totalSets)}세트`,
+    `${formatNumber(totalVolume)}kg`,
+  ].forEach((text) => {
+    const chip = document.createElement("span");
+    chip.textContent = text;
+    metrics.append(chip);
+  });
+  els.boardWorkoutSummary.append(head, metrics);
+}
+
 function defaultBoardPosts() {
   return [
     {
@@ -2244,8 +2355,15 @@ function defaultBoardPosts() {
 }
 
 async function loadBoardPosts() {
-  state.boardPosts = await api(`/api/board/posts?sort=${state.boardSort}`);
+  if (state.boardSortLoading) return;
+  state.boardSortLoading = true;
   renderBoard();
+  try {
+    state.boardPosts = await api(`/api/board/posts?sort=${state.boardSort}`);
+  } finally {
+    state.boardSortLoading = false;
+    renderBoard();
+  }
 }
 
 async function migrateLocalBoardPosts() {
@@ -2269,29 +2387,59 @@ async function migrateLocalBoardPosts() {
 function renderBoard() {
   if (!els.boardList) return;
   if (els.boardAuthor) renderBoardAuthorElement(els.boardAuthor, currentBoardAuthor());
+  renderBoardCommunitySummary();
+  renderBoardWorkoutSummary();
+  syncBoardPostCounter();
   els.boardSortButtons.forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.boardSort === state.boardSort);
+    const active = button.dataset.boardSort === state.boardSort;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+    button.disabled = state.boardSortLoading;
   });
+  els.boardList.classList.toggle("is-loading", state.boardSortLoading);
+  els.boardList.setAttribute("aria-busy", String(state.boardSortLoading));
   els.boardList.replaceChildren();
+  if (state.boardSortLoading) {
+    for (let index = 0; index < 2; index += 1) {
+      const skeleton = document.createElement("div");
+      skeleton.className = "board-post-skeleton";
+      skeleton.setAttribute("aria-hidden", "true");
+      els.boardList.append(skeleton);
+    }
+    return;
+  }
   const posts = state.boardPosts;
   if (!posts.length) {
-    const empty = document.createElement("p");
-    empty.className = "empty-state";
-    empty.textContent = "아직 게시글이 없습니다. 첫 운동 인증을 남겨보세요.";
+    const empty = document.createElement("div");
+    empty.className = "board-empty-state";
+    empty.innerHTML = `${boardActionIcon("message")}<strong>아직 게시글이 없습니다.</strong><p>첫 운동 인증을 남겨보세요.</p>`;
+    const action = document.createElement("button");
+    action.type = "button";
+    action.textContent = "첫 글 작성하기";
+    action.addEventListener("click", () => {
+      els.boardInput.focus();
+      els.boardInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    empty.append(action);
     els.boardList.append(empty);
     return;
   }
   posts.forEach((post) => {
+    const postKey = String(post.id);
+    const expanded = state.boardExpandedPosts.has(postKey);
     const item = document.createElement("article");
     item.className = "board-post";
+    item.dataset.postId = postKey;
     const meta = document.createElement("div");
     meta.className = "board-post-meta";
     const author = document.createElement("strong");
     renderBoardAuthorElement(author, authorFromPost(post));
     const time = document.createElement("span");
-    time.textContent = post.createdAt;
+    time.textContent = formatBoardTime(post.createdAt);
+    time.title = post.createdAt;
     meta.append(author, time);
     const content = document.createElement("p");
+    content.className = "board-post-content";
     content.textContent = post.content;
     const actions = document.createElement("div");
     actions.className = "board-actions";
@@ -2299,40 +2447,79 @@ function renderBoard() {
     like.type = "button";
     like.className = "board-action-button";
     like.classList.toggle("is-liked", Boolean(post.likedByMe));
-    like.textContent = `좋아요 ${post.likeCount || 0}`;
+    like.classList.toggle("is-loading", state.boardPendingLikes.has(postKey));
+    like.innerHTML = `${boardActionIcon("heart")}<span>${post.likeCount || 0}</span>`;
+    like.setAttribute("aria-label", `좋아요 ${post.likeCount || 0}`);
+    like.setAttribute("aria-pressed", String(Boolean(post.likedByMe)));
+    like.disabled = state.boardPendingLikes.has(postKey);
     like.addEventListener("click", () => toggleBoardLike(post.id).catch((error) => showToast(error.message)));
+    const commentToggle = document.createElement("button");
+    commentToggle.type = "button";
+    commentToggle.className = "board-action-button board-comment-toggle";
+    commentToggle.innerHTML = `${boardActionIcon("message")}<span>${post.commentCount || 0}</span>`;
+    commentToggle.setAttribute("aria-label", expanded ? "댓글 접기" : `댓글 ${post.commentCount || 0}개 보기`);
+    commentToggle.setAttribute("aria-expanded", String(expanded));
+    commentToggle.addEventListener("click", () => {
+      if (expanded) state.boardExpandedPosts.delete(postKey);
+      else state.boardExpandedPosts.add(postKey);
+      renderBoard();
+      if (!expanded) {
+        requestAnimationFrame(() => els.boardList.querySelector(`[data-post-id="${CSS.escape(postKey)}"] .board-comment-form input`)?.focus());
+      }
+    });
     const report = document.createElement("button");
     report.type = "button";
     report.className = "board-action-button report";
-    report.textContent = "신고";
-    report.addEventListener("click", () => reportBoardContent(post.id).catch((error) => showToast(error.message)));
-    actions.append(like, report);
+    report.innerHTML = `${boardActionIcon("flag")}<span>신고</span>`;
+    report.addEventListener("click", () => reportBoardContent(post.id, null, report));
+    actions.append(like, commentToggle, report);
 
     const comments = document.createElement("div");
     comments.className = "board-comments";
+    comments.hidden = !expanded;
     (post.comments || []).forEach((comment) => {
       const commentItem = document.createElement("div");
       commentItem.className = "board-comment";
       const commentAuthor = document.createElement("strong");
       renderBoardAuthorElement(commentAuthor, authorFromPost(comment));
+      const commentBody = document.createElement("div");
+      commentBody.className = "board-comment-body";
       const commentText = document.createElement("span");
       commentText.textContent = comment.content;
+      const commentTime = document.createElement("small");
+      commentTime.textContent = formatBoardTime(comment.createdAt);
+      commentBody.append(commentText, commentTime);
       const commentReport = document.createElement("button");
       commentReport.type = "button";
-      commentReport.textContent = "신고";
-      commentReport.addEventListener("click", () => reportBoardContent(post.id, comment.id).catch((error) => showToast(error.message)));
-      commentItem.append(commentAuthor, commentText, commentReport);
+      commentReport.className = "board-comment-report";
+      commentReport.innerHTML = boardActionIcon("flag");
+      commentReport.setAttribute("aria-label", "댓글 신고");
+      commentReport.addEventListener("click", () => reportBoardContent(post.id, comment.id, commentReport));
+      commentItem.append(commentAuthor, commentBody, commentReport);
       comments.append(commentItem);
     });
 
     const commentForm = document.createElement("form");
     commentForm.className = "board-comment-form";
     commentForm.innerHTML = `
-      <input maxlength="120" placeholder="한줄 댓글">
+      <label><span class="sr-only">댓글 내용</span><input maxlength="120" placeholder="운동 기록에 댓글 남기기"><small class="board-comment-counter">0 / 120</small></label>
       <button type="submit">댓글</button>
     `;
+    const commentInput = commentForm.querySelector("input");
+    const commentCounter = commentForm.querySelector(".board-comment-counter");
+    const commentSubmit = commentForm.querySelector("button");
+    const syncComment = () => {
+      const length = commentInput.value.length;
+      commentCounter.textContent = `${length} / 120`;
+      commentCounter.classList.toggle("is-limit", length >= 120);
+      commentSubmit.disabled = state.boardPendingComments.has(postKey) || !commentInput.value.trim() || length > 120;
+      commentSubmit.textContent = state.boardPendingComments.has(postKey) ? "등록 중" : "댓글";
+    };
+    commentInput.addEventListener("input", syncComment);
+    syncComment();
     commentForm.addEventListener("submit", (event) => submitBoardComment(event, post.id));
-    item.append(meta, content, actions, comments, commentForm);
+    comments.append(commentForm);
+    item.append(meta, content, actions, comments);
     els.boardList.append(item);
   });
 }
@@ -2343,51 +2530,172 @@ async function refreshBoardPosts(nextPosts = null) {
 }
 
 async function toggleBoardLike(postId) {
-  await api(`/api/board/posts/${postId}/like`, { method: "POST" });
-  await refreshBoardPosts();
+  const postKey = String(postId);
+  if (state.boardPendingLikes.has(postKey)) return;
+  state.boardPendingLikes.add(postKey);
+  renderBoard();
+  try {
+    await api(`/api/board/posts/${postId}/like`, { method: "POST" });
+    await refreshBoardPosts();
+  } finally {
+    state.boardPendingLikes.delete(postKey);
+    renderBoard();
+  }
 }
 
 async function submitBoardComment(event, postId) {
   event.preventDefault();
+  const postKey = String(postId);
+  if (state.boardPendingComments.has(postKey)) return;
   const input = event.currentTarget.querySelector("input");
   const content = input.value.trim();
   if (!content) {
     showToast("댓글을 입력해주세요.");
     return;
   }
-  await api(`/api/board/posts/${postId}/comments`, {
-    method: "POST",
-    body: JSON.stringify({ content }),
-  });
-  input.value = "";
-  await refreshBoardPosts();
+  if (content.length > 120) {
+    showToast("댓글은 120자까지 입력할 수 있습니다.");
+    return;
+  }
+  state.boardExpandedPosts.add(postKey);
+  state.boardPendingComments.add(postKey);
+  renderBoard();
+  let failed = false;
+  try {
+    await api(`/api/board/posts/${postId}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    });
+    await refreshBoardPosts();
+  } catch (error) {
+    failed = true;
+    showToast(error.message);
+  } finally {
+    state.boardPendingComments.delete(postKey);
+    renderBoard();
+    if (failed) {
+      requestAnimationFrame(() => {
+        const restored = els.boardList.querySelector(`[data-post-id="${CSS.escape(postKey)}"] .board-comment-form input`);
+        if (!restored) return;
+        restored.value = content;
+        restored.dispatchEvent(new Event("input", { bubbles: true }));
+        restored.focus();
+      });
+    }
+  }
 }
 
-async function reportBoardContent(postId, commentId = null) {
-  const reason = window.prompt("신고 사유를 짧게 적어주세요.", "비상식적인 게시글/댓글");
-  if (reason === null) return;
-  await api("/api/board/reports", {
-    method: "POST",
-    body: JSON.stringify({ postId, commentId, reason }),
-  });
-  showToast("신고를 보냈습니다.");
+function syncBoardReportOther() {
+  const selected = els.boardReportForm.querySelector('input[name="boardReportReason"]:checked');
+  const isOther = selected?.value === "기타";
+  els.boardReportOtherField.hidden = !isOther;
+  if (!isOther) els.boardReportOtherInput.value = "";
+  const length = els.boardReportOtherInput.value.length;
+  els.boardReportCounter.textContent = `${length} / 500`;
+  els.boardReportCounter.classList.toggle("is-limit", length >= 500);
+}
+
+function openBoardReportModal(postId, commentId = null, trigger = null) {
+  state.boardReportTarget = { postId, commentId, trigger };
+  els.boardReportModal.dataset.postId = String(postId);
+  els.boardReportModal.dataset.commentId = commentId === null ? "" : String(commentId);
+  state.boardReportSubmitting = false;
+  els.boardReportTitle.textContent = commentId ? "댓글 신고" : "게시글 신고";
+  els.boardReportTargetCopy.textContent = commentId
+    ? "이 댓글이 커뮤니티 운영 원칙에 맞지 않는 이유를 선택해주세요."
+    : "이 게시글이 커뮤니티 운영 원칙에 맞지 않는 이유를 선택해주세요.";
+  els.boardReportForm.reset();
+  els.boardReportForm.querySelector('input[name="boardReportReason"]')?.click();
+  els.boardReportError.textContent = "";
+  els.submitBoardReportButton.disabled = false;
+  els.submitBoardReportButton.textContent = "신고 보내기";
+  syncBoardReportOther();
+  els.boardReportModal.hidden = false;
+  requestAnimationFrame(() => els.boardReportForm.querySelector('input[name="boardReportReason"]')?.focus());
+}
+
+function closeBoardReportModal() {
+  if (els.boardReportModal.hidden || state.boardReportSubmitting) return;
+  const trigger = state.boardReportTarget?.trigger;
+  els.boardReportModal.hidden = true;
+  delete els.boardReportModal.dataset.postId;
+  delete els.boardReportModal.dataset.commentId;
+  state.boardReportTarget = null;
+  trigger?.focus();
+}
+
+function reportBoardContent(postId, commentId = null, trigger = null) {
+  openBoardReportModal(postId, commentId, trigger);
+}
+
+async function submitBoardReport(event) {
+  event.preventDefault();
+  if (state.boardReportSubmitting || !state.boardReportTarget) return;
+  const selected = els.boardReportForm.querySelector('input[name="boardReportReason"]:checked');
+  const reason = selected?.value === "기타" ? els.boardReportOtherInput.value.trim() : selected?.value;
+  els.boardReportError.textContent = "";
+  if (!reason) {
+    els.boardReportError.textContent = "신고 사유를 선택하거나 입력해주세요.";
+    return;
+  }
+  if (reason.length > 500) {
+    els.boardReportError.textContent = "신고 사유는 500자까지 입력할 수 있습니다.";
+    return;
+  }
+  state.boardReportSubmitting = true;
+  els.submitBoardReportButton.disabled = true;
+  els.submitBoardReportButton.textContent = "보내는 중...";
+  try {
+    await api("/api/board/reports", {
+      method: "POST",
+      body: JSON.stringify({
+        postId: state.boardReportTarget.postId,
+        commentId: state.boardReportTarget.commentId,
+        reason,
+      }),
+    });
+    els.boardReportModal.hidden = true;
+    delete els.boardReportModal.dataset.postId;
+    delete els.boardReportModal.dataset.commentId;
+    state.boardReportTarget = null;
+    showToast("신고를 보냈습니다.");
+  } catch (error) {
+    els.boardReportError.textContent = error.message;
+  } finally {
+    state.boardReportSubmitting = false;
+    els.submitBoardReportButton.disabled = false;
+    els.submitBoardReportButton.textContent = "신고 보내기";
+  }
 }
 
 async function submitBoardPost(event) {
   event.preventDefault();
+  if (state.boardPosting) return;
   const content = els.boardInput.value.trim();
   if (!content) {
     showToast("게시글 내용을 입력해주세요.");
     return;
   }
-  const post = await api("/api/board/posts", {
-    method: "POST",
-    body: JSON.stringify({ content }),
-  });
-  state.boardPosts.unshift(post);
-  els.boardInput.value = "";
-  renderBoard();
-  showToast("게시글을 올렸습니다.");
+  if (content.length > 180) {
+    showToast("게시글은 180자까지 입력할 수 있습니다.");
+    return;
+  }
+  state.boardPosting = true;
+  syncBoardPostCounter();
+  try {
+    const post = await api("/api/board/posts", {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    });
+    state.boardPosts.unshift(post);
+    els.boardInput.value = "";
+    showToast("게시글을 올렸습니다.");
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    state.boardPosting = false;
+    renderBoard();
+  }
 }
 
 function renderHistory() {
@@ -2619,11 +2927,26 @@ function bindEvents() {
   els.enableReminderButton.addEventListener("click", () => enableReminder().catch((error) => showToast(error.message)));
   els.sosButton.addEventListener("click", () => saveSosExcuse().catch((error) => showToast(error.message)));
   els.boardForm.addEventListener("submit", submitBoardPost);
+  els.boardInput.addEventListener("input", syncBoardPostCounter);
   els.boardSortButtons.forEach((button) => {
     button.addEventListener("click", () => {
+      if (state.boardSortLoading || button.dataset.boardSort === state.boardSort) return;
       state.boardSort = button.dataset.boardSort;
       loadBoardPosts().catch((error) => showToast(error.message));
     });
+  });
+  els.boardReportForm.addEventListener("submit", submitBoardReport);
+  els.boardReportForm.querySelectorAll('input[name="boardReportReason"]').forEach((input) => {
+    input.addEventListener("change", syncBoardReportOther);
+  });
+  els.boardReportOtherInput.addEventListener("input", syncBoardReportOther);
+  els.closeBoardReportButton.addEventListener("click", closeBoardReportModal);
+  els.cancelBoardReportButton.addEventListener("click", closeBoardReportModal);
+  els.boardReportModal.addEventListener("click", (event) => {
+    if (event.target === els.boardReportModal) closeBoardReportModal();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !els.boardReportModal.hidden) closeBoardReportModal();
   });
   els.openFeedbackButton.addEventListener("click", () => openComplaintModal("feedback"));
   els.openFaqButton.addEventListener("click", () => {

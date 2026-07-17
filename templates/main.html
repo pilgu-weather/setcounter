@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=53">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=54">
   </head>
   <body>
     <main class="app-shell" id="home">
@@ -123,7 +123,7 @@
         <header class="screen-header">
           <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
           <h1 id="recordTitle">운동 기록하기</h1>
-          <button class="ghost-icon" id="resetSessionButton" type="button">초기화</button>
+          <button class="ghost-icon record-reset-button" id="resetSessionButton" type="button">초기화</button>
         </header>
 
         <section class="exercise-section" id="record" aria-labelledby="exerciseTitle">
@@ -258,27 +258,44 @@
       <section class="app-screen" data-screen="board" aria-labelledby="boardTitle">
         <header class="screen-header">
           <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
-          <h1 id="boardTitle">게시판</h1>
+          <h1 id="boardTitle">커뮤니티</h1>
           <span></span>
         </header>
         <section class="board-section">
-          <div class="section-head">
+          <div class="board-community-strip" aria-label="커뮤니티 현황">
+            <span><strong id="boardTodayPostCount">0</strong>오늘 게시글</span>
+            <span><strong id="boardLoadedPostCount">0</strong>불러온 게시글</span>
+            <span id="boardTodayWorkoutMetric" hidden><strong id="boardTodayWorkoutCount">0</strong>오늘 운동</span>
+          </div>
+          <div class="section-head board-intro">
             <div>
-              <h2>레벨 인증</h2>
-              <p class="section-copy">닉네임 앞에 레벨이 붙습니다.</p>
+              <p class="eyebrow">TRAINING FEED</p>
+              <h2>운동 기록을 함께 나누세요</h2>
+              <p class="section-copy">레벨과 닉네임이 운동 인증에 함께 표시됩니다.</p>
             </div>
           </div>
           <form class="board-form" id="boardForm">
-            <div class="board-author" id="boardAuthor">
-              <span class="level-badge rookie" aria-label="레벨 1"><span class="level-badge-number">1</span></span>
-              <span class="nickname-text">닉네임</span>
+            <div class="board-composer-author">
+              <div class="board-author" id="boardAuthor">
+                <span class="level-badge rookie" aria-label="레벨 1"><span class="level-badge-number">1</span></span>
+                <span class="nickname-text">닉네임</span>
+              </div>
+              <span>인증된 운동 레벨</span>
             </div>
-            <textarea id="boardInput" rows="4" maxlength="180" placeholder="오늘 운동 인증, 기록 자랑, 한 줄 다짐"></textarea>
-            <button class="confirm-button" type="submit">작성하기</button>
+            <div class="board-workout-proof" id="boardWorkoutSummary" hidden></div>
+            <label class="board-compose-field" for="boardInput">
+              <span class="sr-only">게시글 내용</span>
+              <textarea id="boardInput" rows="4" maxlength="180" placeholder="오늘 운동 인증, 기록 자랑, 한 줄 다짐"></textarea>
+              <span class="board-char-count" id="boardPostCounter">0 / 180</span>
+            </label>
+            <div class="board-compose-actions">
+              <span>운동 기록은 본문에 자동으로 추가되지 않습니다.</span>
+              <button class="confirm-button" id="boardSubmitButton" type="submit">작성하기</button>
+            </div>
           </form>
-          <div class="board-tabs">
-            <button class="is-active" id="boardLatestButton" type="button" data-board-sort="latest">최신</button>
-            <button id="boardPopularButton" type="button" data-board-sort="popular">인기순</button>
+          <div class="board-tabs" aria-label="게시글 정렬">
+            <button class="is-active" id="boardLatestButton" type="button" data-board-sort="latest" aria-pressed="true">최신</button>
+            <button id="boardPopularButton" type="button" data-board-sort="popular" aria-pressed="false">인기순</button>
           </div>
           <div class="board-list" id="boardList" aria-live="polite"></div>
         </section>
@@ -368,20 +385,22 @@
           </div>
           <button class="library-close" id="closeExerciseLibraryButton" type="button" aria-label="닫기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </div>
-        <label class="library-search">
-          <span>검색</span>
-          <input id="exerciseLibrarySearch" type="search" placeholder="벤치, 로우, 스쿼트, 컬...">
-        </label>
-        <div class="library-filter-block">
-          <p>부위</p>
-          <div class="library-filter-row" id="bodyFilterRow"></div>
+        <div class="exercise-library-scroll">
+          <label class="library-search">
+            <span>검색</span>
+            <input id="exerciseLibrarySearch" type="search" placeholder="벤치, 로우, 스쿼트, 컬...">
+          </label>
+          <div class="library-filter-block">
+            <p>부위</p>
+            <div class="library-filter-row" id="bodyFilterRow"></div>
+          </div>
+          <div class="library-filter-block">
+            <p>도구</p>
+            <div class="library-filter-row" id="equipmentFilterRow"></div>
+          </div>
+          <p class="library-count" id="exerciseLibraryCount">0개 운동</p>
+          <div class="exercise-library-list" id="exerciseLibraryList"></div>
         </div>
-        <div class="library-filter-block">
-          <p>도구</p>
-          <div class="library-filter-row" id="equipmentFilterRow"></div>
-        </div>
-        <p class="library-count" id="exerciseLibraryCount">0개 운동</p>
-        <div class="exercise-library-list" id="exerciseLibraryList"></div>
       </section>
     </div>
     <div class="profile-modal" id="profileModal" hidden>
@@ -408,6 +427,36 @@
         <div class="complaint-actions">
           <button class="ghost-button" id="closeComplaintButton" type="button">닫기</button>
           <button class="confirm-button" type="submit">보내기</button>
+        </div>
+      </form>
+    </div>
+    <div class="profile-modal board-report-modal" id="boardReportModal" role="dialog" aria-modal="true" aria-labelledby="boardReportTitle" hidden>
+      <form class="profile-dialog board-report-dialog" id="boardReportForm" aria-labelledby="boardReportTitle">
+        <div class="board-report-head">
+          <div>
+            <p class="eyebrow danger">COMMUNITY SAFETY</p>
+            <h2 id="boardReportTitle">신고하기</h2>
+          </div>
+          <button class="library-close" id="closeBoardReportButton" type="button" aria-label="닫기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <p id="boardReportTargetCopy">커뮤니티 운영 원칙에 맞지 않는 내용을 알려주세요.</p>
+        <fieldset class="board-report-reasons">
+          <legend>신고 사유</legend>
+          <label><input type="radio" name="boardReportReason" value="욕설 또는 비방" checked><span>욕설 또는 비방</span></label>
+          <label><input type="radio" name="boardReportReason" value="광고 또는 홍보"><span>광고 또는 홍보</span></label>
+          <label><input type="radio" name="boardReportReason" value="음란하거나 불쾌한 내용"><span>음란하거나 불쾌한 내용</span></label>
+          <label><input type="radio" name="boardReportReason" value="운동 커뮤니티와 무관한 내용"><span>운동 커뮤니티와 무관한 내용</span></label>
+          <label><input type="radio" name="boardReportReason" value="기타"><span>기타</span></label>
+        </fieldset>
+        <label class="board-report-other" id="boardReportOtherField" hidden>
+          <span>직접 입력</span>
+          <textarea id="boardReportOtherInput" rows="4" maxlength="500" placeholder="신고 사유를 적어주세요."></textarea>
+          <span class="board-char-count" id="boardReportCounter">0 / 500</span>
+        </label>
+        <p class="profile-error" id="boardReportError" role="alert"></p>
+        <div class="complaint-actions">
+          <button class="ghost-button" id="cancelBoardReportButton" type="button">취소</button>
+          <button class="confirm-button" id="submitBoardReportButton" type="submit">신고 보내기</button>
         </div>
       </form>
     </div>
@@ -532,9 +581,9 @@
           <h2 id="planExerciseDetailTitle">운동 상세</h2>
           <button id="closePlanExerciseDetailButton" type="button">닫기</button>
         </header>
-        <img class="exercise-step-image" id="planExerciseDetailImage" src="" alt="">
-        <div class="exercise-step-tabs" aria-hidden="true"><span class="is-active">동작</span><span>튜토리얼</span></div>
         <div class="exercise-step-scroll">
+          <img class="exercise-step-image" id="planExerciseDetailImage" src="" alt="">
+          <div class="exercise-step-tabs" aria-hidden="true"><span class="is-active">동작</span><span>튜토리얼</span></div>
           <div class="exercise-step-meta"><span id="planExerciseDetailMetaLabel">지속시간</span><strong id="planExerciseDetailMeta">00:30</strong></div>
           <section>
             <h3>설명</h3>
@@ -566,6 +615,6 @@
         </div>
       </section>
     </div>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=72"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=73"></script>
   </body>
 </html>
