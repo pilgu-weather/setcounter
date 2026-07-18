@@ -6761,6 +6761,23 @@ body:has([data-screen="level-up"].is-active) .app-shell {
   box-shadow: none;
 }
 
+body:has(:is(
+  [data-screen="home"].is-active,
+  [data-screen="calendar"].is-active,
+  [data-screen="board"].is-active
+)) .bottom-nav button::before {
+  content: none;
+}
+
+body:has(:is(
+  [data-screen="home"].is-active,
+  [data-screen="calendar"].is-active,
+  [data-screen="board"].is-active
+)) .bottom-nav button.is-active {
+  background: transparent;
+  box-shadow: none;
+}
+
 .bottom-nav-indicator {
   position: absolute;
   z-index: 0;
