@@ -255,17 +255,17 @@ function escapeHtml(value) {
 }
 
 const levelTiers = [
-  { minimum: 95, className: "champion", label: "PRISM", labelKo: "프리즘", image: "/static/assets/level-badges/rank-11.webp?v=2" },
-  { minimum: 90, className: "crown", label: "OBSIDIAN", labelKo: "옵시디언", image: "/static/assets/level-badges/rank-10.webp?v=2" },
-  { minimum: 80, className: "crimson", label: "CRIMSON", labelKo: "크림슨", image: "/static/assets/level-badges/rank-09.webp?v=2" },
-  { minimum: 70, className: "black-diamond", label: "AMETHYST", labelKo: "아메시스트", image: "/static/assets/level-badges/rank-08.webp?v=2" },
-  { minimum: 60, className: "diamond", label: "SAPPHIRE", labelKo: "사파이어", image: "/static/assets/level-badges/rank-07.webp?v=2" },
-  { minimum: 50, className: "platinum", label: "FROST", labelKo: "프로스트", image: "/static/assets/level-badges/rank-06.webp?v=2" },
-  { minimum: 40, className: "red-gold", label: "GOLD", labelKo: "골드", image: "/static/assets/level-badges/rank-05.webp?v=2" },
-  { minimum: 30, className: "gold", label: "SILVER", labelKo: "실버", image: "/static/assets/level-badges/rank-04.webp?v=2" },
-  { minimum: 20, className: "silver", label: "ROSE", labelKo: "로즈", image: "/static/assets/level-badges/rank-03.webp?v=2" },
-  { minimum: 10, className: "bronze", label: "STEEL", labelKo: "스틸", image: "/static/assets/level-badges/rank-02.webp?v=2" },
-  { minimum: 1, className: "iron", label: "BRONZE", labelKo: "브론즈", image: "/static/assets/level-badges/rank-01.webp?v=2" },
+  { minimum: 95, className: "champion", label: "PRISM", labelKo: "프리즘", image: "/static/assets/level-badges/rank-11.webp?v=3" },
+  { minimum: 90, className: "crown", label: "OBSIDIAN", labelKo: "옵시디언", image: "/static/assets/level-badges/rank-10.webp?v=3" },
+  { minimum: 80, className: "crimson", label: "CRIMSON", labelKo: "크림슨", image: "/static/assets/level-badges/rank-09.webp?v=3" },
+  { minimum: 70, className: "black-diamond", label: "AMETHYST", labelKo: "아메시스트", image: "/static/assets/level-badges/rank-08.webp?v=3" },
+  { minimum: 60, className: "diamond", label: "SAPPHIRE", labelKo: "사파이어", image: "/static/assets/level-badges/rank-07.webp?v=3" },
+  { minimum: 50, className: "platinum", label: "FROST", labelKo: "프로스트", image: "/static/assets/level-badges/rank-06.webp?v=3" },
+  { minimum: 40, className: "red-gold", label: "GOLD", labelKo: "골드", image: "/static/assets/level-badges/rank-05.webp?v=3" },
+  { minimum: 30, className: "gold", label: "SILVER", labelKo: "실버", image: "/static/assets/level-badges/rank-04.webp?v=3" },
+  { minimum: 20, className: "silver", label: "ROSE", labelKo: "로즈", image: "/static/assets/level-badges/rank-03.webp?v=3" },
+  { minimum: 10, className: "bronze", label: "STEEL", labelKo: "스틸", image: "/static/assets/level-badges/rank-02.webp?v=3" },
+  { minimum: 1, className: "iron", label: "BRONZE", labelKo: "브론즈", image: "/static/assets/level-badges/rank-01.webp?v=3" },
 ];
 
 function levelTier(level) {
