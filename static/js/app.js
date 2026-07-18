@@ -531,6 +531,7 @@ const state = {
   serviceWorkerReady: null,
   sosSubmitting: false,
   menuOverlayTrigger: null,
+  levelUpContinuation: null,
   setRows: [],
   stats: null,
   profile: null,
@@ -627,6 +628,15 @@ const els = {
   privacyModal: document.querySelector("#privacyModal"),
   closePrivacyButton: document.querySelector("#closePrivacyButton"),
   versionButton: document.querySelector("#versionButton"),
+  levelUpEmblem: document.querySelector("#levelUpEmblem"),
+  levelUpSheen: document.querySelector("#levelUpSheen"),
+  levelUpNumber: document.querySelector("#levelUpNumber"),
+  levelUpPrevious: document.querySelector("#levelUpPrevious"),
+  levelUpNext: document.querySelector("#levelUpNext"),
+  levelUpProgressBar: document.querySelector("#levelUpProgressBar"),
+  levelUpResult: document.querySelector("#levelUpResult"),
+  levelUpResultNumber: document.querySelector("#levelUpResultNumber"),
+  levelUpContinueButton: document.querySelector("#levelUpContinueButton"),
   accountPanel: document.querySelector("#accountPanel"),
   accountPanelTitle: document.querySelector("#accountPanelTitle"),
   accountPanelCopy: document.querySelector("#accountPanelCopy"),
@@ -730,11 +740,16 @@ const els = {
 function showToast(message) {
   els.toast.textContent = message;
   els.toast.classList.add("is-visible");
+  window.SetCounterMotion?.animateToast(els.toast);
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => els.toast.classList.remove("is-visible"), 1800);
 }
 
 function setActiveScreen(screenName) {
+  const previousScreen = Array.from(els.screens).find((screen) => screen.classList.contains("is-active"));
+  const nextScreen = Array.from(els.screens).find((screen) => screen.dataset.screen === screenName);
+  const previousNavIndex = Array.from(els.navButtons).findIndex((button) => button.classList.contains("is-active"));
+  const nextNavIndex = Array.from(els.navButtons).findIndex((button) => button.dataset.tab === screenName);
   els.screens.forEach((screen) => {
     screen.classList.toggle("is-active", screen.dataset.screen === screenName);
   });
@@ -743,7 +758,9 @@ function setActiveScreen(screenName) {
   });
   if (screenName === "record") syncCounter();
   if (screenName === "menu") renderMenuSos();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  const direction = previousNavIndex >= 0 && nextNavIndex >= 0 ? Math.sign(nextNavIndex - previousNavIndex) : 0;
+  window.SetCounterMotion?.transitionScreen(previousScreen, nextScreen, direction);
+  window.scrollTo({ top: 0, behavior: reducedMotionPreferred() ? "auto" : "smooth" });
 }
 
 async function api(path, options = {}) {
@@ -817,12 +834,17 @@ function openAuthModal(kind) {
   clearAuthForm(kind === "register" ? els.registerForm : els.loginForm, kind === "register" ? els.registerError : els.loginError);
   modal.hidden = false;
   syncMenuOverlayLock();
-  window.setTimeout(() => (kind === "register" ? els.registerEmailInput : els.loginEmailInput).focus(), 0);
+  window.SetCounterMotion?.openOverlay(modal, {
+    onComplete: () => (kind === "register" ? els.registerEmailInput : els.loginEmailInput).focus(),
+  });
 }
 function closeAuthModal(kind) {
-  (kind === "register" ? els.registerModal : els.loginModal).hidden = true;
-  syncMenuOverlayLock();
-  restoreMenuOverlayFocus();
+  const modal = kind === "register" ? els.registerModal : els.loginModal;
+  window.SetCounterMotion?.closeOverlay(modal, { onComplete: () => {
+    modal.hidden = true;
+    syncMenuOverlayLock();
+    restoreMenuOverlayFocus();
+  } });
 }
 function renderConflictSummary(element, summary) { element.textContent = `운동 ${summary.workoutCount || 0}회 · 세트 ${summary.setCount || 0}개`; }
 async function refreshAuthenticatedApp() { await loadAuthStatus(); await loadBootstrap(); }
@@ -853,7 +875,12 @@ async function submitLogin(event) {
     clearAuthForm(els.loginForm, els.loginError); closeAuthModal("login"); await refreshAuthenticatedApp(); showToast("로그인했습니다.");
   } catch (error) {
     if (error.status === 409 && error.body?.error === "anonymous_data_conflict") {
-      renderConflictSummary(els.anonymousConflictSummary, error.body.anonymousSummary || {}); renderConflictSummary(els.accountConflictSummary, error.body.accountSummary || {}); els.authConflictModal.hidden = false; syncMenuOverlayLock(); return;
+      renderConflictSummary(els.anonymousConflictSummary, error.body.anonymousSummary || {});
+      renderConflictSummary(els.accountConflictSummary, error.body.accountSummary || {});
+      els.authConflictModal.hidden = false;
+      syncMenuOverlayLock();
+      window.SetCounterMotion?.openOverlay(els.authConflictModal);
+      return;
     }
     els.loginError.textContent = error.status === 429 ? "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요." : "이메일 또는 비밀번호가 올바르지 않습니다.";
   } finally { setAuthSubmitting(els.loginSubmitButton, false, "로그인"); }
@@ -1128,6 +1155,7 @@ function renderSetTable() {
   }
   state.setRows.forEach((row, index) => {
     const tr = document.createElement("tr");
+    tr.dataset.motionKey = `set-${state.selectedDate}-${exerciseKey(state.selectedExercise)}-${index}`;
     tr.innerHTML = `
       <td>${index + 1}</td>
       <td>${cleanNumber(row.weightKg)}kg</td>
@@ -1136,14 +1164,15 @@ function renderSetTable() {
     `;
     els.setTableBody.append(tr);
   });
+  window.SetCounterMotion?.animateListEnter(els.setTableBody.querySelectorAll("tr"), { scope: "sets", limit: 1, y: 10 });
 }
 
 function syncCounter() {
   const target = targetSets();
   const completed = state.setRows.length;
-  els.completedSets.textContent = completed;
-  els.targetSets.textContent = target;
-  els.progressBar.style.width = `${Math.round((Math.min(completed, target) / target) * 100)}%`;
+  window.SetCounterMotion?.animateCounter(els.completedSets, completed, (value) => String(Math.round(value)));
+  window.SetCounterMotion?.animateCounter(els.targetSets, target, (value) => String(Math.round(value)));
+  window.SetCounterMotion?.animateProgress(els.progressBar, Math.min(completed, target) / target);
   els.confirmWorkoutButton.disabled = completed === 0;
   els.countSetButton.disabled = completed >= target;
   renderSetTable();
@@ -1164,9 +1193,9 @@ function resetSession(keepInputs = true) {
 
 function renderStats(stats) {
   state.stats = stats;
-  els.levelValue.textContent = stats.level;
-  els.totalVolumeValue.textContent = `${formatNumber(stats.totalVolume)}kg`;
-  els.levelProgressBar.style.width = `${stats.progressPercent}%`;
+  window.SetCounterMotion?.animateCounter(els.levelValue, stats.level, (value) => String(Math.round(value)));
+  window.SetCounterMotion?.animateCounter(els.totalVolumeValue, stats.totalVolume, (value) => `${formatNumber(Math.round(value))}kg`);
+  window.SetCounterMotion?.animateProgress(els.levelProgressBar, (stats.progressPercent || 0) / 100);
   els.levelCopy.textContent = `경험치 ${stats.experience || 0} · 다음 ${stats.experiencePercent || 0}% · 한계돌파 ${Math.round((stats.nextBreakthroughRate || 1) * 100)}%`;
   renderProfile();
   renderHomeDashboard();
@@ -1230,14 +1259,16 @@ function openNicknameModal(required = false) {
   syncNicknameInput();
   els.profileModal.hidden = false;
   syncMenuOverlayLock();
-  window.setTimeout(() => els.nicknameInput.focus(), 0);
+  window.SetCounterMotion?.openOverlay(els.profileModal, { onComplete: () => els.nicknameInput.focus() });
 }
 
 function closeNicknameModal(force = false) {
   if (force || !state.profile?.nicknameRequired) {
-    els.profileModal.hidden = true;
-    syncMenuOverlayLock();
-    restoreMenuOverlayFocus();
+    window.SetCounterMotion?.closeOverlay(els.profileModal, { onComplete: () => {
+      els.profileModal.hidden = true;
+      syncMenuOverlayLock();
+      restoreMenuOverlayFocus();
+    } });
   }
 }
 
@@ -1347,10 +1378,13 @@ function openPlanExerciseDetail(steps, index) {
   state.planExerciseDetailIndex = index;
   renderPlanExerciseDetail();
   els.planExerciseDetailModal.hidden = false;
+  window.SetCounterMotion?.openOverlay(els.planExerciseDetailModal, { sheet: true });
 }
 
 function closePlanExerciseDetail() {
-  els.planExerciseDetailModal.hidden = true;
+  window.SetCounterMotion?.closeOverlay(els.planExerciseDetailModal, { sheet: true, onComplete: () => {
+    els.planExerciseDetailModal.hidden = true;
+  } });
 }
 
 function renderPlanWorkoutGroup(title, rows, options = {}) {
@@ -1449,6 +1483,7 @@ function renderWorkoutPlans() {
     const routineExercises = exercisesForPlan(plan);
     const card = document.createElement("article");
     card.className = `workout-plan-card ${plan.theme}`;
+    card.dataset.motionKey = `plan-${plan.id || plan.title}`;
     card.style.setProperty("--plan-image", `url('/static/assets/${plan.image}')`);
     card.innerHTML = `
       <div class="workout-plan-card-copy"><p>${escapeHtml(plan.label.replace("3종목", `${routineExercises.length}종목`))}</p><h3>${escapeHtml(plan.title)}</h3><span>${escapeHtml(plan.copy)}</span></div>
@@ -1467,6 +1502,7 @@ function renderWorkoutPlans() {
     });
     els.workoutPlanRail.append(card);
   });
+  window.SetCounterMotion?.animateListEnter(els.workoutPlanRail.children, { scope: "plans", limit: 8, y: 12 });
 }
 
 function renderHomeDashboard() {
@@ -1478,10 +1514,10 @@ function renderHomeDashboard() {
   const totalReps = logs.reduce((sum, log) => sum + (log.totalReps || 0), 0);
 
   els.homeDateLabel.textContent = dateKey === todayKey ? "오늘" : dateKey;
-  els.homeExerciseCount.textContent = `${logs.length}개 완료`;
-  els.homeSetCount.textContent = `${totalSets}세트`;
-  els.homeVolume.textContent = `${formatNumber(totalVolume)}kg`;
-  els.homeReps.textContent = `${formatNumber(totalReps)}회`;
+  window.SetCounterMotion?.animateCounter(els.homeExerciseCount, logs.length, (value) => `${Math.round(value)}개 완료`);
+  window.SetCounterMotion?.animateCounter(els.homeSetCount, totalSets, (value) => `${Math.round(value)}세트`);
+  window.SetCounterMotion?.animateCounter(els.homeVolume, totalVolume, (value) => `${formatNumber(Math.round(value))}kg`);
+  window.SetCounterMotion?.animateCounter(els.homeReps, totalReps, (value) => `${formatNumber(Math.round(value))}회`);
   renderWorkoutPlans();
   els.homeTodayList.replaceChildren();
 
@@ -1496,6 +1532,7 @@ function renderHomeDashboard() {
   logs.forEach((log) => {
     const item = document.createElement("article");
     item.className = "today-item";
+    item.dataset.motionKey = `today-${log.id || `${log.date}-${log.exercise}`}`;
     item.innerHTML = `
       <span class="today-thumb"><img src="/static/assets/${exerciseImage(log.exercise)}" alt=""></span>
       <span>
@@ -1506,6 +1543,7 @@ function renderHomeDashboard() {
     `;
     els.homeTodayList.append(item);
   });
+  window.SetCounterMotion?.animateListEnter(els.homeTodayList.children, { scope: "today", limit: 10, y: 10 });
 }
 
 async function saveNickname(event) {
@@ -1520,7 +1558,7 @@ async function saveNickname(event) {
       body: JSON.stringify({ nickname }),
     });
     renderProfile(profile);
-    els.profileModal.hidden = true;
+    closeNicknameModal(true);
     els.menuPopover.hidden = true;
     els.menuButton.setAttribute("aria-expanded", "false");
     showToast("닉네임을 저장했습니다.");
@@ -1586,6 +1624,76 @@ function announceLevelChange(previousLevel, nextLevel) {
   showToast(nextLevel > previousLevel ? `레벨업: LV.${nextLevel}` : `레벨다운: LV.${nextLevel}`);
 }
 
+function reducedMotionPreferred() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function initMotion() {
+  window.SetCounterMotion?.init();
+}
+
+function finishLevelUp(nextStats, nextProfile) {
+  renderStats(nextStats);
+  renderProfile(nextProfile);
+  els.levelUpNumber.textContent = nextStats.level;
+  els.levelUpResultNumber.textContent = nextStats.level;
+  els.levelUpResult.classList.add("is-visible");
+  els.levelUpContinueButton.disabled = false;
+  els.levelUpContinueButton.classList.add("is-ready");
+}
+
+function openLevelUpScreen(previousStats, nextStats, nextProfile, onContinue) {
+  const previousLevel = previousStats?.level || Math.max(nextStats.level - 1, 1);
+  const nextLevel = nextStats.level;
+  const gsapApi = window.gsap;
+
+  state.levelUpContinuation = typeof onContinue === "function" ? onContinue : null;
+  els.levelUpPrevious.textContent = previousLevel;
+  els.levelUpNext.textContent = nextLevel;
+  els.levelUpNumber.textContent = previousLevel;
+  els.levelUpResultNumber.textContent = nextLevel;
+  els.levelUpProgressBar.style.transform = "scaleX(0)";
+  els.levelUpResult.classList.remove("is-visible");
+  els.levelUpContinueButton.disabled = true;
+  els.levelUpContinueButton.classList.remove("is-ready");
+  setActiveScreen("level-up");
+
+  if (!gsapApi || reducedMotionPreferred()) {
+    els.levelUpProgressBar.style.transform = "scaleX(1)";
+    finishLevelUp(nextStats, nextProfile);
+    return;
+  }
+
+  gsapApi.killTweensOf([
+    els.levelUpEmblem,
+    els.levelUpSheen,
+    els.levelUpNumber,
+    els.levelUpProgressBar,
+    els.levelUpResult,
+    els.levelUpContinueButton,
+  ]);
+  gsapApi.set(els.levelUpEmblem, { autoAlpha: 0, scale: 0.88, y: 12 });
+  gsapApi.set(els.levelUpSheen, { xPercent: -180, autoAlpha: 0 });
+  gsapApi.set(els.levelUpResult, { autoAlpha: 0, y: 10 });
+  gsapApi.set(els.levelUpContinueButton, { autoAlpha: 0, y: 8 });
+
+  gsapApi.timeline({ defaults: { overwrite: "auto" } })
+    .to(els.levelUpEmblem, { autoAlpha: 1, scale: 1, y: 0, duration: 0.3, ease: "power2.out" })
+    .to(els.levelUpProgressBar, { scaleX: 1, duration: 0.7, ease: "power2.inOut" }, "-=0.08")
+    .to(els.levelUpSheen, { xPercent: 180, autoAlpha: 1, duration: 0.48, ease: "power2.inOut" }, "-=0.38")
+    .call(() => finishLevelUp(nextStats, nextProfile))
+    .fromTo(els.levelUpNumber, { scale: 0.72, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.24, ease: "power3.out" })
+    .to(els.levelUpResult, { autoAlpha: 1, y: 0, duration: 0.22, ease: "power2.out" }, "-=0.08")
+    .to(els.levelUpContinueButton, { autoAlpha: 1, y: 0, duration: 0.2, ease: "power2.out" }, "-=0.1");
+}
+
+function closeLevelUpScreen() {
+  const continuation = state.levelUpContinuation;
+  state.levelUpContinuation = null;
+  setActiveScreen("record");
+  if (continuation) continuation();
+}
+
 function announceCheatGuard(previousStats, nextStats) {
   if (!previousStats || !nextStats) return false;
   const previousPenalty = previousStats.cheatPenalty || 0;
@@ -1622,14 +1730,17 @@ function openComplaintModal(category = "complaint") {
   syncComplaintInput();
   els.complaintModal.hidden = false;
   syncMenuOverlayLock();
-  window.setTimeout(() => els.complaintInput.focus(), 0);
+  window.SetCounterMotion?.openOverlay(els.complaintModal, { onComplete: () => els.complaintInput.focus() });
 }
 
 function closeComplaintModal(force = false) {
   if (state.complaintSubmitting && !force) return;
-  if (els.complaintModal) els.complaintModal.hidden = true;
-  syncMenuOverlayLock();
-  restoreMenuOverlayFocus();
+  if (!els.complaintModal) return;
+  window.SetCounterMotion?.closeOverlay(els.complaintModal, { onComplete: () => {
+    els.complaintModal.hidden = true;
+    syncMenuOverlayLock();
+    restoreMenuOverlayFocus();
+  } });
 }
 
 function syncComplaintInput() {
@@ -1643,13 +1754,15 @@ function openSupportModal(modal, focusTarget) {
   rememberMenuOverlayTrigger();
   modal.hidden = false;
   syncMenuOverlayLock();
-  if (focusTarget) window.setTimeout(() => focusTarget.focus(), 0);
+  window.SetCounterMotion?.openOverlay(modal, { sheet: true, onComplete: () => focusTarget?.focus() });
 }
 
 function closeSupportModal(modal) {
-  modal.hidden = true;
-  syncMenuOverlayLock();
-  restoreMenuOverlayFocus();
+  window.SetCounterMotion?.closeOverlay(modal, { sheet: true, onComplete: () => {
+    modal.hidden = true;
+    syncMenuOverlayLock();
+    restoreMenuOverlayFocus();
+  } });
 }
 
 async function submitComplaint(event) {
@@ -1714,11 +1827,13 @@ function openExerciseLibrary() {
   renderLibraryFilters();
   renderExerciseLibrary();
   els.exerciseLibraryModal.hidden = false;
-  window.setTimeout(() => els.exerciseLibrarySearch.focus(), 0);
+  window.SetCounterMotion?.openOverlay(els.exerciseLibraryModal, { sheet: true, onComplete: () => els.exerciseLibrarySearch.focus() });
 }
 
 function closeExerciseLibrary() {
-  els.exerciseLibraryModal.hidden = true;
+  window.SetCounterMotion?.closeOverlay(els.exerciseLibraryModal, { sheet: true, onComplete: () => {
+    els.exerciseLibraryModal.hidden = true;
+  } });
 }
 
 function renderFilterRow(target, values, selected, onSelect) {
@@ -1771,6 +1886,7 @@ function renderExerciseLibrary() {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "library-exercise-card";
+    item.dataset.motionKey = `library-${exerciseKey(exercise)}`;
     item.append(makeExerciseArt(exercise));
     const body = document.createElement("span");
     const name = document.createElement("strong");
@@ -1788,6 +1904,7 @@ function renderExerciseLibrary() {
     });
     els.exerciseLibraryList.append(item);
   });
+  window.SetCounterMotion?.animateListEnter(els.exerciseLibraryList.children, { scope: "library", limit: 10, y: 10 });
 }
 
 function addExerciseToMine(exercise) {
@@ -1916,6 +2033,7 @@ function renderExerciseCards() {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "exercise-card";
+    card.dataset.motionKey = `exercise-${exerciseKey(exercise)}`;
     card.setAttribute("aria-pressed", exerciseKey(exercise) === exerciseKey(state.selectedExercise));
     if (exerciseKey(exercise) === state.recommendedExerciseKey) {
       const badge = document.createElement("span");
@@ -1951,6 +2069,7 @@ function renderExerciseCards() {
     });
     els.exerciseGrid.append(card);
   });
+  window.SetCounterMotion?.animateListEnter(els.exerciseGrid.children, { scope: "exercise-grid", limit: 12, y: 10 });
   els.exerciseGrid.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: "nearest", inline: "center" });
   syncExerciseEditUi();
 }
@@ -2000,7 +2119,7 @@ async function loadLatestRecord() {
   renderLatestRecord(await api(`/api/logs/latest?${query.toString()}`));
 }
 
-async function loadBootstrap() {
+async function loadBootstrap(options = {}) {
   const month = toMonthKey(state.currentMonth);
   const query = new URLSearchParams({ month, before: state.selectedDate });
   const data = await api(`/api/bootstrap?${query.toString()}`);
@@ -2013,8 +2132,10 @@ async function loadBootstrap() {
     appliedRecommendation = applyTodayRecommendation();
     state.recommendationInitialized = true;
   }
-  renderStats(data.stats);
-  renderProfile(data.profile);
+  if (!options.deferStats) {
+    renderStats(data.stats);
+    renderProfile(data.profile);
+  }
   renderLatestRecord(data.latestByExercise[state.selectedExercise.name] || null);
   if (appliedRecommendation) renderExerciseCards();
   renderCalendar();
@@ -2150,10 +2271,14 @@ function openNextRecommendation(exercise, routineProgress = "") {
   els.nextRecommendationReason.textContent = routineProgress || recommendationReason(exercise);
   renderExerciseCards();
   els.nextRecommendationModal.hidden = false;
+  window.SetCounterMotion?.openOverlay(els.nextRecommendationModal);
 }
 
 function closeNextRecommendation() {
-  if (els.nextRecommendationModal) els.nextRecommendationModal.hidden = true;
+  if (!els.nextRecommendationModal) return;
+  window.SetCounterMotion?.closeOverlay(els.nextRecommendationModal, { onComplete: () => {
+    els.nextRecommendationModal.hidden = true;
+  } });
 }
 
 async function startNextRecommendation() {
@@ -2220,6 +2345,7 @@ function renderCalendar() {
     const cell = document.createElement("button");
     cell.type = "button";
     cell.className = "day-cell";
+    cell.dataset.motionKey = `calendar-${key}`;
     cell.innerHTML = `<strong>${day}</strong>`;
     if (summary) {
       const breakdown = volumeBreakdownForLogs(summary.logs);
@@ -2367,6 +2493,7 @@ async function chooseDate(dateKey, options = {}) {
     renderCalendar();
     await loadLatestRecord();
   }
+  window.SetCounterMotion?.animateSwap(els.calendarDayDetail, 1);
   syncCounter();
   renderHomeDashboard();
   showToast(`${selectedDateText()} 기록 날짜로 선택했습니다.`);
@@ -2572,6 +2699,7 @@ function renderBoard() {
     const item = document.createElement("article");
     item.className = "board-post";
     item.dataset.postId = postKey;
+    item.dataset.motionKey = `board-post-${postKey}`;
     const meta = document.createElement("div");
     meta.className = "board-post-meta";
     const author = document.createElement("strong");
@@ -2594,7 +2722,10 @@ function renderBoard() {
     like.setAttribute("aria-label", `좋아요 ${post.likeCount || 0}`);
     like.setAttribute("aria-pressed", String(Boolean(post.likedByMe)));
     like.disabled = state.boardPendingLikes.has(postKey);
-    like.addEventListener("click", () => toggleBoardLike(post.id).catch((error) => showToast(error.message)));
+    like.addEventListener("click", () => {
+      window.SetCounterMotion?.animateSuccess(like);
+      toggleBoardLike(post.id).catch((error) => showToast(error.message));
+    });
     const commentToggle = document.createElement("button");
     commentToggle.type = "button";
     commentToggle.className = "board-action-button board-comment-toggle";
@@ -2606,7 +2737,11 @@ function renderBoard() {
       else state.boardExpandedPosts.add(postKey);
       renderBoard();
       if (!expanded) {
-        requestAnimationFrame(() => els.boardList.querySelector(`[data-post-id="${CSS.escape(postKey)}"] .board-comment-form input`)?.focus());
+        requestAnimationFrame(() => {
+          const panel = els.boardList.querySelector(`[data-post-id="${CSS.escape(postKey)}"] .board-comments`);
+          window.SetCounterMotion?.animateSwap(panel, 1);
+          panel?.querySelector(".board-comment-form input")?.focus();
+        });
       }
     });
     const report = document.createElement("button");
@@ -2664,6 +2799,7 @@ function renderBoard() {
     item.append(meta, content, actions, comments);
     els.boardList.append(item);
   });
+  window.SetCounterMotion?.animateListEnter(els.boardList.querySelectorAll(".board-post"), { scope: "board", limit: 10, y: 12 });
 }
 
 async function refreshBoardPosts(nextPosts = null) {
@@ -2753,17 +2889,22 @@ function openBoardReportModal(postId, commentId = null, trigger = null) {
   els.submitBoardReportButton.textContent = "신고 보내기";
   syncBoardReportOther();
   els.boardReportModal.hidden = false;
-  requestAnimationFrame(() => els.boardReportForm.querySelector('input[name="boardReportReason"]')?.focus());
+  window.SetCounterMotion?.openOverlay(els.boardReportModal, {
+    sheet: true,
+    onComplete: () => els.boardReportForm.querySelector('input[name="boardReportReason"]')?.focus(),
+  });
 }
 
 function closeBoardReportModal() {
   if (els.boardReportModal.hidden || state.boardReportSubmitting) return;
   const trigger = state.boardReportTarget?.trigger;
-  els.boardReportModal.hidden = true;
-  delete els.boardReportModal.dataset.postId;
-  delete els.boardReportModal.dataset.commentId;
-  state.boardReportTarget = null;
-  trigger?.focus();
+  window.SetCounterMotion?.closeOverlay(els.boardReportModal, { sheet: true, onComplete: () => {
+    els.boardReportModal.hidden = true;
+    delete els.boardReportModal.dataset.postId;
+    delete els.boardReportModal.dataset.commentId;
+    state.boardReportTarget = null;
+    trigger?.focus();
+  } });
 }
 
 function reportBoardContent(postId, commentId = null, trigger = null) {
@@ -2868,6 +3009,7 @@ function renderHistory() {
       const item = document.createElement("button");
       item.type = "button";
       item.className = "history-item history-day-button";
+      item.dataset.motionKey = `history-${day.date}`;
       const body = document.createElement("span");
       const title = document.createElement("strong");
       title.className = "history-title";
@@ -2883,6 +3025,7 @@ function renderHistory() {
       item.addEventListener("click", () => chooseDate(day.date));
       els.historyList.append(item);
     });
+  window.SetCounterMotion?.animateListEnter(els.historyList.children, { scope: "history", limit: 10, y: 10 });
   renderHomeDashboard();
 }
 
@@ -2937,24 +3080,35 @@ async function saveWorkout() {
   });
   showToast(`${state.selectedDate} 운동 기록을 저장했습니다.`);
   resetSession(true);
-  const data = await loadBootstrap();
+  const data = await loadBootstrap({ deferStats: true });
   renderLatestRecord(savedLog);
+  const continueWorkoutFlow = () => {
+    if (activeRoutine) {
+      const completedIndex = activeRoutine.exercises.findIndex((exercise) => exerciseKey(exercise) === exerciseKey(completedExercise));
+      const nextExercise = activeRoutine.exercises[completedIndex + 1];
+      if (nextExercise) {
+        state.activeRoutine.index = completedIndex + 1;
+        state.recommendedExerciseKey = exerciseKey(nextExercise);
+        openNextRecommendation(nextExercise, `${activeRoutine.title} ${completedIndex + 2}/${activeRoutine.exercises.length}`);
+      } else {
+        state.activeRoutine = null;
+        showToast(`${activeRoutine.title} 완료. 좋은 운동이었어요.`);
+      }
+    } else if (completedRecommendation) {
+      const nextExercise = chooseRecommendedExercise({ completedExercise });
+      if (nextExercise) openNextRecommendation(nextExercise);
+    }
+  };
+  if (previousStats && data.stats.level > previousLevel) {
+    openLevelUpScreen(previousStats, data.stats, data.profile, continueWorkoutFlow);
+    return;
+  }
+  renderStats(data.stats);
+  renderProfile(data.profile);
   const cheatAlertShown = announceCheatGuard(previousStats, data.stats);
   if (!cheatAlertShown) announceLevelChange(previousLevel, data.stats.level);
-  if (activeRoutine && !cheatAlertShown) {
-    const completedIndex = activeRoutine.exercises.findIndex((exercise) => exerciseKey(exercise) === exerciseKey(completedExercise));
-    const nextExercise = activeRoutine.exercises[completedIndex + 1];
-    if (nextExercise) {
-      state.activeRoutine.index = completedIndex + 1;
-      state.recommendedExerciseKey = exerciseKey(nextExercise);
-      openNextRecommendation(nextExercise, `${activeRoutine.title} ${completedIndex + 2}/${activeRoutine.exercises.length}`);
-    } else {
-      state.activeRoutine = null;
-      showToast(`${activeRoutine.title} 완료. 좋은 운동이었어요.`);
-    }
-  } else if (completedRecommendation && !cheatAlertShown) {
-    const nextExercise = chooseRecommendedExercise({ completedExercise });
-    if (nextExercise) openNextRecommendation(nextExercise);
+  if (!cheatAlertShown) {
+    continueWorkoutFlow();
   }
 }
 
@@ -2976,7 +3130,9 @@ function changeMonth(offset) {
     state.currentMonth.getMonth() + offset,
     1
   );
-  loadBootstrap().catch((error) => showToast(error.message));
+  loadBootstrap()
+    .then(() => window.SetCounterMotion?.animateSwap(els.calendarGrid, offset))
+    .catch((error) => showToast(error.message));
 }
 
 function bindEvents() {
@@ -3067,6 +3223,7 @@ function bindEvents() {
     syncCounter();
   });
   els.confirmWorkoutButton.addEventListener("click", () => saveWorkout().catch((error) => showToast(error.message)));
+  els.levelUpContinueButton.addEventListener("click", closeLevelUpScreen);
   els.resetSessionButton.addEventListener("click", () => resetSession(false));
   els.workoutDateInput.addEventListener("change", () => {
     if (els.workoutDateInput.value) chooseDate(els.workoutDateInput.value).catch((error) => showToast(error.message));
@@ -3155,13 +3312,18 @@ function bindAuthEvents() {
   els.registerForm.addEventListener("submit", submitRegister);
   els.loginForm.addEventListener("submit", submitLogin);
   els.logoutButton.addEventListener("click", logoutAccount);
-  els.closeAuthConflictButton.addEventListener("click", () => { els.authConflictModal.hidden = true; syncMenuOverlayLock(); });
+  const closeConflict = () => window.SetCounterMotion?.closeOverlay(els.authConflictModal, { onComplete: () => {
+    els.authConflictModal.hidden = true;
+    syncMenuOverlayLock();
+  } });
+  els.closeAuthConflictButton.addEventListener("click", closeConflict);
   els.registerModal.addEventListener("click", (event) => { if (event.target === els.registerModal) closeAuthModal("register"); });
   els.loginModal.addEventListener("click", (event) => { if (event.target === els.loginModal) closeAuthModal("login"); });
-  els.authConflictModal.addEventListener("click", (event) => { if (event.target === els.authConflictModal) { els.authConflictModal.hidden = true; syncMenuOverlayLock(); } });
+  els.authConflictModal.addEventListener("click", (event) => { if (event.target === els.authConflictModal) closeConflict(); });
 }
 
 async function init() {
+  initMotion();
   await loadFreeExerciseDb();
   syncSelectedDateUi();
   els.counterTitle.textContent = exerciseDisplayName(state.selectedExercise);
