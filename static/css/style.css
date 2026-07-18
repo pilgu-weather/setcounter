@@ -8087,3 +8087,135 @@ body.keyboard-open :is(.profile-dialog, .exercise-library-dialog, .exercise-step
     background-position: 50% 50%;
   }
 }
+
+/* Unified level numerals and denser community cards */
+.level-badge:not(.champion) .level-badge-number,
+.level-up-emblem:not(.champion) strong {
+  color: #ffffff;
+  text-shadow:
+    0 1px 1px #000000,
+    0 0 3px #000000,
+    0 2px 5px rgba(0, 0, 0, 0.96);
+}
+
+[data-screen="board"] > .screen-header {
+  min-height: 48px;
+  margin-bottom: 10px;
+}
+
+[data-screen="board"] .board-community-strip span {
+  min-height: 48px;
+  gap: 3px;
+  padding: 6px 10px;
+}
+
+[data-screen="board"] .board-community-strip span + span::before {
+  top: 8px;
+  bottom: 8px;
+}
+
+[data-screen="board"] .board-intro {
+  margin: 12px 2px 8px;
+}
+
+[data-screen="board"] .board-form {
+  gap: 8px;
+  padding: 10px;
+}
+
+[data-screen="board"] .board-author,
+[data-screen="board"] .board-comment .board-author {
+  gap: 7px;
+  border-color: transparent;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+[data-screen="board"] .board-workout-proof {
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+[data-screen="board"] .board-compose-field textarea {
+  min-height: 82px;
+  padding: 10px 11px 26px;
+  line-height: 1.42;
+}
+
+[data-screen="board"] .board-compose-field > .board-char-count {
+  right: 9px;
+  bottom: 7px;
+}
+
+[data-screen="board"] .board-compose-actions {
+  gap: 8px;
+}
+
+[data-screen="board"] .board-compose-actions .confirm-button,
+[data-screen="board"] .board-tabs button,
+[data-screen="board"] .board-comment-form input,
+[data-screen="board"] .board-comment-form button,
+[data-screen="board"] .board-comment .board-comment-report {
+  min-height: 44px;
+}
+
+[data-screen="board"] .board-tabs {
+  margin: 11px 0 7px;
+  padding: 3px;
+}
+
+[data-screen="board"] .board-list {
+  gap: 7px;
+}
+
+[data-screen="board"] .board-post {
+  padding: 10px 11px;
+}
+
+[data-screen="board"] .board-post .board-post-content {
+  margin-top: 9px;
+  line-height: 1.45;
+}
+
+[data-screen="board"] .board-actions {
+  min-height: 44px;
+  margin-top: 9px;
+  padding: 2px 0;
+}
+
+[data-screen="board"] .board-action-button {
+  min-width: 48px;
+  min-height: 44px;
+  padding-inline: 8px;
+}
+
+[data-screen="board"] .board-comments {
+  margin-top: 7px;
+}
+
+[data-screen="board"] .board-comment {
+  gap: 7px;
+  padding: 8px;
+}
+
+[data-screen="board"] .board-comment-body {
+  gap: 3px;
+  padding-top: 3px;
+}
+
+[data-screen="board"] .board-comment-form {
+  padding: 7px 8px;
+}
+
+[data-screen="board"] .board-post-skeleton {
+  min-height: 116px;
+}
+
+[data-screen="board"] .board-empty-state {
+  min-height: 138px;
+}
+
+body:has([data-screen="board"].is-active) .bottom-nav button {
+  min-height: 48px;
+}
