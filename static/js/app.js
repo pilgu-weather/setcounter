@@ -295,9 +295,9 @@ function levelBadgeMarkup(level) {
   const evolution = levelBadgeEvolution(level);
   return `
     <span class="${levelBadgeClass(level)}" aria-label="${tier.labelKo} 레벨 ${level}" data-rank="${tier.label}" data-evolution-step="${evolution.step}">
-      <span class="level-badge-crown" aria-hidden="true"></span>
-      <span class="level-badge-wing level-badge-wing-left" aria-hidden="true"></span>
-      <span class="level-badge-wing level-badge-wing-right" aria-hidden="true"></span>
+      <span class="level-badge-topcap" aria-hidden="true"></span>
+      <span class="level-badge-corner level-badge-corner-left" aria-hidden="true"></span>
+      <span class="level-badge-corner level-badge-corner-right" aria-hidden="true"></span>
       <span class="level-badge-rim" aria-hidden="true"></span>
       <span class="level-badge-mark" aria-hidden="true"></span>
       <span class="level-badge-number">${level}</span>

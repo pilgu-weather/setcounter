@@ -7046,45 +7046,10 @@ body.keyboard-open :is(.profile-dialog, .exercise-library-dialog, .exercise-step
   text-shadow: 0 1px 3px #000, 0 0 8px var(--rank-glow);
 }
 
-.level-badge-crown,
-.level-badge-wing,
 .level-badge-pips {
   position: absolute;
   display: block;
   pointer-events: none;
-}
-
-.level-badge-crown,
-.level-badge-wing {
-  z-index: -3;
-  opacity: 0;
-  background: linear-gradient(145deg, var(--rank-hi), var(--rank-mid) 48%, var(--rank-deep));
-  filter: drop-shadow(0 0 4px var(--rank-glow));
-}
-
-.level-badge-crown {
-  top: -4px;
-  left: 50%;
-  width: 20px;
-  height: 10px;
-  clip-path: polygon(0 100%, 8% 28%, 34% 62%, 50% 0, 66% 62%, 92% 28%, 100% 100%);
-  transform: translateX(-50%);
-}
-
-.level-badge-wing {
-  top: 9px;
-  width: 13px;
-  height: 21px;
-}
-
-.level-badge-wing-left {
-  right: calc(100% - 7px);
-  clip-path: polygon(100% 0, 100% 100%, 62% 82%, 0 95%, 38% 58%, 6% 43%, 52% 32%, 24% 0);
-}
-
-.level-badge-wing-right {
-  left: calc(100% - 7px);
-  clip-path: polygon(0 0, 0 100%, 38% 82%, 100% 95%, 62% 58%, 94% 43%, 48% 32%, 76% 0);
 }
 
 .level-badge-pips {
@@ -7162,16 +7127,6 @@ body.keyboard-open :is(.profile-dialog, .exercise-library-dialog, .exercise-step
   box-shadow: -6px 3px 0 color-mix(in srgb, var(--rank-mid) 72%, transparent), 6px 3px 0 color-mix(in srgb, var(--rank-mid) 72%, transparent);
 }
 
-.level-badge.form-vanguard .level-badge-wing,
-.level-badge.form-ascendant .level-badge-wing,
-.level-badge.form-paragon .level-badge-wing,
-.level-badge.form-mythic .level-badge-wing,
-.level-badge.form-sovereign .level-badge-wing,
-.level-badge.form-immortal .level-badge-wing,
-.level-badge.form-final-form .level-badge-wing {
-  opacity: 0.72;
-}
-
 .level-badge.form-vanguard {
   --badge-clip: polygon(50% 0, 92% 15%, 100% 55%, 72% 88%, 50% 100%, 28% 88%, 0 55%, 8% 15%);
 }
@@ -7179,20 +7134,6 @@ body.keyboard-open :is(.profile-dialog, .exercise-library-dialog, .exercise-step
 .level-badge.form-ascendant,
 .level-badge.form-paragon {
   --badge-clip: polygon(50% 0, 90% 11%, 100% 36%, 89% 78%, 50% 100%, 11% 78%, 0 36%, 10% 11%);
-}
-
-.level-badge.form-ascendant .level-badge-crown,
-.level-badge.form-paragon .level-badge-crown,
-.level-badge.form-mythic .level-badge-crown,
-.level-badge.form-sovereign .level-badge-crown,
-.level-badge.form-immortal .level-badge-crown,
-.level-badge.form-final-form .level-badge-crown {
-  opacity: 0.82;
-}
-
-.level-badge.form-paragon .level-badge-wing {
-  width: 16px;
-  opacity: 0.86;
 }
 
 .level-badge.form-mythic {
@@ -7205,12 +7146,6 @@ body.keyboard-open :is(.profile-dialog, .exercise-library-dialog, .exercise-step
 
 .level-badge.form-sovereign {
   --badge-clip: polygon(50% 0, 91% 12%, 84% 34%, 100% 45%, 82% 82%, 50% 100%, 18% 82%, 0 45%, 16% 34%, 9% 12%);
-}
-
-.level-badge.form-sovereign .level-badge-wing {
-  width: 18px;
-  height: 24px;
-  opacity: 0.94;
 }
 
 .level-badge.form-immortal {
@@ -7226,20 +7161,6 @@ body.keyboard-open :is(.profile-dialog, .exercise-library-dialog, .exercise-step
 .level-badge.form-final-form {
   --badge-clip: polygon(50% 0, 88% 8%, 100% 28%, 92% 52%, 100% 72%, 68% 92%, 50% 100%, 32% 92%, 0 72%, 8% 52%, 0 28%, 12% 8%);
   filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.42)) drop-shadow(0 0 9px var(--rank-glow));
-}
-
-.level-badge.form-final-form .level-badge-crown {
-  top: -6px;
-  width: 24px;
-  height: 13px;
-  opacity: 1;
-}
-
-.level-badge.form-final-form .level-badge-wing {
-  top: 7px;
-  width: 20px;
-  height: 27px;
-  opacity: 1;
 }
 
 .level-badge:is(.crown, .champion)::after {
@@ -7482,58 +7403,6 @@ body.keyboard-open :is(.profile-dialog, .exercise-library-dialog, .exercise-step
   box-shadow: 0 0 12px var(--rank-glow);
 }
 
-.level-up-crown,
-.level-up-wing {
-  position: absolute;
-  z-index: -1;
-  display: block;
-  opacity: 0;
-  pointer-events: none;
-  background: linear-gradient(145deg, var(--rank-hi), var(--rank-mid) 52%, var(--rank-deep));
-  filter: drop-shadow(0 0 10px var(--rank-glow));
-}
-
-.level-up-crown {
-  top: 13px;
-  left: 50%;
-  display: flex;
-  width: 84px;
-  height: 42px;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 5px;
-  background: transparent;
-  transform: translateX(-50%);
-}
-
-.level-up-crown i {
-  display: block;
-  width: 20px;
-  height: 34px;
-  background: linear-gradient(160deg, var(--rank-hi), var(--rank-mid) 60%, var(--rank-low));
-  clip-path: polygon(50% 0, 100% 100%, 0 100%);
-}
-
-.level-up-crown i:nth-child(2) {
-  height: 42px;
-}
-
-.level-up-wing {
-  top: 67px;
-  width: 54px;
-  height: 92px;
-}
-
-.level-up-wing-left {
-  right: 174px;
-  clip-path: polygon(100% 0, 100% 100%, 66% 84%, 0 96%, 38% 59%, 7% 44%, 54% 31%, 24% 0);
-}
-
-.level-up-wing-right {
-  left: 174px;
-  clip-path: polygon(0 0, 0 100%, 34% 84%, 100% 96%, 62% 59%, 93% 44%, 46% 31%, 76% 0);
-}
-
 .level-up-emblem.form-origin-one .level-up-crest {
   width: 128px;
   height: 128px;
@@ -7592,38 +7461,9 @@ body.keyboard-open :is(.profile-dialog, .exercise-library-dialog, .exercise-step
   clip-path: polygon(50% 0, 88% 8%, 100% 28%, 92% 52%, 100% 72%, 68% 92%, 50% 100%, 32% 92%, 0 72%, 8% 52%, 0 28%, 12% 8%);
 }
 
-.level-up-emblem:is(.form-vanguard, .form-ascendant, .form-paragon, .form-mythic, .form-sovereign, .form-immortal, .form-final-form) .level-up-wing {
-  opacity: 0.68;
-}
-
-.level-up-emblem:is(.form-ascendant, .form-paragon, .form-mythic, .form-sovereign, .form-immortal, .form-final-form) .level-up-crown {
-  opacity: 0.72;
-}
-
-.level-up-emblem:is(.form-paragon, .form-mythic) .level-up-wing {
-  opacity: 0.82;
-  transform: scaleX(1.08);
-}
-
-.level-up-emblem:is(.form-sovereign, .form-immortal, .form-final-form) .level-up-wing {
-  opacity: 0.96;
-  transform: scaleX(1.2);
-}
-
 .level-up-emblem.form-immortal .level-up-orbit-inner {
   border-width: 2px;
   box-shadow: 0 0 18px var(--rank-glow), inset 0 0 18px var(--rank-glow);
-}
-
-.level-up-emblem.form-final-form .level-up-crown {
-  top: 5px;
-  opacity: 1;
-  transform: translateX(-50%) scale(1.16);
-}
-
-.level-up-emblem.form-final-form .level-up-wing {
-  opacity: 1;
-  transform: scaleX(1.34);
 }
 
 .level-up-emblem.grade-1 .level-up-crest-mark { width: 18px; }
@@ -7706,4 +7546,277 @@ body.keyboard-open :is(.profile-dialog, .exercise-library-dialog, .exercise-step
     animation: none !important;
     transform: none !important;
   }
+}
+
+/* Rank shield refinement: compact plated emblems without wings or stars */
+.level-badge {
+  --badge-clip: polygon(50% 0, 88% 12%, 96% 22%, 96% 72%, 50% 100%, 4% 72%, 4% 22%, 12% 12%);
+  width: 34px;
+  min-width: 34px;
+  height: 38px;
+  flex-basis: 34px;
+}
+
+.level-badge::before {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.62), transparent 18% 72%, rgba(0, 0, 0, 0.58)),
+    linear-gradient(180deg, var(--rank-hi) 0 8%, var(--rank-mid) 28%, var(--rank-low) 70%, var(--rank-deep));
+}
+
+.level-badge::after {
+  inset: 4px 5px 6px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.18), transparent 28%),
+    linear-gradient(180deg, color-mix(in srgb, var(--rank-mid) 74%, #111722), color-mix(in srgb, var(--rank-deep) 84%, #080b10));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rank-hi) 22%, transparent), inset 0 -4px 8px rgba(0, 0, 0, 0.32);
+}
+
+.level-badge-topcap,
+.level-badge-corner {
+  position: absolute;
+  z-index: 4;
+  display: block;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(145deg, var(--rank-hi), var(--rank-mid) 55%, var(--rank-low));
+  box-shadow: 0 0 6px var(--rank-glow);
+}
+
+.level-badge-topcap {
+  top: 0;
+  left: 50%;
+  width: 13px;
+  height: 7px;
+  clip-path: polygon(50% 0, 100% 72%, 78% 100%, 22% 100%, 0 72%);
+  transform: translateX(-50%);
+}
+
+.level-badge-corner {
+  top: 7px;
+  width: 8px;
+  height: 9px;
+}
+
+.level-badge-corner-left {
+  left: 2px;
+  clip-path: polygon(0 0, 100% 18%, 60% 100%, 12% 70%);
+}
+
+.level-badge-corner-right {
+  right: 2px;
+  clip-path: polygon(100% 0, 0 18%, 40% 100%, 88% 70%);
+}
+
+.level-badge.form-origin-one {
+  --badge-clip: polygon(13% 0, 87% 0, 100% 14%, 100% 76%, 50% 100%, 0 76%, 0 14%);
+  width: 30px;
+  min-width: 30px;
+  height: 32px;
+  flex-basis: 30px;
+}
+
+.level-badge.form-origin-one::before,
+.level-badge.form-origin-one::after {
+  border-radius: 5px 5px 2px 2px;
+}
+
+.level-badge.form-origin-two {
+  --badge-clip: polygon(50% 0, 90% 14%, 100% 26%, 94% 75%, 50% 100%, 6% 75%, 0 26%, 10% 14%);
+  width: 31px;
+  min-width: 31px;
+  height: 35px;
+  flex-basis: 31px;
+}
+
+.level-badge.form-core {
+  --badge-clip: polygon(18% 0, 82% 0, 96% 14%, 96% 72%, 50% 100%, 4% 72%, 4% 14%);
+}
+
+.level-badge.form-forged {
+  --badge-clip: polygon(14% 0, 86% 0, 100% 16%, 94% 73%, 50% 100%, 6% 73%, 0 16%);
+}
+
+.level-badge.form-forged::after {
+  inset: 5px 6px 7px;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--rank-hi) 24%, transparent), inset 0 -5px 8px rgba(0, 0, 0, 0.38);
+}
+
+.level-badge.form-vanguard {
+  --badge-clip: polygon(32% 0, 50% 10%, 68% 0, 91% 8%, 100% 20%, 94% 73%, 50% 100%, 6% 73%, 0 20%, 9% 8%);
+}
+
+.level-badge.form-vanguard .level-badge-topcap,
+.level-badge.form-ascendant .level-badge-topcap,
+.level-badge.form-paragon .level-badge-topcap,
+.level-badge.form-mythic .level-badge-topcap,
+.level-badge.form-sovereign .level-badge-topcap,
+.level-badge.form-immortal .level-badge-topcap,
+.level-badge.form-final-form .level-badge-topcap {
+  opacity: 0.82;
+}
+
+.level-badge.form-ascendant,
+.level-badge.form-paragon {
+  --badge-clip: polygon(29% 0, 50% 11%, 71% 0, 93% 10%, 100% 22%, 95% 72%, 50% 100%, 5% 72%, 0 22%, 7% 10%);
+}
+
+.level-badge.form-ascendant .level-badge-corner,
+.level-badge.form-paragon .level-badge-corner,
+.level-badge.form-mythic .level-badge-corner,
+.level-badge.form-sovereign .level-badge-corner,
+.level-badge.form-immortal .level-badge-corner,
+.level-badge.form-final-form .level-badge-corner {
+  opacity: 0.72;
+}
+
+.level-badge.form-paragon::after {
+  inset: 6px 7px 8px;
+  box-shadow: inset 0 0 0 1px var(--rank-hi), inset 0 0 0 3px color-mix(in srgb, var(--rank-low) 72%, transparent);
+}
+
+.level-badge.form-mythic {
+  --badge-clip: polygon(26% 0, 50% 12%, 74% 0, 96% 11%, 100% 25%, 92% 74%, 50% 100%, 8% 74%, 0 25%, 4% 11%);
+}
+
+.level-badge.form-mythic .level-badge-corner {
+  width: 9px;
+  height: 11px;
+  opacity: 0.84;
+}
+
+.level-badge.form-sovereign {
+  --badge-clip: polygon(23% 0, 50% 13%, 77% 0, 96% 9%, 100% 22%, 94% 75%, 50% 100%, 6% 75%, 0 22%, 4% 9%);
+}
+
+.level-badge.form-sovereign .level-badge-corner,
+.level-badge.form-immortal .level-badge-corner {
+  top: 5px;
+  width: 10px;
+  height: 13px;
+  opacity: 0.94;
+}
+
+.level-badge.form-immortal {
+  --badge-clip: polygon(20% 0, 50% 14%, 80% 0, 100% 12%, 96% 76%, 50% 100%, 4% 76%, 0 12%);
+}
+
+.level-badge.form-immortal::after {
+  box-shadow: inset 0 0 0 1px var(--rank-hi), inset 0 0 0 3px var(--rank-low), inset 0 -5px 10px rgba(0, 0, 0, 0.42);
+}
+
+.level-badge.form-final-form {
+  --badge-clip: polygon(18% 3%, 34% 3%, 50% 14%, 66% 3%, 82% 3%, 100% 16%, 95% 76%, 50% 100%, 5% 76%, 0 16%);
+}
+
+.level-badge.form-final-form .level-badge-topcap {
+  top: -1px;
+  width: 17px;
+  height: 9px;
+  opacity: 1;
+}
+
+.level-badge.form-final-form .level-badge-corner {
+  top: 4px;
+  width: 11px;
+  height: 14px;
+  opacity: 1;
+}
+
+.level-badge.form-final-form::after {
+  inset: 6px 7px 8px;
+  box-shadow: inset 0 0 0 1px var(--rank-hi), inset 0 0 0 3px var(--rank-low), 0 0 8px var(--rank-glow);
+}
+
+.level-up-topcap,
+.level-up-corner {
+  position: absolute;
+  z-index: 1;
+  display: block;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(145deg, var(--rank-hi), var(--rank-mid) 55%, var(--rank-low));
+  filter: drop-shadow(0 0 9px var(--rank-glow));
+}
+
+.level-up-topcap {
+  top: 23px;
+  left: 50%;
+  width: 54px;
+  height: 27px;
+  clip-path: polygon(50% 0, 100% 72%, 78% 100%, 22% 100%, 0 72%);
+  transform: translateX(-50%);
+}
+
+.level-up-corner {
+  top: 58px;
+  width: 31px;
+  height: 43px;
+}
+
+.level-up-corner-left {
+  left: 34px;
+  clip-path: polygon(0 0, 100% 15%, 56% 100%, 8% 70%);
+}
+
+.level-up-corner-right {
+  right: 34px;
+  clip-path: polygon(100% 0, 0 15%, 44% 100%, 92% 70%);
+}
+
+.level-up-emblem .level-up-crest {
+  width: 146px;
+  height: 170px;
+  border-radius: 0;
+  clip-path: polygon(30% 0, 50% 10%, 70% 0, 94% 11%, 100% 23%, 94% 73%, 50% 100%, 6% 73%, 0 23%, 6% 11%);
+}
+
+.level-up-emblem .level-up-crest::before,
+.level-up-emblem .level-up-crest::after {
+  border-radius: 0;
+  clip-path: inherit;
+}
+
+.level-up-emblem.form-origin-one .level-up-crest {
+  width: 128px;
+  height: 142px;
+  border-radius: 0;
+  clip-path: polygon(14% 0, 86% 0, 100% 14%, 100% 75%, 50% 100%, 0 75%, 0 14%);
+}
+
+.level-up-emblem.form-origin-one .level-up-crest::before,
+.level-up-emblem.form-origin-one .level-up-crest::after {
+  border-radius: 0;
+  clip-path: inherit;
+}
+
+.level-up-emblem.form-origin-two .level-up-crest {
+  width: 132px;
+  height: 150px;
+  clip-path: polygon(50% 0, 90% 14%, 100% 26%, 94% 75%, 50% 100%, 6% 75%, 0 26%, 10% 14%);
+}
+
+.level-up-emblem:is(.form-vanguard, .form-ascendant, .form-paragon, .form-mythic, .form-sovereign, .form-immortal, .form-final-form) .level-up-topcap {
+  opacity: 0.86;
+}
+
+.level-up-emblem:is(.form-ascendant, .form-paragon, .form-mythic, .form-sovereign, .form-immortal, .form-final-form) .level-up-corner {
+  opacity: 0.76;
+}
+
+.level-up-emblem:is(.form-sovereign, .form-immortal, .form-final-form) .level-up-corner {
+  opacity: 1;
+  transform: scale(1.08);
+}
+
+.level-up-emblem.form-final-form .level-up-topcap {
+  top: 16px;
+  width: 66px;
+  height: 33px;
+  opacity: 1;
+}
+
+.level-up-emblem.form-final-form .level-up-corner {
+  top: 50px;
+  opacity: 1;
+  transform: scale(1.16);
 }
