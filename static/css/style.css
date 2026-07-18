@@ -6817,6 +6817,19 @@ body.keyboard-open :is(.profile-dialog, .exercise-library-dialog, .exercise-step
   will-change: transform, opacity;
 }
 
+.has-gsap :is(.exercise-art, .exercise-detail-images) img:not(.is-motion-loaded),
+.has-gsap img.exercise-step-image:not(.is-motion-loaded) {
+  opacity: 0;
+}
+
+:is(.exercise-art, .exercise-detail-images) {
+  background-color: rgba(255, 255, 255, 0.035);
+}
+
+.is-motion-loaded {
+  will-change: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-screen,
   .bottom-nav-indicator,

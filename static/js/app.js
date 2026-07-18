@@ -799,6 +799,7 @@ async function loadAuthStatus() {
 
 function renderAuthPanel() {
   const authenticated = state.auth.authenticated;
+  const previousAuthState = els.accountPanel.dataset.authState;
   els.accountPanel.classList.toggle("authenticated-account-panel", authenticated);
   els.accountPanel.classList.toggle("anonymous-account-panel", !authenticated);
   els.accountPanelTitle.textContent = authenticated ? "계정에 안전하게 연결됨" : "기록을 안전하게 보관하기";
@@ -807,6 +808,10 @@ function renderAuthPanel() {
   els.accountEmail.textContent = authenticated ? state.auth.emailMasked || "연결된 계정" : "";
   els.anonymousAccountActions.hidden = authenticated;
   els.authenticatedAccountActions.hidden = !authenticated;
+  els.accountPanel.dataset.authState = authenticated ? "authenticated" : "anonymous";
+  if (previousAuthState && previousAuthState !== els.accountPanel.dataset.authState) {
+    window.SetCounterMotion?.animateContentChange(els.accountPanel, authenticated ? 1 : -1);
+  }
 }
 
 function rememberMenuOverlayTrigger() {
@@ -1352,12 +1357,17 @@ function exerciseDetailAsset(image) {
   return `/static/assets/${image || "newlogo.webp"}`;
 }
 
-function renderPlanExerciseDetail() {
+function renderPlanExerciseDetail(direction = 0) {
   const steps = state.planExerciseDetailSteps;
   const step = steps[state.planExerciseDetailIndex];
   if (!step) return;
   els.planExerciseDetailTitle.textContent = step.name;
-  els.planExerciseDetailImage.src = exerciseDetailAsset(step.image);
+  const nextImageSource = exerciseDetailAsset(step.image);
+  if (els.planExerciseDetailImage.getAttribute("src") !== nextImageSource) {
+    els.planExerciseDetailImage.classList.remove("is-motion-loaded");
+    delete els.planExerciseDetailImage.dataset.motionLoaded;
+    els.planExerciseDetailImage.src = nextImageSource;
+  }
   els.planExerciseDetailImage.alt = `${step.name} 동작 이미지`;
   els.planExerciseDetailMetaLabel.textContent = step.meta.includes("세트") ? "권장 구성" : "지속시간";
   els.planExerciseDetailMeta.textContent = step.meta;
@@ -1371,6 +1381,8 @@ function renderPlanExerciseDetail() {
   els.planExerciseDetailPage.textContent = `${state.planExerciseDetailIndex + 1}/${steps.length}`;
   els.previousPlanExerciseButton.disabled = state.planExerciseDetailIndex === 0;
   els.nextPlanExerciseButton.disabled = state.planExerciseDetailIndex === steps.length - 1;
+  bindImageReveal(els.planExerciseDetailImage);
+  if (direction) window.SetCounterMotion?.animateContentChange(els.planExerciseDetailModal.querySelector(".exercise-step-scroll"), direction);
 }
 
 function openPlanExerciseDetail(steps, index) {
@@ -1793,6 +1805,16 @@ async function submitComplaint(event) {
   }
 }
 
+function bindImageReveal(image) {
+  if (!image) return;
+  const reveal = () => window.SetCounterMotion?.revealImage(image);
+  if (image.complete && image.naturalWidth) {
+    window.requestAnimationFrame(reveal);
+  } else {
+    image.addEventListener("load", reveal, { once: true });
+  }
+}
+
 function makeExerciseArt(exercise) {
   const imageBox = document.createElement("span");
   imageBox.className = "exercise-art";
@@ -1807,6 +1829,7 @@ function makeExerciseArt(exercise) {
   image.src = firstImage ? freeDbImageUrl(firstImage) : `/static/assets/${exercise.image}?v=6`;
   image.alt = "";
   image.loading = "lazy";
+  bindImageReveal(image);
   imageBox.append(image);
   return imageBox;
 }
@@ -1977,6 +2000,7 @@ function renderExerciseDetail(exercise) {
     setExerciseDetailCollapsed(true);
     renderExerciseDetail(state.selectedExercise);
   });
+  els.exerciseDetailCard.querySelectorAll("img").forEach(bindImageReveal);
 }
 
 async function removeExerciseFromMine(exercise) {
@@ -2082,6 +2106,8 @@ async function selectExercise(exercise) {
   syncWeightControls();
   resetSession(true);
   renderExerciseCards();
+  window.SetCounterMotion?.animateContentChange(els.exerciseDetailCard, 1);
+  window.SetCounterMotion?.animateSelection(els.exerciseGrid.querySelector('[aria-pressed="true"]'));
   await loadLatestRecord();
   renderBoard();
 }
@@ -2494,6 +2520,7 @@ async function chooseDate(dateKey, options = {}) {
     await loadLatestRecord();
   }
   window.SetCounterMotion?.animateSwap(els.calendarDayDetail, 1);
+  window.SetCounterMotion?.animateSelection(els.calendarGrid.querySelector(".day-cell.is-selected"));
   syncCounter();
   renderHomeDashboard();
   showToast(`${selectedDateText()} 기록 날짜로 선택했습니다.`);
@@ -2812,12 +2839,20 @@ async function toggleBoardLike(postId) {
   if (state.boardPendingLikes.has(postKey)) return;
   state.boardPendingLikes.add(postKey);
   renderBoard();
+  let succeeded = false;
   try {
     await api(`/api/board/posts/${postId}/like`, { method: "POST" });
     await refreshBoardPosts();
+    succeeded = true;
   } finally {
     state.boardPendingLikes.delete(postKey);
     renderBoard();
+    if (succeeded) {
+      window.requestAnimationFrame(() => {
+        const button = els.boardList.querySelector(`[data-post-id="${CSS.escape(postKey)}"] .board-action-button`);
+        window.SetCounterMotion?.animateSuccess(button);
+      });
+    }
   }
 }
 
@@ -2839,18 +2874,28 @@ async function submitBoardComment(event, postId) {
   state.boardPendingComments.add(postKey);
   renderBoard();
   let failed = false;
+  let succeeded = false;
   try {
     await api(`/api/board/posts/${postId}/comments`, {
       method: "POST",
       body: JSON.stringify({ content }),
     });
     await refreshBoardPosts();
+    succeeded = true;
   } catch (error) {
     failed = true;
     showToast(error.message);
   } finally {
     state.boardPendingComments.delete(postKey);
     renderBoard();
+    if (succeeded) {
+      window.requestAnimationFrame(() => {
+        const comments = els.boardList.querySelector(`[data-post-id="${CSS.escape(postKey)}"] .board-comments`);
+        const renderedComments = comments?.querySelectorAll(".board-comment");
+        const newest = renderedComments?.[renderedComments.length - 1];
+        window.SetCounterMotion?.animateContentChange(newest, 1);
+      });
+    }
     if (failed) {
       requestAnimationFrame(() => {
         const restored = els.boardList.querySelector(`[data-post-id="${CSS.escape(postKey)}"] .board-comment-form input`);
@@ -3041,6 +3086,7 @@ async function saveSosExcuse() {
   els.sosButton.classList.add("is-loading");
   els.sosButton.querySelector("span").textContent = "저장 중...";
   syncSosReasonInput();
+  let succeeded = false;
   try {
     await api("/api/excuses", {
       method: "POST",
@@ -3049,11 +3095,13 @@ async function saveSosExcuse() {
     const data = await loadBootstrap();
     showToast(`${state.selectedDate} SOS를 저장했습니다.`);
     announceLevelChange(previousLevel, data.stats.level);
+    succeeded = true;
   } finally {
     state.sosSubmitting = false;
     els.sosButton.classList.remove("is-loading");
     els.sosButton.querySelector("span").textContent = excuseForDate(state.selectedDate) ? "SOS 업데이트" : "SOS 저장";
     renderMenuSos();
+    if (succeeded) window.SetCounterMotion?.animateButtonComplete(els.sosButton);
   }
 }
 
@@ -3082,6 +3130,7 @@ async function saveWorkout() {
   resetSession(true);
   const data = await loadBootstrap({ deferStats: true });
   renderLatestRecord(savedLog);
+  window.SetCounterMotion?.animateWorkoutSuccess(els.confirmWorkoutButton, [els.lastRecord]);
   const continueWorkoutFlow = () => {
     if (activeRoutine) {
       const completedIndex = activeRoutine.exercises.findIndex((exercise) => exerciseKey(exercise) === exerciseKey(completedExercise));
@@ -3151,12 +3200,12 @@ function bindEvents() {
   els.previousPlanExerciseButton.addEventListener("click", () => {
     if (state.planExerciseDetailIndex <= 0) return;
     state.planExerciseDetailIndex -= 1;
-    renderPlanExerciseDetail();
+    renderPlanExerciseDetail(-1);
   });
   els.nextPlanExerciseButton.addEventListener("click", () => {
     if (state.planExerciseDetailIndex >= state.planExerciseDetailSteps.length - 1) return;
     state.planExerciseDetailIndex += 1;
-    renderPlanExerciseDetail();
+    renderPlanExerciseDetail(1);
   });
   els.planExerciseDetailModal.addEventListener("click", (event) => {
     if (event.target === els.planExerciseDetailModal) closePlanExerciseDetail();

@@ -248,6 +248,72 @@
     gsap.fromTo(element, { autoAlpha: 0, x: direction * 10 }, { autoAlpha: 1, x: 0, duration: 0.25, ease: "power2.out", clearProps: "transform,opacity,visibility", overwrite: "auto" });
   }
 
+  function animateContentChange(element, direction = 1) {
+    if (!element || !canAnimate()) return;
+    gsap.killTweensOf(element);
+    gsap.fromTo(element, { autoAlpha: 0.35, x: direction * 10 }, {
+      autoAlpha: 1,
+      x: 0,
+      duration: 0.22,
+      ease: "power2.out",
+      clearProps: "transform,opacity,visibility",
+      overwrite: "auto",
+    });
+  }
+
+  function animateSelection(element) {
+    if (!element || !canAnimate()) return;
+    gsap.killTweensOf(element);
+    gsap.fromTo(element, { scale: 0.985 }, {
+      scale: 1,
+      duration: 0.2,
+      ease: "power2.out",
+      clearProps: "transform",
+      overwrite: "auto",
+    });
+  }
+
+  function revealImage(image) {
+    if (!image || image.dataset.motionLoaded === "1") return;
+    image.dataset.motionLoaded = "1";
+    image.classList.add("is-motion-loaded");
+    if (!canAnimate()) return;
+    gsap.fromTo(image, { autoAlpha: 0, scale: 1.025 }, {
+      autoAlpha: 1,
+      scale: 1,
+      duration: 0.24,
+      ease: "power2.out",
+      clearProps: "transform,opacity,visibility",
+      overwrite: "auto",
+    });
+  }
+
+  function animateButtonComplete(button) {
+    if (!button || !canAnimate()) return;
+    gsap.killTweensOf(button);
+    gsap.timeline({ defaults: { overwrite: "auto" } })
+      .to(button, { scale: 0.985, duration: 0.08, ease: "power1.out" })
+      .to(button, { scale: 1.015, boxShadow: "0 0 0 1px rgba(102,201,135,.35), 0 10px 28px rgba(102,201,135,.18)", duration: 0.16, ease: "power2.out" })
+      .to(button, { scale: 1, boxShadow: "", duration: 0.24, ease: "power2.out", clearProps: "transform,boxShadow" });
+  }
+
+  function animateWorkoutSuccess(button, elements = []) {
+    if (!canAnimate()) return;
+    const targets = Array.from(elements || []).filter(Boolean);
+    animateButtonComplete(button);
+    if (targets.length) {
+      gsap.fromTo(targets, { autoAlpha: 0.4, y: 8 }, {
+        autoAlpha: 1,
+        y: 0,
+        duration: 0.28,
+        stagger: 0.04,
+        ease: "power2.out",
+        clearProps: "transform,opacity,visibility",
+        overwrite: "auto",
+      });
+    }
+  }
+
   function animateToast(element) {
     if (!element || !canAnimate()) return;
     gsap.fromTo(element, { autoAlpha: 0, y: 12, scale: 0.98 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.22, ease: "power2.out", clearProps: "transform,opacity,visibility", overwrite: "auto" });
@@ -296,6 +362,11 @@
     animateSuccess,
     animateError,
     animateSwap,
+    animateContentChange,
+    animateSelection,
+    revealImage,
+    animateButtonComplete,
+    animateWorkoutSuccess,
     animateToast,
     animateBottomNavIndicator,
     cleanupScreenAnimations,
