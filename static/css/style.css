@@ -7820,3 +7820,270 @@ body.keyboard-open :is(.profile-dialog, .exercise-library-dialog, .exercise-step
   opacity: 1;
   transform: scale(1.16);
 }
+
+/* Image rank badges: restored 11 original level ranges */
+.level-badge {
+  --rank-level-color: #fff7ef;
+  position: relative;
+  display: inline-grid;
+  width: 38px;
+  min-width: 38px;
+  height: 42px;
+  flex: 0 0 38px;
+  place-items: center;
+  overflow: visible;
+  isolation: isolate;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.42)) drop-shadow(0 0 5px var(--rank-glow));
+}
+
+.level-badge:is(.iron, .bronze, .silver, .gold, .red-gold, .platinum, .diamond, .black-diamond, .crimson, .crown, .champion) {
+  width: 38px;
+  min-width: 38px;
+  height: 42px;
+  flex-basis: 38px;
+  overflow: visible;
+  clip-path: none;
+  transform: none;
+}
+
+.level-badge::before,
+.level-badge::after {
+  content: none;
+  display: none;
+}
+
+.level-badge-image {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.level-badge-number {
+  position: absolute;
+  z-index: 2;
+  top: 48%;
+  left: 50%;
+  padding: 0;
+  color: var(--rank-level-color);
+  font-size: 11px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.96), 0 0 6px rgba(0, 0, 0, 0.62);
+  transform: translate(-50%, -50%);
+}
+
+.level-badge.iron,
+.level-up-stage.iron,
+.level-up-emblem.iron {
+  --rank-hi: #f0b17d;
+  --rank-glow: rgba(187, 94, 42, 0.38);
+  --rank-level-color: #fff1e4;
+}
+
+.level-badge.bronze,
+.level-up-stage.bronze,
+.level-up-emblem.bronze {
+  --rank-hi: #f7fbff;
+  --rank-glow: rgba(218, 230, 244, 0.34);
+  --rank-level-color: #202936;
+}
+
+.level-badge.silver,
+.level-up-stage.silver,
+.level-up-emblem.silver {
+  --rank-hi: #ffd1cc;
+  --rank-glow: rgba(218, 104, 103, 0.4);
+  --rank-level-color: #fff7f5;
+}
+
+.level-badge.gold,
+.level-up-stage.gold,
+.level-up-emblem.gold {
+  --rank-hi: #ffffff;
+  --rank-glow: rgba(218, 230, 244, 0.38);
+  --rank-level-color: #1d2734;
+}
+
+.level-badge.red-gold,
+.level-up-stage.red-gold,
+.level-up-emblem.red-gold {
+  --rank-hi: #fff0a1;
+  --rank-glow: rgba(255, 191, 47, 0.44);
+  --rank-level-color: #442600;
+}
+
+.level-badge.platinum,
+.level-up-stage.platinum,
+.level-up-emblem.platinum {
+  --rank-hi: #e9fbff;
+  --rank-glow: rgba(84, 184, 255, 0.46);
+  --rank-level-color: #07497b;
+}
+
+.level-badge.diamond,
+.level-up-stage.diamond,
+.level-up-emblem.diamond {
+  --rank-hi: #fff4a6;
+  --rank-glow: rgba(55, 156, 255, 0.5);
+  --rank-level-color: #ffffff;
+}
+
+.level-badge.black-diamond,
+.level-up-stage.black-diamond,
+.level-up-emblem.black-diamond {
+  --rank-hi: #fff1a6;
+  --rank-glow: rgba(156, 91, 255, 0.52);
+  --rank-level-color: #ffffff;
+}
+
+.level-badge.crimson,
+.level-up-stage.crimson,
+.level-up-emblem.crimson {
+  --rank-hi: #fff0a2;
+  --rank-glow: rgba(255, 55, 70, 0.52);
+  --rank-level-color: #ffffff;
+}
+
+.level-badge.crown,
+.level-up-stage.crown,
+.level-up-emblem.crown {
+  --rank-hi: #ffe775;
+  --rank-glow: rgba(255, 194, 42, 0.54);
+  --rank-level-color: #ffffff;
+}
+
+.level-badge.champion,
+.level-up-stage.champion,
+.level-up-emblem.champion {
+  --rank-hi: #fff1a6;
+  --rank-glow: rgba(255, 205, 63, 0.62);
+  --rank-level-color: #ffffff;
+}
+
+[data-screen="menu"] .user-badge .level-badge {
+  width: 48px;
+  min-width: 48px;
+  height: 54px;
+  flex-basis: 48px;
+}
+
+[data-screen="menu"] .user-badge .level-badge-number {
+  font-size: 15px;
+}
+
+[data-screen="board"] .board-author .level-badge {
+  width: 36px;
+  min-width: 36px;
+  height: 40px;
+  flex-basis: 36px;
+}
+
+[data-screen="board"] .board-author .level-badge-number {
+  font-size: 11px;
+}
+
+.level-up-crest,
+.level-up-emblem .level-up-crest {
+  position: relative;
+  display: grid;
+  width: 176px;
+  height: 196px;
+  place-content: center;
+  overflow: visible;
+  isolation: isolate;
+  border-radius: 0;
+  background: transparent;
+  clip-path: none;
+  filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.52)) drop-shadow(0 0 18px var(--rank-glow));
+}
+
+.level-up-crest::before,
+.level-up-crest::after,
+.level-up-emblem .level-up-crest::before,
+.level-up-emblem .level-up-crest::after {
+  content: none;
+  display: none;
+}
+
+.level-up-badge-image {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.level-up-rank,
+.level-up-emblem small,
+.level-up-emblem strong {
+  z-index: 3;
+}
+
+.level-up-rank {
+  margin-bottom: 4px;
+  color: var(--rank-hi);
+  font-size: 10px;
+}
+
+.level-up-emblem small {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.level-up-emblem strong {
+  margin-top: 1px;
+  color: var(--rank-level-color);
+  font-size: 56px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.98), 0 0 18px rgba(0, 0, 0, 0.52);
+}
+
+.level-up-crest-mark {
+  display: none;
+}
+
+.level-up-sheen {
+  z-index: 4;
+  pointer-events: none;
+}
+
+.level-badge.champion .level-badge-number,
+.level-up-emblem.champion strong {
+  color: transparent;
+  background: linear-gradient(90deg, #ffffff 0%, #63ecff 18%, #9d7cff 38%, #ff6ca8 58%, #ffe46b 78%, #ffffff 100%);
+  background-size: 260% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 5px rgba(132, 215, 255, 0.72));
+  text-shadow: none;
+  animation: champion-level-shimmer 1.05s linear infinite;
+}
+
+@keyframes champion-level-shimmer {
+  from { background-position: 130% 50%; }
+  to { background-position: -130% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .level-badge.champion .level-badge-number,
+  .level-up-emblem.champion strong {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}

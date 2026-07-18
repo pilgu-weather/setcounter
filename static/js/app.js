@@ -255,17 +255,17 @@ function escapeHtml(value) {
 }
 
 const levelTiers = [
-  { minimum: 95, className: "champion", label: "CHAMPION", labelKo: "챔피언" },
-  { minimum: 90, className: "crown", label: "CROWN", labelKo: "크라운" },
-  { minimum: 80, className: "crimson", label: "CRIMSON", labelKo: "크림슨" },
-  { minimum: 70, className: "black-diamond", label: "OBSIDIAN", labelKo: "옵시디언" },
-  { minimum: 60, className: "diamond", label: "DIAMOND", labelKo: "다이아몬드" },
-  { minimum: 50, className: "platinum", label: "PLATINUM", labelKo: "플래티넘" },
-  { minimum: 40, className: "red-gold", label: "INFERNO", labelKo: "인페르노" },
-  { minimum: 30, className: "gold", label: "GOLD", labelKo: "골드" },
-  { minimum: 20, className: "silver", label: "SILVER", labelKo: "실버" },
-  { minimum: 10, className: "bronze", label: "BRONZE", labelKo: "브론즈" },
-  { minimum: 1, className: "iron", label: "IRON", labelKo: "아이언" },
+  { minimum: 95, className: "champion", label: "PRISM", labelKo: "프리즘", image: "/static/assets/level-badges/rank-11.webp" },
+  { minimum: 90, className: "crown", label: "OBSIDIAN", labelKo: "옵시디언", image: "/static/assets/level-badges/rank-10.webp" },
+  { minimum: 80, className: "crimson", label: "CRIMSON", labelKo: "크림슨", image: "/static/assets/level-badges/rank-09.webp" },
+  { minimum: 70, className: "black-diamond", label: "AMETHYST", labelKo: "아메시스트", image: "/static/assets/level-badges/rank-08.webp" },
+  { minimum: 60, className: "diamond", label: "SAPPHIRE", labelKo: "사파이어", image: "/static/assets/level-badges/rank-07.webp" },
+  { minimum: 50, className: "platinum", label: "FROST", labelKo: "프로스트", image: "/static/assets/level-badges/rank-06.webp" },
+  { minimum: 40, className: "red-gold", label: "GOLD", labelKo: "골드", image: "/static/assets/level-badges/rank-05.webp" },
+  { minimum: 30, className: "gold", label: "SILVER", labelKo: "실버", image: "/static/assets/level-badges/rank-04.webp" },
+  { minimum: 20, className: "silver", label: "ROSE", labelKo: "로즈", image: "/static/assets/level-badges/rank-03.webp" },
+  { minimum: 10, className: "bronze", label: "STEEL", labelKo: "스틸", image: "/static/assets/level-badges/rank-02.webp" },
+  { minimum: 1, className: "iron", label: "BRONZE", labelKo: "브론즈", image: "/static/assets/level-badges/rank-01.webp" },
 ];
 
 function levelTier(level) {
@@ -273,35 +273,17 @@ function levelTier(level) {
   return levelTiers.find((tier) => numericLevel >= tier.minimum) || levelTiers[levelTiers.length - 1];
 }
 
-const levelBadgeForms = ["core", "forged", "vanguard", "ascendant", "paragon", "mythic", "sovereign", "immortal", "final-form"];
-
-function levelBadgeEvolution(level) {
-  const numericLevel = Math.max(1, Number(level) || 1);
-  if (numericLevel === 1) return { form: "origin-one", grade: 1, step: 0 };
-  if (numericLevel === 2) return { form: "origin-two", grade: 1, step: 0 };
-  const step = Math.floor((numericLevel - 3) / 2) + 1;
-  const formIndex = Math.min(Math.floor((step - 1) / 5), levelBadgeForms.length - 1);
-  return { form: levelBadgeForms[formIndex], grade: ((step - 1) % 5) + 1, step };
-}
-
 function levelBadgeClass(level) {
   const tier = levelTier(level);
-  const evolution = levelBadgeEvolution(level);
-  return `level-badge ${tier.className} form-${evolution.form} grade-${evolution.grade}`;
+  return `level-badge ${tier.className}`;
 }
 
 function levelBadgeMarkup(level) {
   const tier = levelTier(level);
-  const evolution = levelBadgeEvolution(level);
   return `
-    <span class="${levelBadgeClass(level)}" aria-label="${tier.labelKo} 레벨 ${level}" data-rank="${tier.label}" data-evolution-step="${evolution.step}">
-      <span class="level-badge-topcap" aria-hidden="true"></span>
-      <span class="level-badge-corner level-badge-corner-left" aria-hidden="true"></span>
-      <span class="level-badge-corner level-badge-corner-right" aria-hidden="true"></span>
-      <span class="level-badge-rim" aria-hidden="true"></span>
-      <span class="level-badge-mark" aria-hidden="true"></span>
+    <span class="${levelBadgeClass(level)}" aria-label="${tier.labelKo} 레벨 ${level}" data-rank="${tier.label}">
+      <img class="level-badge-image" src="${tier.image}" alt="" aria-hidden="true" decoding="async">
       <span class="level-badge-number">${level}</span>
-      <span class="level-badge-pips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
     </span>
   `;
 }
@@ -669,6 +651,7 @@ const els = {
   levelUpStage: document.querySelector("#levelUpStage"),
   levelUpEmblem: document.querySelector("#levelUpEmblem"),
   levelUpCrest: document.querySelector("#levelUpCrest"),
+  levelUpBadgeImage: document.querySelector("#levelUpBadgeImage"),
   levelUpBurst: document.querySelector("#levelUpBurst"),
   levelUpOrbitOuter: document.querySelector("#levelUpOrbitOuter"),
   levelUpOrbitInner: document.querySelector("#levelUpOrbitInner"),
@@ -1687,10 +1670,9 @@ function initMotion() {
 
 function applyLevelUpTier(level) {
   const tier = levelTier(level);
-  const evolution = levelBadgeEvolution(level);
-  const evolutionClasses = `form-${evolution.form} grade-${evolution.grade}`;
-  els.levelUpStage.className = `level-up-stage ${tier.className} ${evolutionClasses}`;
-  els.levelUpEmblem.className = `level-up-emblem ${tier.className} ${evolutionClasses}`;
+  els.levelUpStage.className = `level-up-stage ${tier.className}`;
+  els.levelUpEmblem.className = `level-up-emblem ${tier.className}`;
+  els.levelUpBadgeImage.src = tier.image;
   els.levelUpRankName.textContent = tier.label;
   if (els.levelUpResultRank) els.levelUpResultRank.textContent = tier.label;
 }
