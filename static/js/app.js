@@ -254,18 +254,56 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+const levelTiers = [
+  { minimum: 95, className: "champion", label: "CHAMPION", labelKo: "챔피언" },
+  { minimum: 90, className: "crown", label: "CROWN", labelKo: "크라운" },
+  { minimum: 80, className: "crimson", label: "CRIMSON", labelKo: "크림슨" },
+  { minimum: 70, className: "black-diamond", label: "OBSIDIAN", labelKo: "옵시디언" },
+  { minimum: 60, className: "diamond", label: "DIAMOND", labelKo: "다이아몬드" },
+  { minimum: 50, className: "platinum", label: "PLATINUM", labelKo: "플래티넘" },
+  { minimum: 40, className: "red-gold", label: "INFERNO", labelKo: "인페르노" },
+  { minimum: 30, className: "gold", label: "GOLD", labelKo: "골드" },
+  { minimum: 20, className: "silver", label: "SILVER", labelKo: "실버" },
+  { minimum: 10, className: "bronze", label: "BRONZE", labelKo: "브론즈" },
+  { minimum: 1, className: "iron", label: "IRON", labelKo: "아이언" },
+];
+
+function levelTier(level) {
+  const numericLevel = Math.max(1, Number(level) || 1);
+  return levelTiers.find((tier) => numericLevel >= tier.minimum) || levelTiers[levelTiers.length - 1];
+}
+
+const levelBadgeForms = ["core", "forged", "vanguard", "ascendant", "paragon", "mythic", "sovereign", "immortal", "final-form"];
+
+function levelBadgeEvolution(level) {
+  const numericLevel = Math.max(1, Number(level) || 1);
+  if (numericLevel === 1) return { form: "origin-one", grade: 1, step: 0 };
+  if (numericLevel === 2) return { form: "origin-two", grade: 1, step: 0 };
+  const step = Math.floor((numericLevel - 3) / 2) + 1;
+  const formIndex = Math.min(Math.floor((step - 1) / 5), levelBadgeForms.length - 1);
+  return { form: levelBadgeForms[formIndex], grade: ((step - 1) % 5) + 1, step };
+}
+
 function levelBadgeClass(level) {
-  if (level >= 95) return "level-badge champion";
-  if (level >= 90) return "level-badge crown";
-  if (level >= 80) return "level-badge crimson";
-  if (level >= 70) return "level-badge black-diamond";
-  if (level >= 60) return "level-badge diamond";
-  if (level >= 50) return "level-badge platinum";
-  if (level >= 40) return "level-badge red-gold";
-  if (level >= 30) return "level-badge gold";
-  if (level >= 20) return "level-badge silver";
-  if (level >= 10) return "level-badge bronze";
-  return "level-badge iron";
+  const tier = levelTier(level);
+  const evolution = levelBadgeEvolution(level);
+  return `level-badge ${tier.className} form-${evolution.form} grade-${evolution.grade}`;
+}
+
+function levelBadgeMarkup(level) {
+  const tier = levelTier(level);
+  const evolution = levelBadgeEvolution(level);
+  return `
+    <span class="${levelBadgeClass(level)}" aria-label="${tier.labelKo} 레벨 ${level}" data-rank="${tier.label}" data-evolution-step="${evolution.step}">
+      <span class="level-badge-crown" aria-hidden="true"></span>
+      <span class="level-badge-wing level-badge-wing-left" aria-hidden="true"></span>
+      <span class="level-badge-wing level-badge-wing-right" aria-hidden="true"></span>
+      <span class="level-badge-rim" aria-hidden="true"></span>
+      <span class="level-badge-mark" aria-hidden="true"></span>
+      <span class="level-badge-number">${level}</span>
+      <span class="level-badge-pips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+    </span>
+  `;
 }
 
 function displayNickname(value) {
@@ -628,13 +666,20 @@ const els = {
   privacyModal: document.querySelector("#privacyModal"),
   closePrivacyButton: document.querySelector("#closePrivacyButton"),
   versionButton: document.querySelector("#versionButton"),
+  levelUpStage: document.querySelector("#levelUpStage"),
   levelUpEmblem: document.querySelector("#levelUpEmblem"),
+  levelUpCrest: document.querySelector("#levelUpCrest"),
+  levelUpBurst: document.querySelector("#levelUpBurst"),
+  levelUpOrbitOuter: document.querySelector("#levelUpOrbitOuter"),
+  levelUpOrbitInner: document.querySelector("#levelUpOrbitInner"),
   levelUpSheen: document.querySelector("#levelUpSheen"),
+  levelUpRankName: document.querySelector("#levelUpRankName"),
   levelUpNumber: document.querySelector("#levelUpNumber"),
   levelUpPrevious: document.querySelector("#levelUpPrevious"),
   levelUpNext: document.querySelector("#levelUpNext"),
   levelUpProgressBar: document.querySelector("#levelUpProgressBar"),
   levelUpResult: document.querySelector("#levelUpResult"),
+  levelUpResultRank: document.querySelector("#levelUpResultRank"),
   levelUpResultNumber: document.querySelector("#levelUpResultNumber"),
   levelUpContinueButton: document.querySelector("#levelUpContinueButton"),
   accountPanel: document.querySelector("#accountPanel"),
@@ -1214,17 +1259,13 @@ function renderProfile(profile = state.profile) {
   const level = state.stats?.level || state.profile?.level || 1;
   if (els.userBadgeLabel) {
     els.userBadgeLabel.innerHTML = `
-      <span class="${levelBadgeClass(level)}" aria-label="레벨 ${level}">
-        <span class="level-badge-number">${level}</span>
-      </span>
+      ${levelBadgeMarkup(level)}
       <span class="nickname-text">${escapeHtml(nickname)}</span>
     `;
   }
   if (els.menuUserBadge) {
     els.menuUserBadge.innerHTML = `
-      <span class="${levelBadgeClass(level)}" aria-label="레벨 ${level}">
-        <span class="level-badge-number">${level}</span>
-      </span>
+      ${levelBadgeMarkup(level)}
       <span class="menu-athlete-copy"><small>LEVEL ${level}</small><strong class="nickname-text" id="menuProfileTitle">${escapeHtml(nickname)}</strong></span>
     `;
   }
@@ -1644,7 +1685,18 @@ function initMotion() {
   window.SetCounterMotion?.init();
 }
 
+function applyLevelUpTier(level) {
+  const tier = levelTier(level);
+  const evolution = levelBadgeEvolution(level);
+  const evolutionClasses = `form-${evolution.form} grade-${evolution.grade}`;
+  els.levelUpStage.className = `level-up-stage ${tier.className} ${evolutionClasses}`;
+  els.levelUpEmblem.className = `level-up-emblem ${tier.className} ${evolutionClasses}`;
+  els.levelUpRankName.textContent = tier.label;
+  if (els.levelUpResultRank) els.levelUpResultRank.textContent = tier.label;
+}
+
 function finishLevelUp(nextStats, nextProfile) {
+  applyLevelUpTier(nextStats.level);
   renderStats(nextStats);
   renderProfile(nextProfile);
   els.levelUpNumber.textContent = nextStats.level;
@@ -1664,6 +1716,7 @@ function openLevelUpScreen(previousStats, nextStats, nextProfile, onContinue) {
   els.levelUpNext.textContent = nextLevel;
   els.levelUpNumber.textContent = previousLevel;
   els.levelUpResultNumber.textContent = nextLevel;
+  applyLevelUpTier(previousLevel);
   els.levelUpProgressBar.style.transform = "scaleX(0)";
   els.levelUpResult.classList.remove("is-visible");
   els.levelUpContinueButton.disabled = true;
@@ -1671,37 +1724,75 @@ function openLevelUpScreen(previousStats, nextStats, nextProfile, onContinue) {
   setActiveScreen("level-up");
 
   if (!gsapApi || reducedMotionPreferred()) {
+    applyLevelUpTier(nextLevel);
     els.levelUpProgressBar.style.transform = "scaleX(1)";
     finishLevelUp(nextStats, nextProfile);
     return;
   }
 
-  gsapApi.killTweensOf([
+  const introCopy = els.levelUpStage.querySelectorAll(".level-up-kicker, h1, .level-up-copy");
+  const particles = els.levelUpStage.querySelectorAll(".level-up-particle");
+  const animatedElements = [
+    ...introCopy,
     els.levelUpEmblem,
+    els.levelUpCrest,
+    els.levelUpBurst,
+    els.levelUpOrbitOuter,
+    els.levelUpOrbitInner,
     els.levelUpSheen,
     els.levelUpNumber,
     els.levelUpProgressBar,
     els.levelUpResult,
     els.levelUpContinueButton,
-  ]);
-  gsapApi.set(els.levelUpEmblem, { autoAlpha: 0, scale: 0.88, y: 12 });
-  gsapApi.set(els.levelUpSheen, { xPercent: -180, autoAlpha: 0 });
+    ...particles,
+  ];
+  gsapApi.killTweensOf(animatedElements);
+  gsapApi.set(introCopy, { autoAlpha: 0, y: 10 });
+  gsapApi.set(els.levelUpEmblem, { autoAlpha: 0, scale: 0.68, y: 20, rotation: -5 });
+  gsapApi.set(els.levelUpCrest, { scale: 0.9 });
+  gsapApi.set(els.levelUpBurst, { autoAlpha: 0, scale: 0.3 });
+  gsapApi.set(els.levelUpOrbitOuter, { rotation: -35, scale: 0.72 });
+  gsapApi.set(els.levelUpOrbitInner, { rotation: 28, scale: 1.14 });
+  gsapApi.set(els.levelUpSheen, { xPercent: -220, autoAlpha: 0 });
+  gsapApi.set(particles, { autoAlpha: 0, scale: 0, x: 0, y: 0 });
   gsapApi.set(els.levelUpResult, { autoAlpha: 0, y: 10 });
   gsapApi.set(els.levelUpContinueButton, { autoAlpha: 0, y: 8 });
 
   gsapApi.timeline({ defaults: { overwrite: "auto" } })
-    .to(els.levelUpEmblem, { autoAlpha: 1, scale: 1, y: 0, duration: 0.3, ease: "power2.out" })
-    .to(els.levelUpProgressBar, { scaleX: 1, duration: 0.7, ease: "power2.inOut" }, "-=0.08")
-    .to(els.levelUpSheen, { xPercent: 180, autoAlpha: 1, duration: 0.48, ease: "power2.inOut" }, "-=0.38")
-    .call(() => finishLevelUp(nextStats, nextProfile))
-    .fromTo(els.levelUpNumber, { scale: 0.72, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.24, ease: "power3.out" })
-    .to(els.levelUpResult, { autoAlpha: 1, y: 0, duration: 0.22, ease: "power2.out" }, "-=0.08")
-    .to(els.levelUpContinueButton, { autoAlpha: 1, y: 0, duration: 0.2, ease: "power2.out" }, "-=0.1");
+    .to(introCopy, { autoAlpha: 1, y: 0, duration: 0.34, stagger: 0.055, ease: "power2.out" })
+    .to(els.levelUpEmblem, { autoAlpha: 1, scale: 1, y: 0, rotation: 0, duration: 0.56, ease: "back.out(1.55)" }, "-=0.12")
+    .to([els.levelUpOrbitOuter, els.levelUpOrbitInner], { scale: 1, rotation: 0, duration: 0.48, ease: "power3.out" }, "-=0.42")
+    .to(els.levelUpProgressBar, { scaleX: 1, duration: 0.76, ease: "power2.inOut" }, "-=0.1")
+    .to(els.levelUpSheen, { xPercent: 220, autoAlpha: 1, duration: 0.55, ease: "power2.inOut" }, "-=0.44")
+    .call(() => applyLevelUpTier(nextLevel))
+    .to(els.levelUpCrest, { scale: 1.09, duration: 0.13, ease: "power2.out" })
+    .to(els.levelUpCrest, { scale: 1, duration: 0.28, ease: "back.out(2)" })
+    .to(els.levelUpBurst, { autoAlpha: 0.9, scale: 1.35, duration: 0.34, ease: "power3.out" }, "-=0.4")
+    .to(els.levelUpBurst, { autoAlpha: 0, scale: 1.65, duration: 0.3, ease: "power2.in" })
+    .to(particles, {
+      autoAlpha: 1,
+      scale: 1,
+      x: (index, particle) => Number(particle.dataset.x || 0),
+      y: (index, particle) => Number(particle.dataset.y || 0),
+      duration: 0.38,
+      stagger: 0.018,
+      ease: "power3.out",
+    }, "-=0.62")
+    .to(particles, { autoAlpha: 0, scale: 0.35, duration: 0.28, stagger: 0.012, ease: "power1.in" }, "-=0.2")
+    .call(() => finishLevelUp(nextStats, nextProfile), null, "-=0.38")
+    .fromTo(els.levelUpNumber, { scale: 0.58, y: 8, autoAlpha: 0 }, { scale: 1, y: 0, autoAlpha: 1, duration: 0.42, ease: "back.out(1.9)" }, "-=0.38")
+    .to(els.levelUpResult, { autoAlpha: 1, y: 0, duration: 0.28, ease: "power2.out" }, "-=0.14")
+    .to(els.levelUpContinueButton, { autoAlpha: 1, y: 0, duration: 0.24, ease: "power2.out" }, "-=0.12")
+    .call(() => {
+      gsapApi.to(els.levelUpOrbitOuter, { rotation: 360, duration: 18, repeat: -1, ease: "none" });
+      gsapApi.to(els.levelUpOrbitInner, { rotation: -360, duration: 13, repeat: -1, ease: "none" });
+    });
 }
 
 function closeLevelUpScreen() {
   const continuation = state.levelUpContinuation;
   state.levelUpContinuation = null;
+  window.gsap?.killTweensOf(els.levelUpStage.querySelectorAll("*"));
   setActiveScreen("record");
   if (continuation) continuation();
 }
@@ -2549,9 +2640,7 @@ function authorFromPost(post) {
 function renderBoardAuthorElement(target, author) {
   target.className = "board-author";
   target.innerHTML = `
-    <span class="${levelBadgeClass(author.level)}" aria-label="레벨 ${author.level}">
-      <span class="level-badge-number">${author.level}</span>
-    </span>
+    ${levelBadgeMarkup(author.level)}
     <span class="nickname-text">${escapeHtml(author.nickname)}</span>
   `;
 }

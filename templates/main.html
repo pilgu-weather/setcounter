@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=60">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=62">
   </head>
   <body>
     <main class="app-shell" id="home">
@@ -28,7 +28,7 @@
           </div>
           <div class="home-profile-row">
             <p class="user-badge" id="userBadgeLabel">
-              <span class="level-badge rookie" aria-label="레벨 1"><span class="level-badge-number">1</span></span>
+              <span class="level-badge iron form-origin-one grade-1" aria-label="아이언 레벨 1" data-rank="IRON" data-evolution-step="0"><span class="level-badge-crown" aria-hidden="true"></span><span class="level-badge-wing level-badge-wing-left" aria-hidden="true"></span><span class="level-badge-wing level-badge-wing-right" aria-hidden="true"></span><span class="level-badge-rim" aria-hidden="true"></span><span class="level-badge-mark" aria-hidden="true"></span><span class="level-badge-number">1</span><span class="level-badge-pips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></span>
               <span class="nickname-text">닉네임</span>
             </p>
             <span>LV. <strong id="levelValue">1</strong> · 누적 <strong id="totalVolumeValue">0kg</strong></span>
@@ -277,7 +277,7 @@
           <form class="board-form" id="boardForm">
             <div class="board-composer-author">
               <div class="board-author" id="boardAuthor">
-                <span class="level-badge rookie" aria-label="레벨 1"><span class="level-badge-number">1</span></span>
+                <span class="level-badge iron form-origin-one grade-1" aria-label="아이언 레벨 1" data-rank="IRON" data-evolution-step="0"><span class="level-badge-crown" aria-hidden="true"></span><span class="level-badge-wing level-badge-wing-left" aria-hidden="true"></span><span class="level-badge-wing level-badge-wing-right" aria-hidden="true"></span><span class="level-badge-rim" aria-hidden="true"></span><span class="level-badge-mark" aria-hidden="true"></span><span class="level-badge-number">1</span><span class="level-badge-pips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></span>
                 <span class="nickname-text">닉네임</span>
               </div>
               <span>인증된 운동 레벨</span>
@@ -313,7 +313,7 @@
             <div class="menu-profile-copy">
               <p class="menu-section-kicker">ATHLETE PROFILE</p>
               <div class="user-badge" id="menuUserBadge">
-                <span class="level-badge rookie" aria-label="레벨 1"><span class="level-badge-number">1</span></span>
+                <span class="level-badge iron form-origin-one grade-1" aria-label="아이언 레벨 1" data-rank="IRON" data-evolution-step="0"><span class="level-badge-crown" aria-hidden="true"></span><span class="level-badge-wing level-badge-wing-left" aria-hidden="true"></span><span class="level-badge-wing level-badge-wing-right" aria-hidden="true"></span><span class="level-badge-rim" aria-hidden="true"></span><span class="level-badge-mark" aria-hidden="true"></span><span class="level-badge-number">1</span><span class="level-badge-pips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></span>
                 <h2 class="nickname-text" id="menuProfileTitle">닉네임</h2>
               </div>
             </div>
@@ -392,16 +392,34 @@
       </section>
 
       <section class="app-screen level-up-screen" data-screen="level-up" aria-labelledby="levelUpTitle">
-        <div class="level-up-stage">
+        <div class="level-up-stage iron form-origin-one grade-1" id="levelUpStage">
+          <div class="level-up-ambient" aria-hidden="true"><span></span><span></span><span></span></div>
           <p class="level-up-kicker">NEW PERSONAL BEST</p>
           <h1 id="levelUpTitle">한계를 넘어섰습니다</h1>
           <p class="level-up-copy">이전 기록을 뛰어넘어 새로운 레벨에 도달했습니다.</p>
 
-          <div class="level-up-emblem" id="levelUpEmblem" aria-hidden="true">
-            <span class="level-up-orbit"></span>
-            <span class="level-up-sheen" id="levelUpSheen"></span>
-            <small>LEVEL</small>
-            <strong id="levelUpNumber">1</strong>
+          <div class="level-up-emblem iron form-origin-one grade-1" id="levelUpEmblem" aria-hidden="true">
+            <span class="level-up-burst" id="levelUpBurst"></span>
+            <span class="level-up-orbit level-up-orbit-outer" id="levelUpOrbitOuter"></span>
+            <span class="level-up-orbit level-up-orbit-inner" id="levelUpOrbitInner"></span>
+            <span class="level-up-crown"><i></i><i></i><i></i></span>
+            <span class="level-up-wing level-up-wing-left"></span>
+            <span class="level-up-wing level-up-wing-right"></span>
+            <span class="level-up-particle" data-x="-92" data-y="-54"></span>
+            <span class="level-up-particle" data-x="-104" data-y="12"></span>
+            <span class="level-up-particle" data-x="-72" data-y="76"></span>
+            <span class="level-up-particle" data-x="-18" data-y="-104"></span>
+            <span class="level-up-particle" data-x="22" data-y="104"></span>
+            <span class="level-up-particle" data-x="78" data-y="-74"></span>
+            <span class="level-up-particle" data-x="106" data-y="-5"></span>
+            <span class="level-up-particle" data-x="88" data-y="68"></span>
+            <span class="level-up-crest" id="levelUpCrest">
+              <span class="level-up-sheen" id="levelUpSheen"></span>
+              <span class="level-up-rank" id="levelUpRankName">IRON</span>
+              <small>LEVEL</small>
+              <strong id="levelUpNumber">1</strong>
+              <span class="level-up-crest-mark"></span>
+            </span>
           </div>
 
           <div class="level-up-progress" aria-label="레벨업 진행">
@@ -414,7 +432,7 @@
 
           <div class="level-up-result" id="levelUpResult" role="status" aria-live="polite">
             <svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01Z"/></svg>
-            <span><small>LEVEL UP</small><strong>LV.<b id="levelUpResultNumber">2</b> 달성</strong></span>
+            <span><small id="levelUpResultRank">IRON</small><strong>LV.<b id="levelUpResultNumber">2</b> 달성</strong></span>
           </div>
 
           <button class="level-up-continue" id="levelUpContinueButton" type="button" disabled>
@@ -679,6 +697,6 @@
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=2"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=79"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=81"></script>
   </body>
 </html>
