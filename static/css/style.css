@@ -1849,13 +1849,12 @@ body:has(.app-screen[data-screen="record"].is-active)::-webkit-scrollbar {
 [data-screen="record"] .counter-panel > .panel-head { order: 2; }
 [data-screen="record"] .counter-panel > .last-record { order: 3; }
 [data-screen="record"] .counter-panel > .workout-form { order: 4; }
-[data-screen="record"] .counter-panel > .planned-record { order: 5; }
-[data-screen="record"] .counter-panel > .record-compare { order: 6; }
-[data-screen="record"] .counter-panel > .set-table-wrap { order: 7; }
-[data-screen="record"] .counter-panel > .set-meter { order: 8; }
-[data-screen="record"] .counter-panel > .progress-track { order: 9; }
-[data-screen="record"] .counter-panel > .action-row { order: 10; }
-[data-screen="record"] .counter-panel > .confirm-button { order: 11; }
+[data-screen="record"] .counter-panel > .record-actions { order: 5; }
+[data-screen="record"] .counter-panel > .planned-record { order: 6; }
+[data-screen="record"] .counter-panel > .record-compare { order: 7; }
+[data-screen="record"] .counter-panel > .set-table-wrap { order: 8; }
+[data-screen="record"] .counter-panel > .set-meter { order: 9; }
+[data-screen="record"] .counter-panel > .progress-track { order: 10; }
 [data-screen="record"] .counter-panel > .exercise-detail-card { order: 12; }
 
 [data-screen="record"] .counter-panel .panel-head {
@@ -2112,7 +2111,8 @@ textarea:focus {
   margin-top: 8px;
 }
 
-.record-chips span {
+.record-chips .record-chip {
+  position: relative;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.05);
@@ -2120,6 +2120,41 @@ textarea:focus {
   padding: 5px 8px;
   font-size: 12px;
   font-weight: 800;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.record-chips .record-chip.is-current {
+  border-color: #2e7cff;
+  background: rgba(46, 124, 255, 0.12);
+  box-shadow: 0 0 0 1px rgba(46, 124, 255, 0.38), 0 0 16px rgba(46, 124, 255, 0.2);
+  color: #f5f7fb;
+}
+
+.record-chips .record-chip.is-complete {
+  border-color: #2e7cff;
+  background: #2e7cff;
+  box-shadow: 0 6px 16px rgba(46, 124, 255, 0.28);
+  color: #ffffff;
+}
+
+.record-chip-burst {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.record-chip-burst i {
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #69a5ff;
+  box-shadow: 0 0 7px rgba(46, 124, 255, 0.9);
 }
 
 .empty-row td,
@@ -3975,6 +4010,17 @@ select:focus {
 [data-screen="home"] .plan-section,
 [data-screen="home"] .home-log-section {
   margin-top: 16px;
+}
+
+.record-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.record-actions .action-row,
+.record-actions .confirm-button {
+  margin-top: 0;
 }
 
 [data-screen="home"] .home-section-head,

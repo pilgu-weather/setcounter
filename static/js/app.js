@@ -1188,6 +1188,18 @@ function syncPlannedRecord() {
   syncRecordCompare();
 }
 
+function syncLastRecordChips() {
+  const completed = state.setRows.length;
+  els.lastRecord.querySelectorAll(".record-chip").forEach((chip, index) => {
+    const isComplete = index < completed;
+    const isCurrent = index === completed && completed < targetSets();
+    chip.classList.toggle("is-complete", isComplete);
+    chip.classList.toggle("is-current", isCurrent);
+    if (isCurrent) chip.setAttribute("aria-current", "step");
+    else chip.removeAttribute("aria-current");
+  });
+}
+
 function renderSetTable() {
   els.setTableBody.replaceChildren();
   if (!state.setRows.length) {
@@ -1221,6 +1233,7 @@ function syncCounter() {
   els.countSetButton.disabled = completed >= target;
   renderSetTable();
   syncPlannedRecord();
+  syncLastRecordChips();
 }
 
 function resetSession(keepInputs = true) {
@@ -2215,10 +2228,13 @@ function renderLatestRecord(latest) {
   chips.className = "record-chips";
   rows.forEach((row, index) => {
     const chip = document.createElement("span");
+    chip.className = "record-chip";
+    chip.dataset.setIndex = String(index);
     chip.textContent = `${index + 1}세트 ${cleanNumber(row.weightKg)}kg ${row.reps}회`;
     chips.append(chip);
   });
   els.lastRecord.append(title, chips);
+  syncLastRecordChips();
   syncRecordCompare();
 }
 
@@ -3250,9 +3266,12 @@ function countSet() {
     showToast("목표 세트를 이미 채웠습니다.");
     return;
   }
+  const completedIndex = state.setRows.length;
   state.setRows.push({ weightKg, reps: currentReps() });
   applyNextSetFromLatestRecord();
   syncCounter();
+  const completedChip = els.lastRecord.querySelector(`.record-chip[data-set-index="${completedIndex}"]`);
+  window.SetCounterMotion?.animateSetChipComplete(completedChip);
   if (state.setRows.length >= targetSets()) showToast("목표 세트 완료. 확인을 눌러 저장하세요.");
 }
 

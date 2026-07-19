@@ -314,6 +314,46 @@
     }
   }
 
+  function animateSetChipComplete(chip) {
+    if (!chip || !canAnimate()) return;
+    const burst = document.createElement("span");
+    burst.className = "record-chip-burst";
+    const particles = Array.from({ length: 7 }, (_, index) => {
+      const particle = document.createElement("i");
+      burst.append(particle);
+      return particle;
+    });
+    chip.append(burst);
+    gsap.killTweensOf(chip);
+    gsap.timeline({
+      defaults: { overwrite: "auto" },
+      onComplete: () => {
+        burst.remove();
+        gsap.set(chip, { clearProps: "transform,filter" });
+      },
+    })
+      .fromTo(chip, { scale: 0.94 }, { scale: 1.08, filter: "brightness(1.25)", duration: 0.13, ease: "power2.out" })
+      .to(chip, { scale: 1, filter: "brightness(1)", duration: 0.22, ease: "back.out(1.7)" });
+    particles.forEach((particle, index) => {
+      const angle = (Math.PI * 2 * index) / particles.length;
+      const distance = 15 + (index % 2) * 4;
+      gsap.fromTo(particle, {
+        x: 0,
+        y: 0,
+        scale: 0.35,
+        autoAlpha: 1,
+      }, {
+        x: Math.cos(angle) * distance,
+        y: Math.sin(angle) * distance,
+        scale: 1,
+        autoAlpha: 0,
+        duration: 0.36,
+        delay: index * 0.012,
+        ease: "power2.out",
+      });
+    });
+  }
+
   function animateToast(element) {
     if (!element || !canAnimate()) return;
     gsap.fromTo(element, { autoAlpha: 0, y: 12, scale: 0.98 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.22, ease: "power2.out", clearProps: "transform,opacity,visibility", overwrite: "auto" });
@@ -366,6 +406,7 @@
     animateSelection,
     revealImage,
     animateButtonComplete,
+    animateSetChipComplete,
     animateWorkoutSuccess,
     animateToast,
     animateBottomNavIndicator,
