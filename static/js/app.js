@@ -370,9 +370,85 @@ function translateMuscleList(values, fallback = "-") {
   return list.length ? list.join(", ") : fallback;
 }
 
+const koreanExerciseInstructions = {
+  Dumbbell_Shoulder_Press: [
+    "등받이가 있는 벤치에 앉아 양손에 덤벨을 들고, 덤벨을 허벅지 위에 세워 둡니다.",
+    "허벅지로 가볍게 밀어 올리며 덤벨을 한쪽씩 어깨 높이로 가져옵니다.",
+    "손바닥이 앞을 향하도록 손목을 돌리고, 가슴을 편 상태에서 등과 머리를 등받이에 안정적으로 붙입니다.",
+    "숨을 내쉬며 덤벨을 머리 위로 밀어 올립니다. 팔꿈치를 과하게 잠그거나 허리를 젖히지 않습니다.",
+    "정점에서 잠시 어깨의 수축을 느낀 뒤, 숨을 들이마시며 덤벨을 천천히 어깨 높이까지 내립니다.",
+  ],
+  Side_Lateral_Raise: [
+    "양손에 덤벨을 들고 몸통을 곧게 세웁니다. 팔은 몸 옆에 두고 손바닥은 몸을 향하게 합니다.",
+    "몸을 흔들지 않은 채 팔꿈치를 살짝 굽히고, 숨을 내쉬며 양팔을 옆으로 들어 올립니다.",
+    "팔이 바닥과 평행해지는 어깨 높이에서 잠시 멈춥니다. 손목이 팔꿈치보다 지나치게 높아지지 않게 합니다.",
+    "숨을 들이마시며 덤벨을 시작 자세로 천천히 내립니다.",
+  ],
+  Pushups: [
+    "바닥을 보고 엎드린 뒤 손을 어깨보다 약간 넓게 짚고, 머리부터 발뒤꿈치까지 몸을 곧게 만듭니다.",
+    "코어와 엉덩이에 힘을 준 채 숨을 들이마시며 가슴이 바닥 가까이 올 때까지 몸을 내립니다.",
+    "팔꿈치가 몸통에서 과하게 벌어지지 않도록 유지하고, 숨을 내쉬며 바닥을 밀어 시작 자세로 돌아옵니다.",
+    "몸통이 처지거나 허리가 꺾이지 않는 범위에서 같은 동작을 반복합니다.",
+  ],
+  Seated_Dumbbell_Curl: [
+    "플랫 벤치에 앉아 양손에 덤벨을 들고 팔을 아래로 편 뒤, 팔꿈치를 몸통 가까이에 고정합니다.",
+    "처음에는 손바닥이 몸을 향하게 하고, 덤벨을 올리면서 손바닥이 앞을 향하도록 손목을 천천히 돌립니다.",
+    "상완을 움직이지 않은 채 숨을 내쉬며 덤벨을 어깨 쪽으로 들어 올리고, 이두근을 끝까지 수축합니다.",
+    "정점에서 잠시 멈춘 뒤 숨을 들이마시며 손목을 중립으로 되돌리고 덤벨을 천천히 내립니다.",
+  ],
+  Hammer_Curls: [
+    "양손에 덤벨을 들고 곧게 서서 팔꿈치를 몸통 가까이에 둡니다. 손바닥은 서로 마주 보게 합니다.",
+    "상완과 팔꿈치를 고정한 채 숨을 내쉬며 덤벨을 어깨 쪽으로 들어 올립니다.",
+    "이두근과 전완의 수축을 느끼며 잠시 멈춥니다. 반동을 쓰거나 팔꿈치가 앞으로 밀리지 않게 합니다.",
+    "숨을 들이마시며 덤벨을 시작 자세까지 천천히 내립니다.",
+  ],
+  Goblet_Squat: [
+    "케틀벨이나 덤벨을 가슴 가까이 세워 들고, 발을 어깨너비 정도로 벌립니다.",
+    "가슴을 편 채 엉덩이를 뒤로 보내고 무릎을 굽혀 두 다리 사이로 앉습니다.",
+    "발바닥 전체를 바닥에 붙이고 무릎이 발끝 방향을 따라가도록 유지합니다.",
+    "가동 범위의 가장 아래에서 잠시 멈춘 뒤, 발바닥으로 바닥을 밀며 일어나 시작 자세로 돌아옵니다.",
+  ],
+  "One-Arm_Dumbbell_Row": [
+    "벤치 한쪽에 같은 쪽 무릎과 손을 짚고, 반대쪽 손으로 덤벨을 듭니다.",
+    "등을 곧게 펴고 몸통을 바닥과 거의 평행하게 유지합니다. 덤벨을 든 팔은 어깨 아래로 자연스럽게 늘어뜨립니다.",
+    "몸통을 돌리지 않은 채 숨을 내쉬며 팔꿈치를 몸통 가까이 붙여 덤벨을 옆구리 쪽으로 당깁니다.",
+    "정점에서 견갑골을 뒤로 모아 등 근육을 수축하고, 팔 힘만으로 끌어올리지 않도록 합니다.",
+    "숨을 들이마시며 덤벨을 천천히 아래로 내린 뒤, 정해진 횟수를 마치고 반대쪽도 반복합니다.",
+  ],
+  "Barbell_Bench_Press_-_Medium_Grip": [
+    "플랫 벤치에 누워 눈이 바벨 바로 아래에 오도록 자리 잡습니다. 발바닥은 바닥에 단단히 고정합니다.",
+    "바를 어깨너비보다 약간 넓게 잡고 견갑골을 뒤로 모아 벤치에 고정한 뒤, 바를 랙에서 들어 가슴 위로 옮깁니다.",
+    "숨을 들이마시며 팔꿈치를 몸통에서 약 45~70도 벌린 상태로 바를 가슴 중앙까지 통제하며 내립니다.",
+    "바가 가슴에 가볍게 닿으면 발과 등을 안정적으로 유지한 채 숨을 내쉬며 바를 위로 밀어 올립니다.",
+    "팔꿈치를 과하게 잠그지 말고 시작 위치에서 균형을 잡습니다. 하강 동작은 밀어 올리는 동작보다 천천히 수행합니다.",
+    "세트를 마치면 바가 랙 위에 정확히 놓였는지 확인한 뒤 손을 놓습니다.",
+  ],
+  Barbell_Hip_Thrust: [
+    "벤치 앞 바닥에 앉아 견갑골 아래쪽을 벤치 모서리에 대고, 패드를 댄 바벨을 골반 위에 놓습니다.",
+    "발은 골반 너비로 두고 무릎을 굽힙니다. 턱을 살짝 당기고 갈비뼈가 들리지 않도록 코어에 힘을 줍니다.",
+    "발뒤꿈치로 바닥을 밀며 엉덩이를 들어 올려 어깨부터 무릎까지 일직선이 되게 합니다.",
+    "정점에서 허리를 꺾지 말고 엉덩이를 강하게 수축한 뒤, 통제하며 골반을 내려 시작 자세로 돌아옵니다.",
+  ],
+  Wrist_Roller: [
+    "양발을 어깨너비로 벌리고 서서 손바닥이 아래를 향하도록 추감기 손잡이를 잡습니다.",
+    "팔을 앞으로 뻗어 바닥과 평행하게 유지합니다. 어깨를 으쓱하거나 몸통을 흔들지 않습니다.",
+    "양쪽 손목을 번갈아 위로 감아 로프와 무게판을 손잡이 가까이 끌어올립니다.",
+    "무게가 끝까지 올라오면 손목을 반대 방향으로 천천히 돌려 무게를 통제하며 내립니다.",
+  ],
+  Romanian_Deadlift: [
+    "바벨이나 덤벨을 허벅지 앞에 들고 발을 골반 너비로 둡니다. 무릎은 살짝 굽히고 가슴과 등을 곧게 유지합니다.",
+    "정강이를 거의 수직으로 유지한 채 엉덩이를 뒤로 밀어 중량을 다리 가까이 따라 내립니다.",
+    "등이 굽지 않는 범위에서 햄스트링이 충분히 늘어나는 지점까지 내려갑니다.",
+    "발바닥으로 바닥을 밀고 엉덩이를 앞으로 보내며 일어섭니다. 허리를 뒤로 과하게 젖히지 말고 둔근을 수축합니다.",
+    "동작 내내 중량을 몸 가까이에 두고, 반동 없이 일정한 속도로 반복합니다.",
+  ],
+};
+
 function exerciseInstructionsForDetail(exercise) {
+  const sourceId = exercise.freeDbSourceId || exercise.sourceId;
+  if (koreanExerciseInstructions[sourceId]) return koreanExerciseInstructions[sourceId];
   if (exercise.instructions?.length) return exercise.instructions;
-  return [`${exerciseDisplayName(exercise)} 기록용 기본 운동입니다.`];
+  return [`${exerciseDisplayName(exercise)}의 자세와 가동 범위를 안정적으로 유지하며 진행하세요.`];
 }
 function exerciseSearchTerms(exercise) {
   const mapped = mappedExerciseEntry(exercise);
@@ -712,9 +788,6 @@ const els = {
   plannedRecord: document.querySelector("#plannedRecord"),
   setTableBody: document.querySelector("#setTableBody"),
   lastRecord: document.querySelector("#lastRecord"),
-  completedSets: document.querySelector("#completedSets"),
-  targetSets: document.querySelector("#targetSets"),
-  progressBar: document.querySelector("#progressBar"),
   countSetButton: document.querySelector("#countSetButton"),
   undoSetButton: document.querySelector("#undoSetButton"),
   confirmWorkoutButton: document.querySelector("#confirmWorkoutButton"),
@@ -1226,9 +1299,6 @@ function renderSetTable() {
 function syncCounter() {
   const target = targetSets();
   const completed = state.setRows.length;
-  window.SetCounterMotion?.animateCounter(els.completedSets, completed, (value) => String(Math.round(value)));
-  window.SetCounterMotion?.animateCounter(els.targetSets, target, (value) => String(Math.round(value)));
-  window.SetCounterMotion?.animateProgress(els.progressBar, Math.min(completed, target) / target);
   els.confirmWorkoutButton.disabled = completed === 0;
   els.countSetButton.disabled = completed >= target;
   renderSetTable();
@@ -2223,7 +2293,7 @@ function renderLatestRecord(latest) {
   applyInputsFromLatestRecord(latest);
   const title = document.createElement("div");
   title.className = "record-title";
-  title.textContent = `지난 기록: ${latest.date} · 총 ${latest.totalReps}회 · 볼륨 ${Math.round(latest.volume)}kg`;
+  title.textContent = `지난 기록: ${latest.date}`;
   const chips = document.createElement("div");
   chips.className = "record-chips";
   rows.forEach((row, index) => {

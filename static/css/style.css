@@ -1853,8 +1853,6 @@ body:has(.app-screen[data-screen="record"].is-active)::-webkit-scrollbar {
 [data-screen="record"] .counter-panel > .planned-record { order: 6; }
 [data-screen="record"] .counter-panel > .record-compare { order: 7; }
 [data-screen="record"] .counter-panel > .set-table-wrap { order: 8; }
-[data-screen="record"] .counter-panel > .set-meter { order: 9; }
-[data-screen="record"] .counter-panel > .progress-track { order: 10; }
 [data-screen="record"] .counter-panel > .exercise-detail-card { order: 12; }
 
 [data-screen="record"] .counter-panel .panel-head {
@@ -2161,30 +2159,6 @@ textarea:focus {
 .empty-state {
   color: var(--muted);
   font-weight: 800;
-}
-
-.set-meter {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 9px;
-  margin: 18px 0 12px;
-}
-
-.set-meter span:first-child {
-  font-size: 80px;
-  font-weight: 900;
-  line-height: 0.92;
-}
-
-.set-meter small {
-  color: var(--muted);
-  font-size: 18px;
-  font-weight: 900;
-}
-
-.progress-track {
-  height: 10px;
 }
 
 .action-row {
@@ -3751,18 +3725,15 @@ select:focus {
 
 .home-progress-stats strong,
 .metric-grid strong,
-.set-meter span:first-child,
 .plan-info-grid strong {
   color: var(--sc-text);
   font-variant-numeric: tabular-nums;
 }
 
 .home-progress-bar,
-.progress-track,
 .level-progress { background: rgba(255, 255, 255, 0.075); }
 
-.level-progress div,
-.progress-track div {
+.level-progress div {
   background: var(--sc-primary);
   box-shadow: 0 0 16px rgba(46, 124, 255, 0.45);
 }

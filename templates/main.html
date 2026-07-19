@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=66">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=67">
   </head>
   <body>
     <main class="app-shell" id="home">
@@ -201,7 +201,7 @@
 
           <div class="record-actions">
             <div class="action-row">
-              <button class="secondary-button" id="undoSetButton" type="button">-1</button>
+              <button class="secondary-button" id="undoSetButton" type="button">이전</button>
               <button class="count-button" id="countSetButton" type="button">이번 세트 완료</button>
             </div>
             <button class="confirm-button" id="confirmWorkoutButton" type="button" disabled>기록 저장</button>
@@ -218,11 +218,6 @@
             </table>
           </div>
 
-          <div class="set-meter" aria-live="polite">
-            <span id="completedSets">0</span>
-            <small>/ <span id="targetSets">3</span> 세트</small>
-          </div>
-          <div class="progress-track" aria-hidden="true"><div id="progressBar"></div></div>
         </section>
       </section>
 
@@ -694,6 +689,6 @@
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=87"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=88"></script>
   </body>
 </html>
