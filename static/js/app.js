@@ -194,6 +194,7 @@ let exercises = loadMyExercises();
 let koExerciseMap = {};
 let koMuscleMap = {};
 let koEquipmentMap = {};
+let koInstructionsMap = {};
 let setCounterDefaultExercises = [];
 const libraryState = { body: "전체", equipment: "전체" };
 
@@ -447,7 +448,7 @@ const koreanExerciseInstructions = {
 function exerciseInstructionsForDetail(exercise) {
   const sourceId = exercise.freeDbSourceId || exercise.sourceId;
   if (koreanExerciseInstructions[sourceId]) return koreanExerciseInstructions[sourceId];
-  if (exercise.instructions?.length) return exercise.instructions;
+  if (exercise.instructionsKo?.length) return exercise.instructionsKo;
   return [`${exerciseDisplayName(exercise)}의 자세와 가동 범위를 안정적으로 유지하며 진행하세요.`];
 }
 function exerciseSearchTerms(exercise) {
@@ -496,6 +497,7 @@ function normalizeFreeDbExercise(item, koMap = {}) {
     primaryMuscles: item.primaryMuscles || [],
     secondaryMuscles: item.secondaryMuscles || [],
     instructions: item.instructions || [],
+    instructionsKo: koInstructionsMap[item.sourceId] || [],
   };
 }
 
@@ -522,6 +524,7 @@ function mergeSetCounterDefaults(freeExercises) {
       primaryMuscles: base.primaryMuscles || [],
       secondaryMuscles: base.secondaryMuscles || [],
       instructions: base.instructions || [],
+      instructionsKo: base.instructionsKo || [],
       aliases: preset.aliases || [],
     };
   });
@@ -544,12 +547,13 @@ function replacePrimaryExercises(defaultExercises) {
 
 async function loadFreeExerciseDb() {
   try {
-    const [exerciseResponse, mapResponse, commonMapResponse, muscleResponse, equipmentResponse] = await Promise.all([
+    const [exerciseResponse, mapResponse, commonMapResponse, muscleResponse, equipmentResponse, instructionsResponse] = await Promise.all([
       fetch("/static/data/free-exercise-db/exercises.json"),
       fetch("/static/data/free-exercise-db/ko_exercise_map.json?v=4"),
       fetch("/static/data/free-exercise-db/ko_exercise_common_map.json?v=1"),
       fetch("/static/data/free-exercise-db/ko_muscle_map.json"),
       fetch("/static/data/free-exercise-db/ko_equipment_map.json"),
+      fetch("/static/data/free-exercise-db/ko_instructions.json?v=1"),
     ]);
     if (!exerciseResponse.ok) throw new Error("free exercise db load failed");
     const rawExercises = await exerciseResponse.json();
@@ -561,6 +565,7 @@ async function loadFreeExerciseDb() {
     koExerciseMap = { ...commonItems, ...(koMapPayload.items || {}) };
     koMuscleMap = muscleResponse.ok ? await muscleResponse.json() : {};
     koEquipmentMap = equipmentResponse.ok ? await equipmentResponse.json() : {};
+    koInstructionsMap = instructionsResponse.ok ? await instructionsResponse.json() : {};
     setCounterDefaultExercises = koMapPayload.setCounterDefaults || [];
     const freeExercises = rawExercises.map((item) => normalizeFreeDbExercise(item, koExerciseMap));
     const defaultExercises = mergeSetCounterDefaults(freeExercises);
