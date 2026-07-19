@@ -145,7 +145,7 @@
         </section>
 
         <section class="counter-panel" aria-labelledby="counterTitle">
-          <div class="selected-date-banner" id="selectedDateBanner">
+          <div class="selected-date-banner" id="selectedDateBanner" hidden>
             <span>기록 날짜</span>
             <strong id="selectedDateLabel">오늘</strong>
           </div>
@@ -167,7 +167,7 @@
           <div class="last-record" id="lastRecord">지난 기록을 불러오는 중...</div>
 
           <form class="workout-form" id="workoutForm">
-            <label class="date-field">
+            <label class="date-field" id="workoutDateField" hidden>
               <span>기록 날짜</span>
               <input id="workoutDateInput" name="workoutDate" type="date">
             </label>
@@ -197,10 +197,6 @@
                 </div>
               </label>
             </div>
-            <label>
-              <span>메모</span>
-              <input id="notesInput" name="notes" autocomplete="off" placeholder="가볍게, RPE 7 등">
-            </label>
           </form>
 
           <div class="planned-record" id="plannedRecord">오늘: 8kg · 0회 완료 · 볼륨 0kg</div>
@@ -595,7 +591,7 @@
           </details>
           <details>
             <summary>어떤 운동을 기록할 수 있나요?</summary>
-            <p>기본 운동을 선택하거나 운동 라이브러리에서 원하는 종목을 추가해 무게, 횟수, 세트와 메모를 기록할 수 있습니다.</p>
+            <p>기본 운동을 선택하거나 운동 라이브러리에서 원하는 종목을 추가해 무게, 횟수와 세트를 기록할 수 있습니다.</p>
           </details>
           <details>
             <summary>세트는 어떻게 기록하나요?</summary>
@@ -695,6 +691,6 @@
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=2"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=85"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=86"></script>
   </body>
 </html>

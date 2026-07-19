@@ -545,6 +545,7 @@ const state = {
   initialEntryRouted: false,
   recommendationInitialized: false,
   recommendedExerciseKey: null,
+  recordDateFromCalendar: false,
   selectedDate: todayKey,
   selectedExercise: exercises[0],
   selectedExercisesForDelete: new Set(),
@@ -703,11 +704,11 @@ const els = {
   counterTitle: document.querySelector("#counterTitle"),
   selectedDateBanner: document.querySelector("#selectedDateBanner"),
   selectedDateLabel: document.querySelector("#selectedDateLabel"),
+  workoutDateField: document.querySelector("#workoutDateField"),
   workoutDateInput: document.querySelector("#workoutDateInput"),
   weightInput: document.querySelector("#weightInput"),
   currentRepsInput: document.querySelector("#currentRepsInput"),
   setsInput: document.querySelector("#setsInput"),
-  notesInput: document.querySelector("#notesInput"),
   plannedRecord: document.querySelector("#plannedRecord"),
   setTableBody: document.querySelector("#setTableBody"),
   lastRecord: document.querySelector("#lastRecord"),
@@ -789,6 +790,16 @@ function setActiveScreen(screenName) {
   const direction = previousNavIndex >= 0 && nextNavIndex >= 0 ? Math.sign(nextNavIndex - previousNavIndex) : 0;
   window.SetCounterMotion?.transitionScreen(previousScreen, nextScreen, direction);
   window.scrollTo({ top: 0, behavior: reducedMotionPreferred() ? "auto" : "smooth" });
+}
+
+function openRecordScreen({ fromCalendar = false } = {}) {
+  state.recordDateFromCalendar = fromCalendar;
+  if (!fromCalendar && state.selectedDate !== todayKey) {
+    state.selectedDate = todayKey;
+    loadLatestRecord().catch((error) => showToast(error.message));
+  }
+  syncSelectedDateUi();
+  setActiveScreen("record");
 }
 
 async function api(path, options = {}) {
@@ -1219,7 +1230,6 @@ function resetSession(keepInputs = true) {
     els.weightInput.value = String(weightStepForExercise());
     els.currentRepsInput.value = "12";
     els.setsInput.value = "3";
-    els.notesInput.value = "";
   }
   syncCounter();
 }
@@ -1357,7 +1367,7 @@ function startWorkoutPlan(plan, startIndex = 0) {
   const safeStartIndex = Math.max(0, Math.min(startIndex, routineExercises.length - 1));
   state.activeRoutine = { id: plan.id, title: plan.title, exercises: routineExercises, index: safeStartIndex };
   state.recommendedExerciseKey = exerciseKey(routineExercises[safeStartIndex]);
-  setActiveScreen("record");
+  openRecordScreen();
   selectExercise(routineExercises[safeStartIndex])
     .then(() => showToast(`${plan.title} ${safeStartIndex + 1}/${routineExercises.length} 시작`))
     .catch((error) => showToast(error.message));
@@ -1646,6 +1656,9 @@ function renderMenuSos() {
 
 function syncSelectedDateUi() {
   els.workoutDateInput.value = state.selectedDate;
+  const showRecordDate = state.recordDateFromCalendar;
+  els.workoutDateField.hidden = !showRecordDate;
+  els.selectedDateBanner.hidden = !showRecordDate;
   if (els.selectedDateLabel) {
     els.selectedDateLabel.textContent = selectedDateText();
   }
@@ -2341,7 +2354,7 @@ function routeInitialEntry() {
   if (state.initialEntryRouted) return;
   state.initialEntryRouted = true;
   if ((state.stats?.totalRecords || 0) > 0) {
-    setActiveScreen("record");
+    openRecordScreen();
     return;
   }
   setActiveScreen("home");
@@ -2551,7 +2564,7 @@ function renderDayDetail() {
   action.className = "day-add-button";
   action.textContent = `${selectedDateText()} 운동 입력하기`;
   action.addEventListener("click", () => {
-    setActiveScreen("record");
+    openRecordScreen({ fromCalendar: true });
     document.querySelector(".counter-panel").scrollIntoView({ behavior: "smooth", block: "start" });
     els.weightInput.focus({ preventScroll: true });
   });
@@ -2597,7 +2610,7 @@ async function chooseDate(dateKey, options = {}) {
   syncCounter();
   renderHomeDashboard();
   showToast(`${selectedDateText()} 기록 날짜로 선택했습니다.`);
-  if (options.scrollToInput) setActiveScreen("record");
+  if (options.scrollToInput) openRecordScreen({ fromCalendar: true });
   const target = options.scrollToInput ? document.querySelector(".counter-panel") : els.calendarDayDetail;
   target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -3191,7 +3204,6 @@ async function saveWorkout() {
     setReps: state.setRows.map((row) => row.reps),
     targetSets: targetSets(),
     completedSets: state.setRows.length,
-    notes: els.notesInput.value.trim(),
   };
   const savedLog = await api("/api/logs", {
     method: "POST",
@@ -3257,10 +3269,16 @@ function changeMonth(offset) {
 
 function bindEvents() {
   els.navButtons.forEach((button) => {
-    button.addEventListener("click", () => setActiveScreen(button.dataset.tab));
+    button.addEventListener("click", () => {
+      if (button.dataset.tab === "record") openRecordScreen();
+      else setActiveScreen(button.dataset.tab);
+    });
   });
   els.goScreenButtons.forEach((button) => {
-    button.addEventListener("click", () => setActiveScreen(button.dataset.goScreen));
+    button.addEventListener("click", () => {
+      if (button.dataset.goScreen === "record") openRecordScreen();
+      else setActiveScreen(button.dataset.goScreen);
+    });
   });
   els.closePlanDetailButton.addEventListener("click", () => setActiveScreen("home"));
   els.startPlanDetailButton.addEventListener("click", () => {
