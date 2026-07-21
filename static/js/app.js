@@ -449,7 +449,7 @@ function exerciseInstructionsForDetail(exercise) {
   const sourceId = exercise.freeDbSourceId || exercise.sourceId;
   if (koreanExerciseInstructions[sourceId]) return koreanExerciseInstructions[sourceId];
   if (exercise.instructionsKo?.length) return exercise.instructionsKo;
-  return ["이 운동은 제공된 원본 데이터에 수행 설명이 없습니다."];
+  return [];
 }
 function exerciseSearchTerms(exercise) {
   const mapped = mappedExerciseEntry(exercise);
@@ -2143,6 +2143,11 @@ function renderExerciseDetail(exercise) {
   const secondary = translateMuscleList(exercise.secondaryMuscles, "-");
   const displayName = exerciseDisplayName(exercise);
   const instructions = exerciseInstructionsForDetail(exercise);
+  const instructionsMarkup = instructions.length
+    ? `<ol class="exercise-detail-instructions">
+        ${instructions.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
+      </ol>`
+    : "";
   const images = (exercise.images || []).slice(0, 2);
   const imageMarkup = images.length
     ? images.map((image) => `<img src="${freeDbImageUrl(image)}" alt="" loading="lazy">`).join("")
@@ -2164,11 +2169,8 @@ function renderExerciseDetail(exercise) {
       <div><dt>난이도</dt><dd>${escapeHtml(translateLevel(exercise.level))}</dd></div>
       <div><dt>힘 방향</dt><dd>${escapeHtml(translateForce(exercise.force))}</dd></div>
       <div><dt>동작 유형</dt><dd>${escapeHtml(translateMechanic(exercise.mechanic))}</dd></div>
-      <div><dt>분류</dt><dd>${escapeHtml(translateCategory(exercise.category))}</dd></div>
     </dl>
-    <ol class="exercise-detail-instructions">
-      ${instructions.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
-    </ol>
+    ${instructionsMarkup}
   `;
   els.exerciseDetailCard.querySelector("#exerciseDetailToggle")?.addEventListener("click", () => {
     setExerciseDetailCollapsed(true);
