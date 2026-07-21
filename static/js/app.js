@@ -3378,6 +3378,15 @@ function countSet() {
   if (state.setRows.length >= targetSets()) showToast("목표 세트 완료. 확인을 눌러 저장하세요.");
 }
 
+function undoSet() {
+  const revertedSet = state.setRows.pop();
+  if (revertedSet) {
+    els.weightInput.value = cleanNumber(revertedSet.weightKg);
+    els.currentRepsInput.value = String(Math.max(revertedSet.reps || 1, 1));
+  }
+  syncCounter();
+}
+
 function changeMonth(offset) {
   state.currentMonth = new Date(
     state.currentMonth.getFullYear(),
@@ -3478,10 +3487,7 @@ function bindEvents() {
     }
   });
   els.countSetButton.addEventListener("click", countSet);
-  els.undoSetButton.addEventListener("click", () => {
-    state.setRows.pop();
-    syncCounter();
-  });
+  els.undoSetButton.addEventListener("click", undoSet);
   els.confirmWorkoutButton.addEventListener("click", () => saveWorkout().catch((error) => showToast(error.message)));
   els.levelUpContinueButton.addEventListener("click", closeLevelUpScreen);
   els.resetSessionButton.addEventListener("click", () => resetSession(false));
