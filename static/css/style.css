@@ -4613,7 +4613,7 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
 
 [data-screen="calendar"] .day-cell-breakdown {
   min-width: 0;
-  gap: 2px;
+  gap: 3px;
   margin-top: 5px;
 }
 
@@ -4625,7 +4625,8 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
   color: #78aaff;
   font-size: 7px;
   font-weight: 800;
-  line-height: 1.12;
+  line-height: 1.35;
+  padding-block: 1px;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
