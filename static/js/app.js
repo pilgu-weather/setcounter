@@ -1122,7 +1122,7 @@ async function enableReminder() {
 }
 
 function weightStepForExercise(exercise = state.selectedExercise) {
-  return exercise?.name === "중량가방 푸쉬업" ? 4 : 8;
+  return 1;
 }
 
 function cleanNumber(value) {

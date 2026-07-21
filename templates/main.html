@@ -175,9 +175,9 @@
               <label>
                 <span>무게 kg</span>
                 <div class="input-stepper">
-                  <button class="stepper-button" type="button" data-step-for="weightInput" data-step="-8" aria-label="무게 내리기">-</button>
-                  <input id="weightInput" name="weight" type="number" min="8" step="8" value="8" inputmode="numeric">
-                  <button class="stepper-button" type="button" data-step-for="weightInput" data-step="8" aria-label="무게 올리기">+</button>
+                  <button class="stepper-button" type="button" data-step-for="weightInput" data-step="-1" aria-label="무게 내리기">-</button>
+                  <input id="weightInput" name="weight" type="number" min="1" step="1" value="8" inputmode="numeric">
+                  <button class="stepper-button" type="button" data-step-for="weightInput" data-step="1" aria-label="무게 올리기">+</button>
                 </div>
               </label>
               <label>
@@ -689,6 +689,6 @@
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=91"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=92"></script>
   </body>
 </html>
