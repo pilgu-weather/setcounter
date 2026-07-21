@@ -192,10 +192,14 @@ function saveMyExerciseSettings() {
 let libraryExercises = builtInLibraryExercises;
 let exercises = loadMyExercises();
 let koExerciseMap = {};
+let koCommonExerciseMap = {};
 let koMuscleMap = {};
 let koEquipmentMap = {};
 let koInstructionsMap = {};
 let setCounterDefaultExercises = [];
+const defaultApiNameOverrides = {
+  Barbell_Hip_Thrust: "바벨 힙 쓰러스트",
+};
 const libraryState = { body: "전체", equipment: "전체" };
 
 function isLocalAccess() {
@@ -306,6 +310,11 @@ function mappedExerciseEntry(exercise) {
 function exerciseDisplayName(exercise) {
   if (!exercise) return "";
   return mappedExerciseEntry(exercise).displayName || exercise.displayName || exercise.name || "";
+}
+
+function storedExerciseDisplayName(name) {
+  const exercise = exercises.find((item) => item.name === name);
+  return exercise ? exerciseDisplayName(exercise) : name;
 }
 
 function exerciseEnglishName(exercise) {
@@ -503,19 +512,29 @@ function normalizeFreeDbExercise(item, koMap = {}) {
 
 function mergeSetCounterDefaults(freeExercises) {
   const bySourceId = new Map(freeExercises.map((exercise) => [exercise.sourceId, exercise]));
-  return setCounterDefaultExercises.map((preset) => {
+  const seenSourceIds = new Set();
+  return setCounterDefaultExercises.filter((preset) => {
+    if (seenSourceIds.has(preset.sourceId)) return false;
+    seenSourceIds.add(preset.sourceId);
+    return true;
+  }).map((preset) => {
     const base = bySourceId.get(preset.sourceId) || {};
+    const apiDisplayName = koCommonExerciseMap[preset.sourceId]?.displayName
+      || defaultApiNameOverrides[preset.sourceId]
+      || base.englishName
+      || base.freeDbName
+      || preset.sourceId;
     return {
       ...base,
       source: "setcounter-free-db",
       sourceId: `setcounter:${preset.name}`,
       freeDbSourceId: preset.sourceId,
       name: preset.name,
-      displayName: preset.name,
+      displayName: apiDisplayName,
       englishName: base.englishName || base.name || preset.sourceId,
       area: preset.area || base.area || "-",
       equipment: base.equipment || "other",
-      image: preset.fallbackImage || "",
+      image: "",
       images: base.images || [],
       category: base.category,
       level: base.level,
@@ -537,6 +556,7 @@ function replacePrimaryExercises(defaultExercises) {
   const primaryKeys = new Set(primaryExercises.map((exercise) => exerciseKey(exercise)));
   const primaryNames = new Set(primaryExercises.map((exercise) => exercise.name));
   const kept = exercises.filter((exercise) => {
+    if (exercise.source === "setcounter-free-db") return false;
     if (primaryKeys.has(exerciseKey(exercise))) return false;
     if (!exercise.source && primaryNames.has(exercise.name)) return false;
     return true;
@@ -562,6 +582,7 @@ async function loadFreeExerciseDb() {
     const commonItems = Object.fromEntries(
       Object.entries(commonMapPayload).map(([sourceId, displayName]) => [sourceId, { displayName, aliases: [displayName] }]),
     );
+    koCommonExerciseMap = commonItems;
     koExerciseMap = { ...commonItems, ...(koMapPayload.items || {}) };
     koMuscleMap = muscleResponse.ok ? await muscleResponse.json() : {};
     koEquipmentMap = equipmentResponse.ok ? await equipmentResponse.json() : {};
@@ -1415,7 +1436,11 @@ function percentChange(current, previous) {
 }
 
 function exerciseImage(name) {
-  return exercises.find((exercise) => exercise.name === name)?.image || exercises[0].image;
+  const exercise = exercises.find((item) => item.name === name) || exercises[0];
+  const firstImage = exercise?.images?.[0];
+  if (firstImage) return freeDbImageUrl(firstImage);
+  if (exercise?.image) return `/static/assets/${exercise.image}?v=6`;
+  return "/static/assets/app-icon-192.png?v=8";
 }
 
 const workoutPlans = [
@@ -1668,9 +1693,9 @@ function renderHomeDashboard() {
     item.className = "today-item";
     item.dataset.motionKey = `today-${log.id || `${log.date}-${log.exercise}`}`;
     item.innerHTML = `
-      <span class="today-thumb"><img src="/static/assets/${exerciseImage(log.exercise)}" alt=""></span>
+      <span class="today-thumb"><img src="${escapeHtml(exerciseImage(log.exercise))}" alt=""></span>
       <span>
-        <strong>${escapeHtml(log.exercise)}</strong>
+        <strong>${escapeHtml(storedExerciseDisplayName(log.exercise))}</strong>
         <small>${log.completedSets}세트 · ${formatNumber(log.volume)}kg · ${formatNumber(log.totalReps)}회</small>
       </span>
       <span class="today-check">✓</span>
@@ -2624,12 +2649,13 @@ function renderDayDetail() {
     const top = document.createElement("div");
     top.className = "day-log-top";
     const label = document.createElement("strong");
-    label.textContent = log.exercise;
+    const displayName = storedExerciseDisplayName(log.exercise);
+    label.textContent = displayName;
     const remove = document.createElement("button");
     remove.className = "delete-button";
     remove.type = "button";
     remove.textContent = "×";
-    remove.setAttribute("aria-label", `${log.exercise} 기록 삭제`);
+    remove.setAttribute("aria-label", `${displayName} 기록 삭제`);
     remove.addEventListener("click", async () => {
       const previousLevel = state.stats?.level;
       await api(`/api/logs/${log.id}`, { method: "DELETE" });
@@ -3222,7 +3248,7 @@ function renderHistory() {
     const row = daily.get(log.date) || { date: log.date, volume: 0, count: 0, names: [] };
     row.volume += log.volume || 0;
     row.count += 1;
-    row.names.push(log.exercise);
+    row.names.push(storedExerciseDisplayName(log.exercise));
     daily.set(log.date, row);
   });
   Array.from(daily.values())
