@@ -449,7 +449,7 @@ function exerciseInstructionsForDetail(exercise) {
   const sourceId = exercise.freeDbSourceId || exercise.sourceId;
   if (koreanExerciseInstructions[sourceId]) return koreanExerciseInstructions[sourceId];
   if (exercise.instructionsKo?.length) return exercise.instructionsKo;
-  return [`${exerciseDisplayName(exercise)}의 자세와 가동 범위를 안정적으로 유지하며 진행하세요.`];
+  return ["이 운동은 제공된 원본 데이터에 수행 설명이 없습니다."];
 }
 function exerciseSearchTerms(exercise) {
   const mapped = mappedExerciseEntry(exercise);
