@@ -3,6 +3,7 @@ import secrets
 import tempfile
 import unittest
 import uuid
+from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
@@ -15,7 +16,20 @@ os.environ["SECRET_KEY"] = secrets.token_urlsafe(48)
 
 from app import app, db
 from migrate_auth_data import migrate
-from models import AuthAccount, AuthRateLimit, HealthExercise, HealthSet, HealthUser, HealthWorkout
+from models import (
+    AuthAccount,
+    AuthRateLimit,
+    HealthBoardComment,
+    HealthBoardLike,
+    HealthBoardPost,
+    HealthBoardReport,
+    HealthExcuse,
+    HealthExercise,
+    HealthPushSubscription,
+    HealthSet,
+    HealthUser,
+    HealthWorkout,
+)
 
 
 class AuthSystemTestCase(unittest.TestCase):
@@ -198,6 +212,72 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertFalse(status["authenticated"])
         self.assertEqual(self.client.get("/api/logs", headers=self.headers(key)).status_code, 401)
 
+    def test_account_deletion_removes_account_and_all_user_owned_data(self):
+        key = "delete-account-key-0001"
+        email = self.email("delete")
+        self.create_workout(key)
+        self.assertEqual(self.register(key, email).status_code, 201)
+        with app.app_context():
+            user = db.session.query(HealthUser).filter_by(user_key=key).one()
+            post = HealthBoardPost(user_id=user.id, level=3, nickname="삭제테스트", content="삭제될 게시글")
+            db.session.add(post)
+            db.session.flush()
+            comment = HealthBoardComment(user_id=user.id, post_id=post.id, level=3, nickname="삭제테스트", content="삭제될 댓글")
+            db.session.add(comment)
+            db.session.flush()
+            db.session.add(HealthBoardLike(user_id=user.id, post_id=post.id))
+            db.session.add(HealthBoardReport(reporter_user_id=user.id, post_id=post.id, comment_id=comment.id, reason="삭제 테스트"))
+            db.session.add(HealthExcuse(user_id=user.id, excuse_date=date(2026, 7, 17), excuse_text="회복"))
+            db.session.add(HealthPushSubscription(user_id=user.id, endpoint=f"https://push.example/{uuid.uuid4().hex}", p256dh="key", auth="auth"))
+            db.session.commit()
+
+        wrong = self.client.post(
+            "/api/auth/delete-account",
+            headers=self.csrf_headers(self.client),
+            json={"password": "not-the-password"},
+        )
+        self.assertEqual(wrong.status_code, 401)
+        deleted = self.client.post(
+            "/api/auth/delete-account",
+            headers=self.csrf_headers(self.client),
+            json={"password": self.password},
+        )
+        self.assertEqual(deleted.status_code, 200, deleted.get_json())
+        self.assertTrue(deleted.get_json()["requiresNewAnonymousKey"])
+        with app.app_context():
+            for model in (
+                AuthAccount,
+                HealthUser,
+                HealthWorkout,
+                HealthSet,
+                HealthExcuse,
+                HealthBoardPost,
+                HealthBoardComment,
+                HealthBoardLike,
+                HealthBoardReport,
+                HealthPushSubscription,
+            ):
+                self.assertEqual(db.session.query(model).count(), 0, model.__name__)
+
+    def test_public_account_deletion_page_deletes_without_installed_app(self):
+        key = "public-delete-key-0001"
+        email = self.email("public-delete")
+        self.assertEqual(self.register(key, email).status_code, 201)
+        client = app.test_client()
+        page = client.get("/account-deletion")
+        self.assertEqual(page.status_code, 200)
+        with client.session_transaction() as browser_session:
+            csrf_token = browser_session["csrf_token"]
+        response = client.post(
+            "/account-deletion",
+            data={"csrf_token": csrf_token, "email": email, "password": self.password},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("계정 삭제가 완료되었습니다", response.get_data(as_text=True))
+        with app.app_context():
+            self.assertEqual(db.session.query(AuthAccount).count(), 0)
+            self.assertEqual(db.session.query(HealthUser).count(), 0)
+
     def test_duplicate_email_does_not_damage_existing_account_or_user(self):
         first_key = "duplicate-first-key-0001"
         email = self.email("duplicate")
@@ -276,6 +356,28 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(blocked.get_json()["error"], "auth_rate_limited")
         with app.app_context():
             self.assertGreaterEqual(db.session.query(AuthRateLimit).count(), 2)
+
+    def test_public_legal_pages_are_available_without_authentication(self):
+        for path, heading in (
+            ("/privacy", "개인정보 처리방침"),
+            ("/terms", "이용약관"),
+            ("/account-deletion", "Set Counter 계정 삭제"),
+        ):
+            response = app.test_client().get(path)
+            self.assertEqual(response.status_code, 200, path)
+            self.assertIn(heading, response.get_data(as_text=True))
+
+    def test_assetlinks_uses_configured_play_signing_fingerprints(self):
+        fingerprints = "AA:BB:CC:DD,11:22:33:44"
+        with patch.dict(os.environ, {"ANDROID_SHA256_CERT_FINGERPRINT": fingerprints}):
+            response = self.client.get("/.well-known/assetlinks.json")
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload[0]["target"]["package_name"], "com.setcounter.app")
+        self.assertEqual(
+            payload[0]["target"]["sha256_cert_fingerprints"],
+            ["AA:BB:CC:DD", "11:22:33:44"],
+        )
 
 
 if __name__ == "__main__":

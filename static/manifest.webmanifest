@@ -1,11 +1,18 @@
 {
   "name": "Set Counter",
   "short_name": "Set Counter",
+  "id": "/main",
+  "description": "세트, 무게, 반복 횟수를 빠르게 기록하고 운동 흐름을 이어가는 근력 운동 기록 앱",
+  "lang": "ko-KR",
+  "dir": "ltr",
   "start_url": "/main",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#191a1c",
-  "theme_color": "#191a1c",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait-primary",
+  "categories": ["fitness", "health", "lifestyle"],
+  "background_color": "#080a0e",
+  "theme_color": "#080a0e",
   "icons": [
     {
       "src": "/static/assets/app-icon-192.png?v=8",

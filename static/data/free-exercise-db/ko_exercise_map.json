@@ -1,0 +1,430 @@
+{
+  "source": "free-exercise-db",
+  "description": "Korean display names and aliases for SetCounter. Missing items fall back to English.",
+  "items": {
+    "Barbell_Bench_Press_-_Medium_Grip": {
+      "displayName": "벤치프레스",
+      "aliases": [
+        "bench press",
+        "가슴",
+        "벤치프레스"
+      ]
+    },
+    "Barbell_Incline_Bench_Press_-_Medium_Grip": {
+      "displayName": "인클라인 벤치프레스",
+      "aliases": [
+        "incline bench press",
+        "윗가슴"
+      ]
+    },
+    "Barbell_Deadlift": {
+      "displayName": "데드리프트",
+      "aliases": [
+        "deadlift"
+      ]
+    },
+    "Barbell_Squat": {
+      "displayName": "스쿼트",
+      "aliases": [
+        "squat"
+      ]
+    },
+    "Wide-Grip_Lat_Pulldown": {
+      "displayName": "랫풀다운",
+      "aliases": [
+        "lat pulldown",
+        "광배"
+      ]
+    },
+    "Bent_Over_Barbell_Row": {
+      "displayName": "바벨로우",
+      "aliases": [
+        "barbell row",
+        "등"
+      ]
+    },
+    "One-Arm_Dumbbell_Row": {
+      "displayName": "덤벨로우",
+      "aliases": [
+        "dumbbell row"
+      ]
+    },
+    "Dumbbell_Shoulder_Press": {
+      "displayName": "숄더 프레스",
+      "aliases": [
+        "shoulder press",
+        "덤벨 숄더프레스",
+        "어깨"
+      ]
+    },
+    "Side_Lateral_Raise": {
+      "displayName": "사이드 레터럴 레이즈",
+      "aliases": [
+        "side lateral raise",
+        "사레레",
+        "측면 어깨"
+      ]
+    },
+    "Hammer_Curls": {
+      "displayName": "해머 컬",
+      "aliases": [
+        "hammer curl",
+        "해머컬"
+      ]
+    },
+    "Seated_Dumbbell_Curl": {
+      "displayName": "덤벨 컬",
+      "aliases": [
+        "dumbbell curl",
+        "덤벨컬"
+      ]
+    },
+    "Pushups": {
+      "displayName": "푸쉬업",
+      "aliases": [
+        "push-up",
+        "pushup",
+        "팔굽혀펴기"
+      ]
+    },
+    "Weighted_Pull_Ups": {
+      "displayName": "풀업",
+      "aliases": [
+        "pull-up",
+        "pullup",
+        "턱걸이"
+      ]
+    },
+    "Dips_-_Chest_Version": {
+      "displayName": "딥스",
+      "aliases": [
+        "dips",
+        "딥"
+      ]
+    },
+    "Leg_Press": {
+      "displayName": "레그프레스",
+      "aliases": [
+        "leg press"
+      ]
+    },
+    "Lying_Leg_Curls": {
+      "displayName": "레그컬",
+      "aliases": [
+        "leg curl",
+        "lying leg curl"
+      ]
+    },
+    "Leg_Extensions": {
+      "displayName": "레그익스텐션",
+      "aliases": [
+        "leg extension",
+        "leg extensions"
+      ]
+    },
+    "Goblet_Squat": {
+      "displayName": "고블릿 스쿼트",
+      "aliases": [
+        "goblet squat"
+      ]
+    },
+    "Barbell_Hip_Thrust": {
+      "displayName": "덤벨 힙",
+      "aliases": [
+        "hip thrust",
+        "둔근"
+      ]
+    },
+    "Wrist_Roller": {
+      "displayName": "무게판 추감기",
+      "aliases": [
+        "wrist roller",
+        "추감기",
+        "전완근"
+      ]
+    },
+    "Romanian_Deadlift": {
+      "displayName": "덤벨 루마니안 데드리프트",
+      "aliases": [
+        "romanian deadlift",
+        "rdl",
+        "루마니안 데드리프트"
+      ]
+    },
+    "Barbell_Shoulder_Press": {
+      "displayName": "바벨 숄더 프레스",
+      "aliases": [
+        "overhead press",
+        "오버헤드 프레스"
+      ]
+    },
+    "Dumbbell_Bench_Press": {
+      "displayName": "덤벨 벤치프레스",
+      "aliases": [
+        "dumbbell bench press"
+      ]
+    },
+    "Incline_Dumbbell_Press": {
+      "displayName": "인클라인 덤벨 프레스",
+      "aliases": [
+        "incline dumbbell press"
+      ]
+    },
+    "Decline_Barbell_Bench_Press": {
+      "displayName": "디클라인 벤치프레스",
+      "aliases": [
+        "decline bench press"
+      ]
+    },
+    "Cable_Crossover": {
+      "displayName": "케이블 크로스오버",
+      "aliases": [
+        "cable crossover"
+      ]
+    },
+    "Butterfly": {
+      "displayName": "펙덱 플라이",
+      "aliases": [
+        "pec deck",
+        "butterfly"
+      ]
+    },
+    "Pullups": {
+      "displayName": "풀업",
+      "aliases": [
+        "pullups",
+        "pull-up"
+      ]
+    },
+    "Chin-Up": {
+      "displayName": "친업",
+      "aliases": [
+        "chin up",
+        "chin-up"
+      ]
+    },
+    "Seated_Cable_Rows": {
+      "displayName": "시티드 케이블 로우",
+      "aliases": [
+        "seated cable row"
+      ]
+    },
+    "T-Bar_Row_with_Handle": {
+      "displayName": "티바 로우",
+      "aliases": [
+        "t-bar row"
+      ]
+    },
+    "Straight-Arm_Pulldown": {
+      "displayName": "스트레이트 암 풀다운",
+      "aliases": [
+        "straight arm pulldown"
+      ]
+    },
+    "Barbell_Curl": {
+      "displayName": "바벨 컬",
+      "aliases": [
+        "barbell curl"
+      ]
+    },
+    "Preacher_Curl": {
+      "displayName": "프리처 컬",
+      "aliases": [
+        "preacher curl"
+      ]
+    },
+    "Triceps_Pushdown": {
+      "displayName": "트라이셉스 푸쉬다운",
+      "aliases": [
+        "triceps pushdown"
+      ]
+    },
+    "Close-Grip_Barbell_Bench_Press": {
+      "displayName": "클로즈그립 벤치프레스",
+      "aliases": [
+        "close grip bench press"
+      ]
+    },
+    "Bench_Dips": {
+      "displayName": "벤치 딥스",
+      "aliases": [
+        "bench dips"
+      ]
+    },
+    "Arnold_Dumbbell_Press": {
+      "displayName": "아놀드 프레스",
+      "aliases": [
+        "arnold press"
+      ]
+    },
+    "Dumbbell_Lying_Rear_Lateral_Raise": {
+      "displayName": "리어 델트 레이즈",
+      "aliases": [
+        "rear lateral raise",
+        "후면 어깨"
+      ]
+    },
+    "Upright_Barbell_Row": {
+      "displayName": "업라이트 로우",
+      "aliases": [
+        "upright row"
+      ]
+    },
+    "Barbell_Shrug": {
+      "displayName": "바벨 슈러그",
+      "aliases": [
+        "barbell shrug"
+      ]
+    },
+    "Dumbbell_Shrug": {
+      "displayName": "덤벨 슈러그",
+      "aliases": [
+        "dumbbell shrug"
+      ]
+    },
+    "Hack_Squat": {
+      "displayName": "핵 스쿼트",
+      "aliases": [
+        "hack squat"
+      ]
+    },
+    "Smith_Machine_Squat": {
+      "displayName": "스미스머신 스쿼트",
+      "aliases": [
+        "smith machine squat"
+      ]
+    },
+    "Barbell_Lunge": {
+      "displayName": "바벨 런지",
+      "aliases": [
+        "barbell lunge"
+      ]
+    },
+    "Dumbbell_Lunges": {
+      "displayName": "덤벨 런지",
+      "aliases": [
+        "dumbbell lunge"
+      ]
+    },
+    "Seated_Calf_Raise": {
+      "displayName": "시티드 카프 레이즈",
+      "aliases": [
+        "seated calf raise"
+      ]
+    },
+    "Standing_Calf_Raises": {
+      "displayName": "스탠딩 카프 레이즈",
+      "aliases": [
+        "standing calf raise"
+      ]
+    },
+    "Cable_Crunch": {
+      "displayName": "케이블 크런치",
+      "aliases": [
+        "cable crunch"
+      ]
+    },
+    "Plank": {
+      "displayName": "플랭크",
+      "aliases": [
+        "plank"
+      ]
+    },
+    "Hanging_Leg_Raise": {
+      "displayName": "행잉 레그레이즈",
+      "aliases": [
+        "hanging leg raise"
+      ]
+    },
+    "Ab_Roller": {
+      "displayName": "AB 롤아웃",
+      "aliases": [
+        "ab roller",
+        "ab rollout"
+      ]
+    },
+    "Mountain_Climbers": {
+      "displayName": "마운틴 클라이머",
+      "aliases": [
+        "mountain climber"
+      ]
+    }
+  },
+  "setCounterDefaults": [
+    {
+      "sourceId": "Dumbbell_Shoulder_Press",
+      "name": "숄더 프레스",
+      "area": "덤벨 어깨",
+      "fallbackImage": "shoulderpress.webp"
+    },
+    {
+      "sourceId": "Side_Lateral_Raise",
+      "name": "사이드 레터럴 레이즈",
+      "area": "덤벨 어깨",
+      "fallbackImage": "sarere.webp"
+    },
+    {
+      "sourceId": "Pushups",
+      "name": "중량가방 푸쉬업",
+      "area": "맨몸/가방",
+      "fallbackImage": "pushup.webp"
+    },
+    {
+      "sourceId": "Seated_Dumbbell_Curl",
+      "name": "덤벨 컬",
+      "area": "덤벨 팔",
+      "fallbackImage": "dumbelcurl.webp"
+    },
+    {
+      "sourceId": "Hammer_Curls",
+      "name": "해머 컬",
+      "area": "덤벨 팔",
+      "fallbackImage": "hammercurl.webp"
+    },
+    {
+      "sourceId": "Goblet_Squat",
+      "name": "고블릿 스쿼트",
+      "area": "덤벨 하체",
+      "fallbackImage": "gblitsquate.webp"
+    },
+    {
+      "sourceId": "One-Arm_Dumbbell_Row",
+      "name": "덤벨로우",
+      "area": "덤벨 등",
+      "fallbackImage": "dumbellow.webp"
+    },
+    {
+      "sourceId": "Barbell_Bench_Press_-_Medium_Grip",
+      "name": "벤치프레스",
+      "area": "덤벨 가슴",
+      "fallbackImage": "benchpress.webp"
+    },
+    {
+      "sourceId": "Barbell_Hip_Thrust",
+      "name": "덤벨 힙",
+      "area": "덤벨 둔근",
+      "fallbackImage": "dumbelhip.webp"
+    },
+    {
+      "sourceId": "Wrist_Roller",
+      "name": "무게판 추감기",
+      "area": "전완",
+      "fallbackImage": "wristroller.webp"
+    },
+    {
+      "sourceId": "Wrist_Roller",
+      "name": "추감기 리버스",
+      "area": "전완",
+      "fallbackImage": "wristroller.webp",
+      "aliases": [
+        "reverse wrist roller"
+      ]
+    },
+    {
+      "sourceId": "Romanian_Deadlift",
+      "name": "덤벨 루마니안 데드리프트",
+      "area": "덤벨 둔근",
+      "fallbackImage": "dumbbell-rdl.webp"
+    }
+  ]
+}

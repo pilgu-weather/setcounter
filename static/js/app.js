@@ -748,6 +748,7 @@ const els = {
   faqModal: document.querySelector("#faqModal"),
   closeFaqButton: document.querySelector("#closeFaqButton"),
   openPrivacyButton: document.querySelector("#openPrivacyButton"),
+  openTermsButton: document.querySelector("#openTermsButton"),
   privacyModal: document.querySelector("#privacyModal"),
   closePrivacyButton: document.querySelector("#closePrivacyButton"),
   versionButton: document.querySelector("#versionButton"),
@@ -777,6 +778,7 @@ const els = {
   openRegisterButton: document.querySelector("#openRegisterButton"),
   openLoginButton: document.querySelector("#openLoginButton"),
   logoutButton: document.querySelector("#logoutButton"),
+  openDeleteAccountButton: document.querySelector("#openDeleteAccountButton"),
   registerModal: document.querySelector("#registerModal"),
   registerForm: document.querySelector("#registerForm"),
   registerEmailInput: document.querySelector("#registerEmailInput"),
@@ -793,6 +795,13 @@ const els = {
   loginError: document.querySelector("#loginError"),
   loginSubmitButton: document.querySelector("#loginSubmitButton"),
   closeLoginButton: document.querySelector("#closeLoginButton"),
+  deleteAccountModal: document.querySelector("#deleteAccountModal"),
+  deleteAccountForm: document.querySelector("#deleteAccountForm"),
+  deleteAccountPasswordInput: document.querySelector("#deleteAccountPasswordInput"),
+  deleteAccountConfirmInput: document.querySelector("#deleteAccountConfirmInput"),
+  deleteAccountError: document.querySelector("#deleteAccountError"),
+  deleteAccountSubmitButton: document.querySelector("#deleteAccountSubmitButton"),
+  closeDeleteAccountButton: document.querySelector("#closeDeleteAccountButton"),
   authConflictModal: document.querySelector("#authConflictModal"),
   anonymousConflictSummary: document.querySelector("#anonymousConflictSummary"),
   accountConflictSummary: document.querySelector("#accountConflictSummary"),
@@ -959,7 +968,7 @@ function rememberMenuOverlayTrigger() {
 }
 
 function syncMenuOverlayLock() {
-  const overlays = [els.profileModal, els.complaintModal, els.registerModal, els.loginModal, els.authConflictModal, els.faqModal, els.privacyModal];
+  const overlays = [els.profileModal, els.complaintModal, els.registerModal, els.loginModal, els.deleteAccountModal, els.authConflictModal, els.faqModal, els.privacyModal];
   document.body.classList.toggle("has-modal-open", overlays.some((overlay) => overlay && !overlay.hidden));
 }
 
@@ -1033,11 +1042,72 @@ async function logoutAccount() {
   try {
     const result = await api("/api/auth/logout", { method: "POST", body: "{}" });
     if (!result?.requiresNewAnonymousKey) throw new Error("logout_failed");
-    window.localStorage.removeItem(USER_KEY_STORAGE); replaceHealthUserKey();
-    state.logs = []; state.excuses = []; state.boardPosts = []; state.profile = null; state.stats = null; state.recommendationInitialized = false;
-    state.boardExpandedPosts.clear(); state.boardPendingLikes.clear(); state.boardPendingComments.clear(); state.boardReportTarget = null;
-    await loadAuthStatus(); await loadBootstrap(); showToast("로그아웃했습니다. 새 익명 기록으로 시작합니다.");
+    await resetToAnonymousUser();
+    showToast("로그아웃했습니다. 새 익명 기록으로 시작합니다.");
   } catch (error) { showToast("로그아웃에 실패했습니다. 다시 시도해주세요."); }
+}
+
+async function resetToAnonymousUser() {
+  window.localStorage.removeItem(USER_KEY_STORAGE);
+  replaceHealthUserKey();
+  state.logs = [];
+  state.excuses = [];
+  state.boardPosts = [];
+  state.profile = null;
+  state.stats = null;
+  state.recommendationInitialized = false;
+  state.boardExpandedPosts.clear();
+  state.boardPendingLikes.clear();
+  state.boardPendingComments.clear();
+  state.boardReportTarget = null;
+  await loadAuthStatus();
+  await loadBootstrap();
+}
+
+function openDeleteAccountModal() {
+  rememberMenuOverlayTrigger();
+  els.deleteAccountForm.reset();
+  els.deleteAccountError.textContent = "";
+  els.deleteAccountModal.hidden = false;
+  syncMenuOverlayLock();
+  window.SetCounterMotion?.openOverlay(els.deleteAccountModal, {
+    onComplete: () => els.deleteAccountPasswordInput.focus(),
+  });
+}
+
+function closeDeleteAccountModal() {
+  window.SetCounterMotion?.closeOverlay(els.deleteAccountModal, { onComplete: () => {
+    els.deleteAccountModal.hidden = true;
+    syncMenuOverlayLock();
+    restoreMenuOverlayFocus();
+  } });
+}
+
+async function submitDeleteAccount(event) {
+  event.preventDefault();
+  const password = els.deleteAccountPasswordInput.value;
+  if (!password || !els.deleteAccountConfirmInput.checked) {
+    els.deleteAccountError.textContent = "비밀번호와 삭제 확인을 입력해주세요.";
+    return;
+  }
+  els.deleteAccountError.textContent = "";
+  setAuthSubmitting(els.deleteAccountSubmitButton, true, "영구 삭제");
+  try {
+    const result = await api("/api/auth/delete-account", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+    if (!result?.requiresNewAnonymousKey) throw new Error("delete_failed");
+    closeDeleteAccountModal();
+    await resetToAnonymousUser();
+    showToast("계정과 연결 데이터가 삭제되었습니다.");
+  } catch (error) {
+    els.deleteAccountError.textContent = error.status === 401
+      ? "비밀번호가 올바르지 않습니다."
+      : "계정 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.";
+  } finally {
+    setAuthSubmitting(els.deleteAccountSubmitButton, false, "영구 삭제");
+  }
 }
 
 function reminderEnabled() {
@@ -3544,6 +3614,7 @@ function bindEvents() {
     else if (!els.complaintModal.hidden) closeComplaintModal();
     else if (!els.registerModal.hidden) closeAuthModal("register");
     else if (!els.loginModal.hidden) closeAuthModal("login");
+    else if (!els.deleteAccountModal.hidden) closeDeleteAccountModal();
     else if (!els.faqModal.hidden) closeSupportModal(els.faqModal);
     else if (!els.privacyModal.hidden) closeSupportModal(els.privacyModal);
   });
@@ -3554,6 +3625,7 @@ function bindEvents() {
     if (event.target === els.faqModal) closeSupportModal(els.faqModal);
   });
   els.openPrivacyButton.addEventListener("click", () => openSupportModal(els.privacyModal, els.closePrivacyButton));
+  els.openTermsButton.addEventListener("click", () => window.open("/terms", "_blank", "noopener"));
   els.closePrivacyButton.addEventListener("click", () => closeSupportModal(els.privacyModal));
   els.privacyModal.addEventListener("click", (event) => {
     if (event.target === els.privacyModal) closeSupportModal(els.privacyModal);
@@ -3578,6 +3650,9 @@ function bindAuthEvents() {
   els.registerForm.addEventListener("submit", submitRegister);
   els.loginForm.addEventListener("submit", submitLogin);
   els.logoutButton.addEventListener("click", logoutAccount);
+  els.openDeleteAccountButton.addEventListener("click", openDeleteAccountModal);
+  els.closeDeleteAccountButton.addEventListener("click", closeDeleteAccountModal);
+  els.deleteAccountForm.addEventListener("submit", submitDeleteAccount);
   const closeConflict = () => window.SetCounterMotion?.closeOverlay(els.authConflictModal, { onComplete: () => {
     els.authConflictModal.hidden = true;
     syncMenuOverlayLock();
@@ -3585,6 +3660,7 @@ function bindAuthEvents() {
   els.closeAuthConflictButton.addEventListener("click", closeConflict);
   els.registerModal.addEventListener("click", (event) => { if (event.target === els.registerModal) closeAuthModal("register"); });
   els.loginModal.addEventListener("click", (event) => { if (event.target === els.loginModal) closeAuthModal("login"); });
+  els.deleteAccountModal.addEventListener("click", (event) => { if (event.target === els.deleteAccountModal) closeDeleteAccountModal(); });
   els.authConflictModal.addEventListener("click", (event) => { if (event.target === els.authConflictModal) closeConflict(); });
 }
 

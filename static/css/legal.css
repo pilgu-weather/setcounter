@@ -1,0 +1,58 @@
+:root {
+  color-scheme: dark;
+  --bg: #080a0e;
+  --surface: #12161d;
+  --elevated: #191e27;
+  --primary: #2e7cff;
+  --danger: #f05b64;
+  --success: #66c987;
+  --text: #f5f7fb;
+  --secondary: #a6adba;
+  --muted: #707887;
+  --border: rgba(190, 210, 238, 0.13);
+  font-family: Inter, Pretendard, "Noto Sans KR", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body { margin: 0; min-width: 320px; background: radial-gradient(circle at 50% -10%, rgba(46, 124, 255, 0.12), transparent 34%), var(--bg); color: var(--text); }
+a { color: #79a9ff; }
+button, input { font: inherit; }
+
+.legal-shell { width: min(100%, 760px); min-height: 100vh; margin: 0 auto; padding: max(20px, env(safe-area-inset-top)) 20px max(40px, env(safe-area-inset-bottom)); }
+.legal-header { min-height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border); }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); font-size: 15px; font-weight: 850; text-decoration: none; }
+.brand img { width: 30px; height: 30px; border-radius: 7px; }
+.back-link { color: var(--secondary); font-size: 12px; font-weight: 750; text-decoration: none; }
+.legal-document { padding: 48px 0 40px; }
+.eyebrow { margin: 0 0 12px; color: #79a9ff; font-size: 11px; font-weight: 900; letter-spacing: 0.12em; }
+h1 { margin: 0; font-size: clamp(30px, 8vw, 46px); line-height: 1.12; letter-spacing: 0; }
+.effective-date { margin-top: 12px !important; color: var(--muted) !important; font-size: 12px; }
+.legal-document h2 { margin: 36px 0 10px; font-size: 18px; line-height: 1.35; }
+.legal-document p, .legal-document li { color: var(--secondary); font-size: 14px; line-height: 1.75; word-break: keep-all; overflow-wrap: anywhere; }
+.legal-document ul { margin: 10px 0 0; padding-left: 20px; }
+.legal-document li + li { margin-top: 7px; }
+.warning-panel, .status-panel { margin-top: 28px; padding: 18px; border: 1px solid rgba(240, 91, 100, 0.22); border-radius: 12px; background: rgba(240, 91, 100, 0.07); }
+.warning-panel strong { color: #ffb6bb; }
+.warning-panel p, .status-panel p { margin-bottom: 0; }
+.status-panel.success { border-color: rgba(102, 201, 135, 0.24); background: rgba(102, 201, 135, 0.07); }
+.status-panel.success h2 { margin-top: 0; color: #a5e3b9; }
+.primary-link { min-height: 50px; margin-top: 20px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #2e7cff; color: white; font-weight: 850; text-decoration: none; }
+.deletion-form { margin-top: 24px; display: grid; gap: 16px; }
+.deletion-form label:not(.confirm-check) { display: grid; gap: 7px; color: var(--secondary); font-size: 12px; font-weight: 750; }
+.deletion-form input[type="email"], .deletion-form input[type="password"] { min-height: 52px; width: 100%; padding: 0 14px; border: 1px solid var(--border); border-radius: 10px; outline: none; background: rgba(15, 19, 26, 0.92); color: var(--text); }
+.deletion-form input:focus-visible { border-color: rgba(80, 143, 255, 0.82); box-shadow: 0 0 0 3px rgba(46, 124, 255, 0.16); }
+.confirm-check { display: flex; align-items: flex-start; gap: 10px; color: var(--secondary); font-size: 12px; line-height: 1.5; }
+.confirm-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--danger); }
+.deletion-form button { min-height: 52px; border: 1px solid rgba(255, 128, 137, 0.34); border-radius: 12px; background: linear-gradient(180deg, #f1646d, #c93f49); color: white; font-weight: 900; box-shadow: 0 10px 24px rgba(151, 29, 42, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.2); cursor: pointer; }
+.deletion-form button:active { transform: scale(0.985); }
+.form-error { margin: 0 !important; color: #ff9da4 !important; }
+.legal-footer { padding-top: 22px; display: flex; flex-wrap: wrap; gap: 12px 18px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; }
+.legal-footer a { color: var(--secondary); text-decoration: none; }
+.legal-footer span { flex-basis: 100%; }
+
+@media (max-width: 480px) {
+  .legal-shell { padding-inline: 18px; }
+  .legal-document { padding-top: 38px; }
+  .legal-document p, .legal-document li { font-size: 13px; }
+}

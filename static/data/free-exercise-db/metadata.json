@@ -1,0 +1,23 @@
+{
+  "source": "free-exercise-db",
+  "repository": "https://github.com/yuhonas/free-exercise-db",
+  "license": "Unlicense",
+  "exerciseCount": 873,
+  "imageCount": 1746,
+  "fields": [
+    "source",
+    "sourceId",
+    "id",
+    "name",
+    "displayName",
+    "category",
+    "equipment",
+    "level",
+    "force",
+    "mechanic",
+    "primaryMuscles",
+    "secondaryMuscles",
+    "instructions",
+    "images"
+  ]
+}

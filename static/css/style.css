@@ -6633,8 +6633,15 @@ body:has([data-screen="level-up"].is-active) .app-shell {
 }
 
 [data-screen="menu"] .account-actions button { min-height: 48px; border-radius: 12px; }
-[data-screen="menu"] #authenticatedAccountActions { grid-template-columns: minmax(0, 1fr); justify-items: start; }
-[data-screen="menu"] #logoutButton { width: auto; min-width: 108px; color: var(--sc-text-secondary); }
+[data-screen="menu"] #authenticatedAccountActions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+[data-screen="menu"] #logoutButton { color: var(--sc-text-secondary); }
+[data-screen="menu"] .account-delete-button {
+  border: 1px solid rgba(240, 91, 100, 0.2);
+  background: rgba(240, 91, 100, 0.06);
+  color: #e99aa0;
+  font-weight: 800;
+}
+[data-screen="menu"] .account-delete-button:active { background: rgba(240, 91, 100, 0.13); }
 
 [data-screen="menu"] .sos-section {
   gap: 14px;
@@ -6727,9 +6734,13 @@ body:has([data-screen="level-up"].is-active) .app-shell {
 .menu-dialog .ghost-button,
 .auth-dialog .confirm-button,
 .auth-dialog .ghost-button { min-height: 50px; }
+.auth-dialog .danger-button { min-height: 50px; }
 .auth-dialog .terms-check { display: flex; align-items: flex-start; gap: 10px; line-height: 1.45; }
 .auth-dialog .terms-check input { width: 18px; min-width: 18px; height: 18px; min-height: 18px; margin-top: 1px; padding: 0; accent-color: var(--sc-primary); }
 .auth-dialog .terms-check span { min-width: 0; }
+.auth-dialog .terms-check a { color: #8db5ff; text-underline-offset: 2px; }
+.delete-account-dialog { border-color: rgba(240, 91, 100, 0.2); }
+.delete-account-dialog > p:not(.eyebrow):not(.profile-error) { color: var(--sc-text-secondary); line-height: 1.55; }
 
 .support-modal { padding-inline: 10px; }
 .support-dialog { max-height: min(86dvh, 760px); overflow: hidden; }

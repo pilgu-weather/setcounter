@@ -6,3 +6,16 @@ app.sqlite3
 .venv/
 venv/
 backups/**/migration-user-key.txt
+backups/design-revert-*/
+artifacts/
+qa-*.sqlite3
+*.bak
+/*.png
+android/.gradle/
+android/local.properties
+android/**/build/
+android/keystore.properties
+android/*.jks
+android/*.keystore
+play-store/private/
+play-store/screenshots/raw/

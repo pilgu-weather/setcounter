@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=69">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=70">
   </head>
   <body>
     <main class="app-shell" id="home">
@@ -350,6 +350,7 @@
           </div>
           <div class="account-actions" id="authenticatedAccountActions" hidden>
             <button class="ghost-button" id="logoutButton" type="button">로그아웃</button>
+            <button class="account-delete-button" id="openDeleteAccountButton" type="button">계정 삭제</button>
           </div>
         </section>
 
@@ -379,6 +380,9 @@
           </button>
           <button type="button" id="openPrivacyButton">
             <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/></svg></span><span class="menu-row-copy"><strong>개인정보 처리방침</strong><small>수집 및 보관되는 정보를 확인합니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+          <button type="button" id="openTermsButton">
+            <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h6"/></svg></span><span class="menu-row-copy"><strong>이용약관</strong><small>서비스 이용 기준과 커뮤니티 원칙을 확인합니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </button>
           </div>
         </section>
@@ -540,7 +544,7 @@
         <label><span>이메일</span><input id="registerEmailInput" type="email" autocomplete="email" inputmode="email" maxlength="320" required></label>
         <label><span>비밀번호</span><input id="registerPasswordInput" type="password" autocomplete="new-password" minlength="8" required></label>
         <label><span>비밀번호 확인</span><input id="registerPasswordConfirmInput" type="password" autocomplete="new-password" minlength="8" required></label>
-        <label class="terms-check"><input id="registerTermsInput" type="checkbox" required><span>이용약관 및 개인정보 처리방침에 동의합니다.</span></label>
+        <label class="terms-check"><input id="registerTermsInput" type="checkbox" required><span><a href="/terms" target="_blank" rel="noopener">이용약관</a> 및 <a href="/privacy" target="_blank" rel="noopener">개인정보 처리방침</a>에 동의합니다.</span></label>
         <p class="profile-error" id="registerError" role="alert"></p>
         <div class="complaint-actions"><button class="ghost-button" id="closeRegisterButton" type="button">취소</button><button class="confirm-button" id="registerSubmitButton" type="submit">계정에 기록 연결</button></div>
       </form>
@@ -554,6 +558,17 @@
         <label><span>비밀번호</span><input id="loginPasswordInput" type="password" autocomplete="current-password" required></label>
         <p class="profile-error" id="loginError" role="alert"></p>
         <div class="complaint-actions"><button class="ghost-button" id="closeLoginButton" type="button">취소</button><button class="confirm-button" id="loginSubmitButton" type="submit">로그인</button></div>
+      </form>
+    </div>
+    <div class="profile-modal" id="deleteAccountModal" role="dialog" aria-modal="true" aria-labelledby="deleteAccountTitle" hidden>
+      <form class="profile-dialog auth-dialog delete-account-dialog" id="deleteAccountForm">
+        <p class="eyebrow danger">DELETE ACCOUNT</p>
+        <h2 id="deleteAccountTitle">계정과 기록을 삭제할까요?</h2>
+        <p>운동·세트 기록, SOS, 레벨, 게시글, 댓글, 좋아요와 푸시 구독이 모두 삭제되며 복구할 수 없습니다.</p>
+        <label><span>확인을 위해 비밀번호 입력</span><input id="deleteAccountPasswordInput" type="password" autocomplete="current-password" minlength="8" required></label>
+        <label class="terms-check"><input id="deleteAccountConfirmInput" type="checkbox" required><span>계정과 연결 데이터의 영구 삭제를 확인했습니다.</span></label>
+        <p class="profile-error" id="deleteAccountError" role="alert"></p>
+        <div class="complaint-actions"><button class="ghost-button" id="closeDeleteAccountButton" type="button">취소</button><button class="danger-button" id="deleteAccountSubmitButton" type="submit">영구 삭제</button></div>
       </form>
     </div>
     <div class="profile-modal" id="authConflictModal" hidden>
@@ -632,17 +647,17 @@
           <button class="library-close" id="closePrivacyButton" type="button" aria-label="닫기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </header>
         <div class="privacy-content">
-          <p class="policy-date">시행일: 2026년 7월 16일</p>
+          <p class="policy-date">시행일: 2026년 7월 22일</p>
           <h3>수집하는 정보</h3>
-          <p>닉네임, 운동 기록, SOS 사유, 게시판 글과 댓글, 알림 구독 정보 및 서비스 이용에 필요한 사용자 식별 키를 처리합니다.</p>
+          <p>사용자 식별 키, 닉네임, 계정 이메일과 비밀번호 해시, 운동 기록, SOS 사유, 게시판 활동 및 알림 구독 정보를 처리합니다.</p>
           <h3>이용 목적</h3>
           <p>운동 기록 저장과 조회, 레벨 계산, 게시판 운영, 운동 알림 제공, 부정 이용 방지 및 사용자 문의 처리를 위해 사용합니다.</p>
           <h3>보관 및 보호</h3>
-          <p>기록은 서비스 제공에 필요한 기간 동안 서버 데이터베이스에 보관합니다. 사용자 식별 키는 현재 브라우저에 저장되므로 브라우저 데이터를 지우면 기존 기록 연결이 어려울 수 있습니다.</p>
+          <p>계정 데이터는 계정 삭제 시까지 보관하며, 삭제 요청이 완료되면 연계 데이터를 함께 삭제합니다. 사용자 식별 키는 브라우저에 저장되므로 브라우저 데이터를 지우면 기존 익명 기록 연결이 어려울 수 있습니다.</p>
           <h3>외부 전송</h3>
           <p>피드백이나 이의제기를 보내면 닉네임, 레벨, 사용자 ID와 작성 내용이 운영자 Discord 채널로 전송됩니다.</p>
           <h3>문의</h3>
-          <p>개인정보 관련 문의는 메뉴의 ‘피드백 보내기’를 이용해 주세요.</p>
+          <p>개인정보 관련 문의는 메뉴의 ‘피드백 보내기’를 이용해 주세요. 전체 내용과 계정 삭제 방법은 <a href="/privacy" target="_blank" rel="noopener">공개 개인정보 처리방침</a>에서 확인할 수 있습니다.</p>
         </div>
       </section>
     </div>
@@ -689,6 +704,6 @@
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=96"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=97"></script>
   </body>
 </html>

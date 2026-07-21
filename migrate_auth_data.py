@@ -101,10 +101,10 @@ def migrate(engine):
             text("CREATE INDEX IF NOT EXISTS ix_auth_rate_limits_updated_at ON auth_rate_limits(updated_at)")
         )
         add_column_if_missing(connection, "health_users", "account_id", "account_id INTEGER")
-        add_column_if_missing(connection, "health_users", "is_anonymous", "is_anonymous BOOLEAN NOT NULL DEFAULT 1")
+        add_column_if_missing(connection, "health_users", "is_anonymous", "is_anonymous BOOLEAN NOT NULL DEFAULT TRUE")
         timestamp_type = "TIMESTAMPTZ" if backend == "postgresql" else "DATETIME"
         add_column_if_missing(connection, "health_users", "last_seen_at", f"last_seen_at {timestamp_type}")
-        connection.execute(text("UPDATE health_users SET is_anonymous = 1 WHERE account_id IS NULL"))
+        connection.execute(text("UPDATE health_users SET is_anonymous = TRUE WHERE account_id IS NULL"))
         connection.execute(
             text("CREATE UNIQUE INDEX IF NOT EXISTS uq_health_users_account_id ON health_users(account_id)")
         )

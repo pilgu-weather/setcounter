@@ -12,7 +12,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 from flask import Flask, g, jsonify, redirect, render_template, request, send_from_directory, session
-from sqlalchemy import delete, func, inspect, select, text, update
+from sqlalchemy import delete, func, inspect, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -368,6 +368,56 @@ def mask_email(email):
     local, _, domain = email.partition("@")
     visible = local[:1] if local else ""
     return f"{visible}{'*' * max(len(local) - 1, 1)}@{domain}"
+
+
+def delete_account_data(account):
+    """Delete an account and all user-owned data in one transaction."""
+    user = db.session.scalar(select(HealthUser).where(HealthUser.account_id == account.id))
+    if user is None:
+        raise ValueError("account_profile_missing")
+
+    user_id = user.id
+    post_ids = list(
+        db.session.scalars(select(HealthBoardPost.id).where(HealthBoardPost.user_id == user_id))
+    )
+    comment_conditions = [HealthBoardComment.user_id == user_id]
+    if post_ids:
+        comment_conditions.append(HealthBoardComment.post_id.in_(post_ids))
+    comment_ids = list(
+        db.session.scalars(select(HealthBoardComment.id).where(or_(*comment_conditions)))
+    )
+    workout_ids = list(
+        db.session.scalars(select(HealthWorkout.id).where(HealthWorkout.user_id == user_id))
+    )
+
+    report_conditions = [HealthBoardReport.reporter_user_id == user_id]
+    if post_ids:
+        report_conditions.append(HealthBoardReport.post_id.in_(post_ids))
+    if comment_ids:
+        report_conditions.append(HealthBoardReport.comment_id.in_(comment_ids))
+    db.session.execute(delete(HealthBoardReport).where(or_(*report_conditions)))
+    db.session.execute(delete(HealthPushSubscription).where(HealthPushSubscription.user_id == user_id))
+
+    like_conditions = [HealthBoardLike.user_id == user_id]
+    if post_ids:
+        like_conditions.append(HealthBoardLike.post_id.in_(post_ids))
+    db.session.execute(delete(HealthBoardLike).where(or_(*like_conditions)))
+    db.session.execute(delete(HealthBoardComment).where(or_(*comment_conditions)))
+    db.session.execute(delete(HealthBoardPost).where(HealthBoardPost.user_id == user_id))
+
+    if workout_ids:
+        db.session.execute(delete(HealthSet).where(HealthSet.workout_id.in_(workout_ids)))
+    db.session.execute(delete(HealthWorkout).where(HealthWorkout.user_id == user_id))
+    db.session.execute(delete(HealthExcuse).where(HealthExcuse.user_id == user_id))
+
+    rate_limit_hashes = [
+        auth_rate_limit_subject(scope, account.email)
+        for scope in ("login_email", "delete_email")
+    ]
+    db.session.execute(delete(AuthRateLimit).where(AuthRateLimit.subject_hash.in_(rate_limit_hashes)))
+    db.session.execute(delete(HealthUser).where(HealthUser.id == user_id))
+    db.session.execute(delete(AuthAccount).where(AuthAccount.id == account.id))
+    db.session.commit()
 
 
 def csrf_token_for_session():
@@ -1147,6 +1197,111 @@ def main():
     return render_template("main.html")
 
 
+@app.route("/privacy")
+def privacy_policy():
+    return render_template("legal.html", page="privacy")
+
+
+@app.route("/terms")
+def terms_of_service():
+    return render_template("legal.html", page="terms")
+
+
+@app.route("/account-deletion", methods=["GET", "POST"])
+def account_deletion_page():
+    if request.method == "GET":
+        return render_template(
+            "legal.html",
+            page="account-deletion",
+            csrf_token=csrf_token_for_session(),
+            deletion_complete=False,
+            deletion_error=None,
+        )
+
+    expected = session.get("csrf_token", "")
+    supplied = request.form.get("csrf_token", "")
+    if not expected or not supplied or not hmac.compare_digest(expected, supplied):
+        return render_template(
+            "legal.html",
+            page="account-deletion",
+            csrf_token=csrf_token_for_session(),
+            deletion_complete=False,
+            deletion_error="요청이 만료되었습니다. 페이지를 새로고침한 뒤 다시 시도해주세요.",
+        ), 403
+
+    ip_address = request_ip_address()
+    limited = auth_rate_limit_exceeded("delete_ip", ip_address, AUTH_LOGIN_RATE_LIMIT)
+    if limited:
+        return render_template(
+            "legal.html",
+            page="account-deletion",
+            csrf_token=csrf_token_for_session(),
+            deletion_complete=False,
+            deletion_error="요청이 너무 많습니다. 잠시 후 다시 시도해주세요.",
+        ), 429
+
+    try:
+        email = normalize_email(request.form.get("email"))
+    except ValueError:
+        email = ""
+    if email:
+        limited = auth_rate_limit_exceeded("delete_email", email, AUTH_LOGIN_RATE_LIMIT)
+        if limited:
+            return render_template(
+                "legal.html",
+                page="account-deletion",
+                csrf_token=csrf_token_for_session(),
+                deletion_complete=False,
+                deletion_error="요청이 너무 많습니다. 잠시 후 다시 시도해주세요.",
+            ), 429
+    password = str(request.form.get("password") or "")
+    account = db.session.scalar(select(AuthAccount).where(AuthAccount.email == email)) if email else None
+    if account is None or not check_password_hash(account.password_hash, password):
+        record_auth_attempt("delete_ip", ip_address)
+        if email:
+            record_auth_attempt("delete_email", email)
+        return render_template(
+            "legal.html",
+            page="account-deletion",
+            csrf_token=csrf_token_for_session(),
+            deletion_complete=False,
+            deletion_error="이메일 또는 비밀번호가 올바르지 않습니다.",
+        ), 401
+
+    delete_account_data(account)
+    session.clear()
+    return render_template(
+        "legal.html",
+        page="account-deletion",
+        deletion_complete=True,
+        deletion_error=None,
+    )
+
+
+@app.route("/.well-known/assetlinks.json")
+def android_asset_links():
+    fingerprints = [
+        item.strip().upper()
+        for item in os.environ.get("ANDROID_SHA256_CERT_FINGERPRINT", "").split(",")
+        if item.strip()
+    ]
+    payload = []
+    if fingerprints:
+        payload.append(
+            {
+                "relation": ["delegate_permission/common.handle_all_urls"],
+                "target": {
+                    "namespace": "android_app",
+                    "package_name": "com.setcounter.app",
+                    "sha256_cert_fingerprints": fingerprints,
+                },
+            }
+        )
+    response = jsonify(payload)
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return response
+
+
 @app.route("/service-worker.js")
 def service_worker():
     response = send_from_directory(BASE_DIR + "/static", "service-worker.js", mimetype="application/javascript")
@@ -1407,6 +1562,20 @@ def auth_login():
 
 @app.route("/api/auth/logout", methods=["POST"])
 def auth_logout():
+    session.clear()
+    return jsonify({"success": True, "requiresNewAnonymousKey": True})
+
+
+@app.route("/api/auth/delete-account", methods=["POST"])
+def auth_delete_account():
+    user = get_current_health_user()
+    if user is None or user.account is None or session.get("account_id") != user.account.id:
+        return jsonify({"error": "authentication_required"}), 401
+    password = str((request.get_json(silent=True) or {}).get("password") or "")
+    if not check_password_hash(user.account.password_hash, password):
+        return jsonify({"error": "invalid_credentials"}), 401
+    account = user.account
+    delete_account_data(account)
     session.clear()
     return jsonify({"success": True, "requiresNewAnonymousKey": True})
 
