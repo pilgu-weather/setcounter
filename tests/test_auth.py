@@ -14,7 +14,7 @@ os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB.as_posix()}"
 os.environ["SETCOUNTER_ALLOW_LOCAL_SQLITE"] = "1"
 os.environ["SECRET_KEY"] = secrets.token_urlsafe(48)
 
-from app import app, db
+from app import REQUIRED_SCHEMA, app, db
 from migrate_auth_data import migrate
 from models import (
     AuthAccount,
@@ -26,6 +26,7 @@ from models import (
     HealthExcuse,
     HealthExercise,
     HealthPushSubscription,
+    HealthPushConfig,
     HealthSet,
     HealthUser,
     HealthWorkout,
@@ -59,7 +60,7 @@ class AuthSystemTestCase(unittest.TestCase):
         response = self.client.post(
             "/api/logs",
             headers=self.csrf_headers(self.client, user_key),
-            json={"exercise": exercise_name, "date": "2026-07-16", "weight": 40, "reps": 10, "completedSets": 2},
+            json={"exercise": exercise_name, "date": "2026-07-16", "weightKg": 40, "reps": 10, "completedSets": 2},
         )
         self.assertEqual(response.status_code, 201, response.get_json())
 
@@ -97,6 +98,7 @@ class AuthSystemTestCase(unittest.TestCase):
         migrate(engine)
         migrate(engine)
         with engine.connect() as connection:
+            self.assertTrue(set(REQUIRED_SCHEMA).issubset(inspect(connection).get_table_names()))
             columns = {column["name"] for column in inspect(connection).get_columns("health_users")}
             self.assertTrue({"account_id", "is_anonymous", "last_seen_at"}.issubset(columns))
             user = connection.execute(text("SELECT id, account_id, is_anonymous FROM health_users WHERE id = 17")).mappings().one()
@@ -378,6 +380,215 @@ class AuthSystemTestCase(unittest.TestCase):
             payload[0]["target"]["sha256_cert_fingerprints"],
             ["AA:BB:CC:DD", "11:22:33:44"],
         )
+
+    def test_recording_data_round_trip_and_user_isolation(self):
+        key = "record-round-trip-key-0001"
+        other_key = "record-round-trip-key-0002"
+        profile = self.client.post(
+            "/api/profile",
+            headers=self.csrf_headers(self.client, key),
+            json={"nickname": "기록검증"},
+        )
+        self.assertEqual(profile.status_code, 200, profile.get_json())
+
+        created = self.client.post(
+            "/api/logs",
+            headers=self.csrf_headers(self.client, key),
+            json={
+                "exercise": "Bench Press",
+                "date": "2026-07-20",
+                "weightKg": 17,
+                "reps": 10,
+                "completedSets": 3,
+                "setWeights": [17, 18, 19],
+                "setReps": [10, 10, 12],
+            },
+        )
+        self.assertEqual(created.status_code, 201, created.get_json())
+        created_log = created.get_json()
+        self.assertEqual(created_log["setWeights"], [17.0, 18.0, 19.0])
+        self.assertEqual(created_log["setReps"], [10, 10, 12])
+        self.assertEqual(created_log["volume"], 578.0)
+
+        excuse_headers = self.csrf_headers(self.client, key)
+        first_excuse = self.client.post(
+            "/api/excuses",
+            headers=excuse_headers,
+            json={"date": "2026-07-21", "reason": "회복 필요"},
+        )
+        self.assertEqual(first_excuse.status_code, 201, first_excuse.get_json())
+        updated_excuse = self.client.post(
+            "/api/excuses",
+            headers=excuse_headers,
+            json={"date": "2026-07-21", "reason": "몸살"},
+        )
+        self.assertEqual(updated_excuse.status_code, 201, updated_excuse.get_json())
+
+        day_logs = self.client.get("/api/logs/day?date=2026-07-20", headers=self.headers(key))
+        month_logs = self.client.get("/api/logs?month=2026-07", headers=self.headers(key))
+        latest = self.client.get(
+            "/api/logs/latest?exercise=Bench%20Press", headers=self.headers(key)
+        )
+        stats = self.client.get("/api/stats", headers=self.headers(key))
+        bootstrap = self.client.get("/api/bootstrap?month=2026-07", headers=self.headers(key))
+        for response in (day_logs, month_logs, latest, stats, bootstrap):
+            self.assertEqual(response.status_code, 200, response.get_json())
+        self.assertEqual(len(day_logs.get_json()), 1)
+        self.assertEqual(len(month_logs.get_json()), 1)
+        self.assertEqual(latest.get_json()["id"], created_log["id"])
+        self.assertEqual(stats.get_json()["totalVolume"], 578.0)
+        self.assertEqual(stats.get_json()["totalReps"], 32)
+        self.assertEqual(stats.get_json()["totalSets"], 3)
+        self.assertEqual(stats.get_json()["totalRecords"], 1)
+        bootstrap_data = bootstrap.get_json()
+        self.assertEqual(bootstrap_data["profile"]["nickname"], "기록검증")
+        self.assertEqual(bootstrap_data["latestByExercise"]["Bench Press"]["id"], created_log["id"])
+        self.assertEqual(len(bootstrap_data["excuses"]), 1)
+        self.assertEqual(bootstrap_data["excuses"][0]["reason"], "몸살")
+
+        with app.app_context():
+            user = db.session.query(HealthUser).filter_by(user_key=key).one()
+            workout = db.session.get(HealthWorkout, created_log["id"])
+            self.assertEqual(workout.user_id, user.id)
+            self.assertEqual(db.session.query(HealthExercise).filter_by(name="Bench Press").count(), 1)
+            self.assertEqual(
+                [float(row.weight) for row in db.session.query(HealthSet).order_by(HealthSet.set_index)],
+                [17.0, 18.0, 19.0],
+            )
+            self.assertEqual(db.session.query(HealthExcuse).filter_by(user_id=user.id).count(), 1)
+
+        other_bootstrap = self.client.get("/api/bootstrap?month=2026-07", headers=self.headers(other_key))
+        self.assertEqual(other_bootstrap.status_code, 200)
+        self.assertEqual(other_bootstrap.get_json()["logs"], [])
+        self.assertEqual(other_bootstrap.get_json()["excuses"], [])
+        forbidden_delete = self.client.delete(
+            f"/api/logs/{created_log['id']}",
+            headers=self.csrf_headers(self.client, other_key),
+        )
+        self.assertEqual(forbidden_delete.status_code, 404)
+        deleted = self.client.delete(
+            f"/api/logs/{created_log['id']}", headers=self.csrf_headers(self.client, key)
+        )
+        self.assertEqual(deleted.status_code, 204)
+        with app.app_context():
+            self.assertEqual(db.session.query(HealthWorkout).count(), 0)
+            self.assertEqual(db.session.query(HealthSet).count(), 0)
+
+    def test_board_and_push_records_keep_user_ownership(self):
+        author_key = "board-author-key-0001"
+        reader_key = "board-reader-key-0001"
+        for key, nickname in ((author_key, "작성자"), (reader_key, "독자")):
+            response = self.client.post(
+                "/api/profile",
+                headers=self.csrf_headers(self.client, key),
+                json={"nickname": nickname},
+            )
+            self.assertEqual(response.status_code, 200, response.get_json())
+
+        post_response = self.client.post(
+            "/api/board/posts",
+            headers=self.csrf_headers(self.client, author_key),
+            json={"content": "오늘 운동 완료"},
+        )
+        self.assertEqual(post_response.status_code, 201, post_response.get_json())
+        post_id = post_response.get_json()["id"]
+        liked = self.client.post(
+            f"/api/board/posts/{post_id}/like",
+            headers=self.csrf_headers(self.client, reader_key),
+        )
+        self.assertEqual(liked.status_code, 200, liked.get_json())
+        commented = self.client.post(
+            f"/api/board/posts/{post_id}/comments",
+            headers=self.csrf_headers(self.client, reader_key),
+            json={"content": "좋은 기록입니다"},
+        )
+        self.assertEqual(commented.status_code, 200, commented.get_json())
+        comment_id = commented.get_json()[0]["comments"][0]["id"]
+        with patch("app.send_discord_board_report"):
+            reported = self.client.post(
+                "/api/board/reports",
+                headers=self.csrf_headers(self.client, reader_key),
+                json={"postId": post_id, "commentId": comment_id, "reason": "검증 신고"},
+            )
+        self.assertEqual(reported.status_code, 200, reported.get_json())
+        self.assertTrue(reported.get_json()["notificationDelivered"])
+
+        endpoint = f"https://push.example/{uuid.uuid4().hex}"
+        subscribed = self.client.post(
+            "/api/push/subscribe",
+            headers=self.csrf_headers(self.client, reader_key),
+            json={"endpoint": endpoint, "keys": {"p256dh": "public-key", "auth": "auth-key"}},
+        )
+        self.assertEqual(subscribed.status_code, 201, subscribed.get_json())
+        self.assertEqual(
+            self.client.post(
+                "/api/push/unsubscribe",
+                headers=self.csrf_headers(self.client, author_key),
+                json={"endpoint": endpoint},
+            ).status_code,
+            204,
+        )
+
+        board = self.client.get("/api/board/posts", headers=self.headers(reader_key))
+        self.assertEqual(board.status_code, 200)
+        row = board.get_json()[0]
+        self.assertTrue(row["likedByMe"])
+        self.assertEqual(row["likeCount"], 1)
+        self.assertEqual(len(row["comments"]), 1)
+        with app.app_context():
+            author = db.session.query(HealthUser).filter_by(user_key=author_key).one()
+            reader = db.session.query(HealthUser).filter_by(user_key=reader_key).one()
+            self.assertEqual(db.session.get(HealthBoardPost, post_id).user_id, author.id)
+            self.assertEqual(db.session.query(HealthBoardLike).one().user_id, reader.id)
+            self.assertEqual(db.session.query(HealthBoardComment).one().user_id, reader.id)
+            self.assertEqual(db.session.query(HealthBoardReport).one().reporter_user_id, reader.id)
+            self.assertEqual(db.session.query(HealthPushSubscription).one().user_id, reader.id)
+
+        unsubscribed = self.client.post(
+            "/api/push/unsubscribe",
+            headers=self.csrf_headers(self.client, reader_key),
+            json={"endpoint": endpoint},
+        )
+        self.assertEqual(unsubscribed.status_code, 204)
+        with app.app_context():
+            self.assertEqual(db.session.query(HealthPushSubscription).count(), 0)
+
+    def test_board_report_remains_successful_when_notification_fails(self):
+        author_key = "report-author-key-0001"
+        reporter_key = "report-reader-key-0001"
+        post = self.client.post(
+            "/api/board/posts",
+            headers=self.csrf_headers(self.client, author_key),
+            json={"content": "신고 저장 검증"},
+        )
+        self.assertEqual(post.status_code, 201, post.get_json())
+        with patch("app.send_discord_board_report", side_effect=RuntimeError("delivery failed")):
+            response = self.client.post(
+                "/api/board/reports",
+                headers=self.csrf_headers(self.client, reporter_key),
+                json={"postId": post.get_json()["id"], "reason": "외부 알림 실패 검증"},
+            )
+        self.assertEqual(response.status_code, 200, response.get_json())
+        self.assertTrue(response.get_json()["ok"])
+        self.assertFalse(response.get_json()["notificationDelivered"])
+        with app.app_context():
+            self.assertEqual(db.session.query(HealthBoardReport).count(), 1)
+
+    def test_storage_status_reports_the_active_database_backend(self):
+        response = self.client.get("/api/storage")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["backend"], "sqlite")
+        self.assertTrue(response.get_json()["persistent"])
+
+    def test_vapid_public_key_is_persisted_once(self):
+        key = "push-config-key-0001"
+        first = self.client.get("/api/push/vapid-public-key", headers=self.headers(key))
+        second = self.client.get("/api/push/vapid-public-key", headers=self.headers(key))
+        self.assertEqual(first.status_code, 200, first.get_json())
+        self.assertEqual(second.status_code, 200, second.get_json())
+        self.assertEqual(first.get_json()["publicKey"], second.get_json()["publicKey"])
+        with app.app_context():
+            self.assertEqual(db.session.query(HealthPushConfig).count(), 1)
 
 
 if __name__ == "__main__":

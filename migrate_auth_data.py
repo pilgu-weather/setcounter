@@ -10,7 +10,7 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, inspect, text
 
-from models import AuthAccount, AuthRateLimit
+from models import db
 
 
 COUNT_TABLES = (
@@ -95,8 +95,8 @@ def migrate(engine):
         print("Before counts:", before_counts)
         print("Before sample users:", before_samples)
 
-        AuthAccount.__table__.create(bind=connection, checkfirst=True)
-        AuthRateLimit.__table__.create(bind=connection, checkfirst=True)
+        # Add every model table that is absent without modifying existing tables or rows.
+        db.metadata.create_all(bind=connection, checkfirst=True)
         connection.execute(
             text("CREATE INDEX IF NOT EXISTS ix_auth_rate_limits_updated_at ON auth_rate_limits(updated_at)")
         )
@@ -126,7 +126,8 @@ def migrate(engine):
                 )
             )
 
-        after_counts = table_counts(connection)
+        all_after_counts = table_counts(connection)
+        after_counts = {table: all_after_counts[table] for table in before_counts}
         after_samples = sample_user_counts(connection)
         if before_counts != after_counts or before_samples != after_samples:
             raise RuntimeError("auth migration changed existing user-owned data counts")

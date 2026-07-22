@@ -82,6 +82,15 @@ CHEAT_WARNING_LIMIT = 2
 CHEAT_PENALTY_THRESHOLD = 3
 COMPLAINT_EMAIL = ""
 REQUIRED_SCHEMA = {
+    "auth_rate_limits": {
+        "id",
+        "scope",
+        "subject_hash",
+        "window_started_at",
+        "attempts",
+        "blocked_until",
+        "updated_at",
+    },
     "auth_accounts": {
         "id",
         "email",
@@ -1748,16 +1757,24 @@ def report_board_content():
     )
     db.session.add(report)
     db.session.commit()
+    notification_delivered = True
     try:
         send_discord_board_report(user, post, comment, reason)
-    except RuntimeError as error:
-        return jsonify({"error": str(error)}), 502
-    return jsonify({"ok": True})
+    except RuntimeError:
+        notification_delivered = False
+        app.logger.warning("Board report was saved, but Discord notification delivery failed")
+    return jsonify({"ok": True, "notificationDelivered": notification_delivered})
 
 
 @app.route("/api/storage", methods=["GET"])
 def storage_status():
-    return jsonify({"backend": "postgres", "persistent": True, "render": bool(os.environ.get("RENDER"))})
+    return jsonify(
+        {
+            "backend": db.engine.url.get_backend_name(),
+            "persistent": True,
+            "render": bool(os.environ.get("RENDER")),
+        }
+    )
 
 
 @app.route("/api/push/vapid-public-key", methods=["GET"])
@@ -1885,7 +1902,7 @@ def create_excuse():
 
 
 def normalized_set_data(payload, exercise):
-    step = 4 if exercise == "중량가방 푸쉬업" else 8
+    step = 1
     raw_weight = min(max(float(payload.get("weightKg", step)), step), MAX_WEIGHT_KG)
     fallback_weight = max(math.floor(raw_weight / step + 0.5) * step, step)
     raw_reps = payload.get("setReps", [])
@@ -1983,6 +2000,7 @@ def delete_log(log_id):
     )
     if workout is None:
         return jsonify({"error": "not found"}), 404
+    db.session.execute(delete(HealthSet).where(HealthSet.workout_id == workout.id))
     db.session.delete(workout)
     db.session.commit()
     return "", 204
