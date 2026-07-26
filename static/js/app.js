@@ -3729,7 +3729,7 @@ function syncRestTimerUi() {
   [...els.restTimerProgress.children].forEach((segment, index) => {
     segment.classList.toggle("is-remaining", index < activeSegments);
   });
-  els.restDurationValue.textContent = `${restTimerState.duration}초`;
+  els.restDurationValue.textContent = `휴식 ${restTimerState.duration}초`;
   els.restTimerProgress.setAttribute("aria-valuemin", "0");
   els.restTimerProgress.setAttribute("aria-valuemax", String(restTimerState.duration));
   els.restTimerProgress.setAttribute("aria-valuenow", String(restTimerState.remaining));
@@ -3740,13 +3740,17 @@ function syncRestTimerUi() {
   els.restTimer.classList.toggle("is-paused", restTimerState.paused);
   els.restTimer.classList.toggle("is-finished", restTimerState.finished);
   if (restTimerState.running) {
-    els.restTimerToggleButton.textContent = "일시정지";
+    els.restTimerToggleButton.classList.add("is-pause-action");
+    els.restTimerToggleButton.setAttribute("aria-label", "휴식 일시정지");
   } else if (restTimerState.finished) {
-    els.restTimerToggleButton.textContent = "다시 시작";
+    els.restTimerToggleButton.classList.remove("is-pause-action");
+    els.restTimerToggleButton.setAttribute("aria-label", "휴식 다시 시작");
   } else if (restTimerState.paused) {
-    els.restTimerToggleButton.textContent = "계속";
+    els.restTimerToggleButton.classList.remove("is-pause-action");
+    els.restTimerToggleButton.setAttribute("aria-label", "휴식 계속");
   } else {
-    els.restTimerToggleButton.textContent = "시작";
+    els.restTimerToggleButton.classList.remove("is-pause-action");
+    els.restTimerToggleButton.setAttribute("aria-label", "휴식 시작");
   }
 }
 
