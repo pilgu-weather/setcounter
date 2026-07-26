@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=75">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=76">
   </head>
   <body>
     <main class="app-shell" id="home">
@@ -198,30 +198,19 @@
             </div>
           </form>
 
-          <section class="rest-timer" id="restTimer" aria-labelledby="restTimerTitle">
-            <div class="rest-timer-heading">
-              <span class="rest-timer-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2 2"></path><path d="M9 2h6"></path><path d="M12 2v3"></path>
-                </svg>
-              </span>
-              <div><h3 id="restTimerTitle">휴식 타이머</h3><p id="restTimerStatus">세트 완료 후 자동 시작</p></div>
-              <strong id="restTimerDisplay" aria-live="polite">01:30</strong>
-            </div>
+          <section class="rest-timer" id="restTimer" aria-label="휴식 타이머">
+            <div class="rest-timer-progress" id="restTimerProgress" role="progressbar" aria-label="남은 휴식 시간"></div>
             <div class="rest-timer-controls">
-              <button class="rest-time-step" type="button" data-rest-step="-15" aria-label="휴식 시간 15초 줄이기">-15</button>
-              <label class="rest-duration-field">
-                <input id="restDurationInput" type="number" min="15" max="600" step="15" value="90" inputmode="numeric" aria-label="휴식 시간(초)">
-                <b aria-hidden="true">초</b>
-              </label>
-              <button class="rest-time-step" type="button" data-rest-step="15" aria-label="휴식 시간 15초 늘리기">+15</button>
+              <div class="rest-duration-stepper" aria-label="휴식 시간 설정">
+                <output id="restDurationValue">90초</output>
+                <span class="rest-duration-buttons">
+                  <button type="button" data-rest-step="15" aria-label="휴식 시간 15초 늘리기"><svg viewBox="0 0 12 8" aria-hidden="true"><path d="m2 6 4-4 4 4"></path></svg></button>
+                  <button type="button" data-rest-step="-15" aria-label="휴식 시간 15초 줄이기"><svg viewBox="0 0 12 8" aria-hidden="true"><path d="m2 2 4 4 4-4"></path></svg></button>
+                </span>
+              </div>
               <button class="rest-timer-toggle" id="restTimerToggleButton" type="button">시작</button>
-              <button class="rest-timer-reset" id="restTimerResetButton" type="button" aria-label="휴식 타이머 초기화">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path>
-                </svg>
-              </button>
             </div>
+            <span class="rest-timer-a11y" id="restTimerA11y" aria-live="polite"></span>
           </section>
 
           <div class="record-actions">
@@ -745,6 +734,6 @@
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=103"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=104"></script>
   </body>
 </html>

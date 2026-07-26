@@ -846,11 +846,10 @@ const els = {
   currentRepsInput: document.querySelector("#currentRepsInput"),
   setsInput: document.querySelector("#setsInput"),
   restTimer: document.querySelector("#restTimer"),
-  restTimerStatus: document.querySelector("#restTimerStatus"),
-  restTimerDisplay: document.querySelector("#restTimerDisplay"),
-  restDurationInput: document.querySelector("#restDurationInput"),
+  restTimerProgress: document.querySelector("#restTimerProgress"),
+  restTimerA11y: document.querySelector("#restTimerA11y"),
+  restDurationValue: document.querySelector("#restDurationValue"),
   restTimerToggleButton: document.querySelector("#restTimerToggleButton"),
-  restTimerResetButton: document.querySelector("#restTimerResetButton"),
   restTimeStepButtons: document.querySelectorAll("[data-rest-step]"),
   plannedRecord: document.querySelector("#plannedRecord"),
   setTableBody: document.querySelector("#setTableBody"),
@@ -3690,31 +3689,39 @@ function undoSet() {
   syncCounter();
 }
 
-function formatRestTimer(seconds) {
-  const safeSeconds = Math.max(Math.ceil(seconds || 0), 0);
-  return `${pad(Math.floor(safeSeconds / 60))}:${pad(safeSeconds % 60)}`;
-}
-
 function syncRestTimerUi() {
   if (!els.restTimer) return;
-  els.restTimerDisplay.textContent = formatRestTimer(restTimerState.remaining);
-  if (document.activeElement !== els.restDurationInput) {
-    els.restDurationInput.value = String(restTimerState.duration);
+  if (!els.restTimerProgress.childElementCount) {
+    const fragment = document.createDocumentFragment();
+    for (let index = 0; index < 30; index += 1) {
+      const segment = document.createElement("i");
+      segment.setAttribute("aria-hidden", "true");
+      fragment.appendChild(segment);
+    }
+    els.restTimerProgress.appendChild(fragment);
   }
+  const remainingRatio = restTimerState.duration > 0 ? restTimerState.remaining / restTimerState.duration : 0;
+  const activeSegments = Math.ceil(Math.min(Math.max(remainingRatio, 0), 1) * 30);
+  [...els.restTimerProgress.children].forEach((segment, index) => {
+    segment.classList.toggle("is-remaining", index < activeSegments);
+  });
+  els.restDurationValue.textContent = `${restTimerState.duration}초`;
+  els.restTimerProgress.setAttribute("aria-valuemin", "0");
+  els.restTimerProgress.setAttribute("aria-valuemax", String(restTimerState.duration));
+  els.restTimerProgress.setAttribute("aria-valuenow", String(restTimerState.remaining));
+  els.restTimerA11y.textContent = restTimerState.finished
+    ? "휴식 완료"
+    : `휴식 시간 ${restTimerState.remaining}초 남음`;
   els.restTimer.classList.toggle("is-running", restTimerState.running);
   els.restTimer.classList.toggle("is-paused", restTimerState.paused);
   els.restTimer.classList.toggle("is-finished", restTimerState.finished);
   if (restTimerState.running) {
-    els.restTimerStatus.textContent = "다음 세트까지 휴식 중";
     els.restTimerToggleButton.textContent = "일시정지";
   } else if (restTimerState.finished) {
-    els.restTimerStatus.textContent = "휴식 완료 · 다음 세트 준비";
     els.restTimerToggleButton.textContent = "다시 시작";
   } else if (restTimerState.paused) {
-    els.restTimerStatus.textContent = "일시정지됨";
     els.restTimerToggleButton.textContent = "계속";
   } else {
-    els.restTimerStatus.textContent = "세트 완료 후 자동 시작";
     els.restTimerToggleButton.textContent = "시작";
   }
 }
@@ -3759,7 +3766,7 @@ function finishRestTimer() {
   restTimerState.finished = true;
   syncRestTimerUi();
   playRestTimerSignal();
-  window.gsap?.fromTo(els.restTimerDisplay, { scale: 0.82 }, { scale: 1, duration: 0.42, ease: "back.out(2)" });
+  window.gsap?.fromTo(els.restTimerProgress, { scaleY: 0.72 }, { scaleY: 1, duration: 0.42, ease: "back.out(2)" });
   showToast("휴식 완료. 다음 세트를 시작하세요.");
 }
 
@@ -3929,7 +3936,6 @@ function bindEvents() {
   [els.weightInput, els.currentRepsInput, els.setsInput].forEach((input) => {
     input.addEventListener("input", syncCounter);
   });
-  els.restDurationInput.addEventListener("change", () => setRestTimerDuration(els.restDurationInput.value));
   els.restTimeStepButtons.forEach((button) => {
     button.addEventListener("click", () => {
       setRestTimerDuration(restTimerState.duration + Number.parseInt(button.dataset.restStep, 10));
@@ -3939,7 +3945,6 @@ function bindEvents() {
     if (restTimerState.running) pauseRestTimer();
     else startRestTimer(restTimerState.finished);
   });
-  els.restTimerResetButton.addEventListener("click", resetRestTimer);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && restTimerState.running) updateRestTimer();
   });

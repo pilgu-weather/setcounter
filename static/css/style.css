@@ -4035,96 +4035,106 @@ select:focus {
 .rest-timer {
   margin-top: 14px;
   overflow: hidden;
-  border: 1px solid rgba(116, 134, 164, 0.22);
-  border-radius: 10px;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.055), transparent 42%),
-    #111720;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055), 0 10px 24px rgba(0, 0, 0, 0.22);
-  padding: 12px;
-  transition: border-color 180ms var(--sc-ease), box-shadow 180ms var(--sc-ease), background-color 180ms var(--sc-ease);
+  padding: 10px 0 0;
 }
 
-.rest-timer-heading {
+.rest-timer-progress {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 9px;
+  grid-template-columns: repeat(30, minmax(2px, 1fr));
+  gap: 3px;
+  width: 100%;
+  height: 26px;
+  align-items: stretch;
+  transform-origin: center;
 }
 
-.rest-timer-icon {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(91, 145, 238, 0.28);
-  border-radius: 8px;
-  background: rgba(46, 124, 255, 0.1);
-  color: #78a8ff;
+.rest-timer-progress i {
+  display: block;
+  min-width: 0;
+  border-radius: 3px;
+  background: #252d39;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  transition: background-color 180ms var(--sc-ease), box-shadow 180ms var(--sc-ease), opacity 180ms var(--sc-ease);
 }
 
-.rest-timer-icon svg,
-.rest-timer-reset svg {
-  width: 18px;
-  height: 18px;
-}
-
-.rest-timer-heading h3,
-.rest-timer-heading p {
-  margin: 0;
-}
-
-.rest-timer-heading h3 {
-  color: var(--sc-text);
-  font-size: 14px;
-  font-weight: 850;
-}
-
-.rest-timer-heading p {
-  margin-top: 2px;
-  overflow: hidden;
-  color: var(--sc-text-tertiary);
-  font-size: 10px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rest-timer-heading > strong {
-  color: #f7f9fd;
-  font-size: 27px;
-  font-weight: 850;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  line-height: 1;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.48);
+.rest-timer-progress i.is-remaining {
+  background: #2e7cff;
+  box-shadow: 0 0 7px rgba(46, 124, 255, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .rest-timer-controls {
-  display: grid;
-  grid-template-columns: 40px minmax(64px, 72px) 40px minmax(72px, 1fr) 40px;
-  gap: 6px;
-  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
 }
 
-.rest-timer-controls button,
-.rest-duration-field {
-  min-width: 0;
-  min-height: 42px;
+.rest-duration-stepper {
+  display: flex;
+  align-items: center;
+  width: 82px;
+  height: 40px;
+  overflow: hidden;
   border: 1px solid rgba(126, 143, 171, 0.24);
   border-radius: 9px;
-  background: rgba(7, 11, 17, 0.64);
-  color: var(--sc-text-secondary);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  background: rgba(13, 18, 26, 0.76);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-.rest-timer-controls button {
-  display: grid;
-  place-items: center;
-  padding: 0;
-  font-size: 12px;
+.rest-duration-stepper output {
+  flex: 1;
+  padding-left: 12px;
+  color: #f5f7fb;
+  font-size: 14px;
   font-weight: 850;
-  transition: transform 140ms var(--sc-ease), border-color 160ms var(--sc-ease), filter 160ms var(--sc-ease);
+  font-variant-numeric: tabular-nums;
+}
+
+.rest-duration-buttons {
+  display: grid;
+  align-self: stretch;
+  width: 24px;
+  border-left: 1px solid rgba(126, 143, 171, 0.18);
+}
+
+.rest-duration-buttons button {
+  display: grid;
+  min-width: 24px;
+  min-height: 19px;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #8fa1bb;
+  padding: 0;
+}
+
+.rest-duration-buttons button + button {
+  border-top: 1px solid rgba(126, 143, 171, 0.18);
+}
+
+.rest-duration-buttons svg {
+  width: 10px;
+  height: 7px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.rest-timer-controls .rest-timer-toggle {
+  min-width: 88px;
+  min-height: 40px;
+  border: 1px solid rgba(78, 139, 248, 0.56);
+  border-radius: 9px;
+  background: #246eea;
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 6px 14px rgba(13, 70, 169, 0.2);
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 850;
+  transition: transform 140ms var(--sc-ease), filter 160ms var(--sc-ease);
 }
 
 .rest-timer-controls button:active {
@@ -4132,74 +4142,27 @@ select:focus {
   filter: brightness(0.9);
 }
 
-.rest-duration-field {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 0 8px;
-}
-
-.rest-duration-field input {
-  width: 100%;
-  min-height: 40px;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  padding: 0;
-  color: #f5f7fb;
-  font-size: 16px;
-  font-weight: 850;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.rest-duration-field input:focus {
-  border: 0;
-  box-shadow: none;
-}
-
-.rest-duration-field b {
-  color: var(--sc-text-tertiary);
-  font-size: 10px;
-}
-
-.rest-timer-controls .rest-timer-toggle {
-  border-color: rgba(78, 139, 248, 0.6);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.13), transparent 52%),
-    #246eea;
-  color: #fff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 7px 16px rgba(13, 70, 169, 0.24);
-  font-size: 13px;
-}
-
-.rest-timer.is-running {
-  border-color: rgba(62, 132, 255, 0.58);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 0 20px rgba(46, 124, 255, 0.13);
-}
-
-.rest-timer.is-running .rest-timer-icon {
-  color: #b8d1ff;
-  box-shadow: 0 0 14px rgba(46, 124, 255, 0.2);
-}
-
 .rest-timer.is-paused .rest-timer-toggle {
   background: #263247;
 }
 
-.rest-timer.is-finished {
-  border-color: rgba(102, 201, 135, 0.54);
-}
-
-.rest-timer.is-finished .rest-timer-icon,
-.rest-timer.is-finished .rest-timer-heading > strong {
-  color: #79d899;
+.rest-timer.is-finished .rest-timer-progress i {
+  background: rgba(102, 201, 135, 0.26);
+  box-shadow: none;
 }
 
 .rest-timer.is-finished .rest-timer-toggle {
   border-color: rgba(102, 201, 135, 0.48);
   background: #247443;
+}
+
+.rest-timer-a11y {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 
 .record-actions .action-row,
