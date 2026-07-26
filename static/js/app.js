@@ -1512,7 +1512,7 @@ function renderLevelHistory() {
   els.levelHistoryXpTrack.setAttribute("aria-valuenow", String(level >= 99 ? 100 : percent));
   els.levelHistoryXpDetail.textContent = level >= 99
     ? `최고 레벨 달성 · 누적 경험치 ${cleanNumber(stats.experience || 0)}`
-    : `누적 경험치 ${cleanNumber(stats.experience || 0)} · 신기록 ${stats.levelUps || 0}회 · 경험치 차감 ${stats.experienceDowns || 0}회`;
+    : `누적 경험치 ${cleanNumber(stats.experience || 0)} · 신기록 ${stats.levelUps || 0}회 · 레벨다운 ${stats.levelDowns || 0}회`;
   els.levelHistoryCount.textContent = `${history.length}건`;
   els.levelHistoryList.replaceChildren();
   if (!history.length) {
@@ -1524,15 +1524,18 @@ function renderLevelHistory() {
   }
   history.forEach((event) => {
     const up = event.type === "level_up";
+    const down = event.type === "level_down";
     const experienceDelta = Math.abs(Number(event.experienceDelta) || 0);
     const resultMarkup = up
       ? `<small>LV.${event.levelBefore}</small><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg><strong>LV.${event.levelAfter}</strong>`
-      : `<strong>-${cleanNumber(experienceDelta)} XP</strong>`;
+      : down
+        ? `<small>LV.${event.levelBefore}</small><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg><strong>LV.${event.levelAfter}</strong>`
+        : `<strong>-${cleanNumber(experienceDelta)} XP</strong>`;
     const item = document.createElement("article");
     item.className = `level-history-item ${up ? "is-up" : "is-down"}`;
     item.innerHTML = `
       <span class="level-history-direction" aria-hidden="true"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${up ? "m18 15-6-6-6 6" : "m6 9 6 6 6-6"}"/></svg></span>
-      <span class="level-history-copy"><small>${escapeHtml(formatLevelHistoryDate(event.date))}</small><strong>${escapeHtml(event.exercise || (up ? "레벨업" : "경험치 차감"))}</strong><em>${up ? "신기록 달성" : "레벨 유지 · 경험치 차감"}</em></span>
+      <span class="level-history-copy"><small>${escapeHtml(formatLevelHistoryDate(event.date))}</small><strong>${escapeHtml(event.exercise || (up ? "레벨업" : down ? "레벨다운" : "경험치 차감"))}</strong><em>${up ? "신기록 달성" : down ? `경험치 ${cleanNumber(experienceDelta)} 차감 · 레벨 하락` : "레벨 유지 · 경험치 차감"}</em></span>
       <span class="level-history-level">${resultMarkup}</span>
     `;
     els.levelHistoryList.append(item);
@@ -1927,8 +1930,8 @@ function syncSelectedDateUi() {
 }
 
 function announceLevelChange(previousLevel, nextLevel) {
-  if (!previousLevel || nextLevel <= previousLevel) return;
-  showToast(`레벨업: LV.${nextLevel}`);
+  if (!previousLevel || nextLevel === previousLevel) return;
+  showToast(nextLevel > previousLevel ? `레벨업: LV.${nextLevel}` : `레벨다운: LV.${nextLevel}`);
 }
 
 function reducedMotionPreferred() {

@@ -1096,7 +1096,7 @@ def stats_from_logs(logs, excuse_dates):
     previous_by_exercise = {}
     xp = 0.0
     level = 1
-    ups = experience_downs = 0
+    ups = level_downs = experience_downs = 0
     earned_awards = []
     level_history = []
     for log in logs:
@@ -1109,7 +1109,7 @@ def stats_from_logs(logs, excuse_dates):
                 xp += xp_delta
                 earned_awards.append(xp_delta)
                 ups += 1
-                level = max(level, level_for_experience(xp))
+                level = level_for_experience(xp)
                 if level > before_level:
                     level_history.append(
                         {
@@ -1125,19 +1125,23 @@ def stats_from_logs(logs, excuse_dates):
                         }
                     )
             elif log["volume"] < previous:
+                before_level = level
                 last_award = earned_awards.pop() if earned_awards else breakthrough_rate_for_level(level)
                 deducted_xp = min(last_award, xp)
                 if deducted_xp > 0:
                     xp_delta = -deducted_xp
                     xp -= deducted_xp
+                    level = level_for_experience(xp)
                     experience_downs += 1
+                    if level < before_level:
+                        level_downs += 1
                     level_history.append(
                         {
-                            "type": "experience_down",
+                            "type": "level_down" if level < before_level else "experience_down",
                             "date": log["date"],
                             "createdAt": log["createdAt"],
                             "exercise": log["exercise"],
-                            "levelBefore": level,
+                            "levelBefore": before_level,
                             "levelAfter": level,
                             "experienceDelta": round(xp_delta, 2),
                             "volume": log["volume"],
@@ -1150,29 +1154,35 @@ def stats_from_logs(logs, excuse_dates):
     cheat_penalty = cheat_penalty_from_logs(logs)
     total_penalty = challenge["penalty"] + cheat_penalty
     total_xp = max(xp - total_penalty, 0)
-    progress = 1 if level >= 99 else min(max(total_xp - (level - 1), 0), 1)
     penalty_deduction = min(total_penalty, xp)
     if penalty_deduction > 0:
+        before_level = level
+        level = level_for_experience(total_xp)
+        if level < before_level:
+            level_downs += 1
         penalty_dates = challenge["failedDates"] or [log["date"] for log in logs if log.get("suspicionScore", 0) > 0]
         level_history.append(
             {
-                "type": "experience_down",
+                "type": "level_down" if level < before_level else "experience_down",
                 "date": max(penalty_dates) if penalty_dates else today_kst().isoformat(),
                 "createdAt": None,
                 "exercise": "기록 패널티",
-                "levelBefore": level,
+                "levelBefore": before_level,
                 "levelAfter": level,
                 "experienceDelta": round(-penalty_deduction, 2),
                 "volume": None,
                 "previousVolume": None,
             }
         )
+    else:
+        level = level_for_experience(total_xp)
+    progress = 1 if level >= 99 else min(max(total_xp - (level - 1), 0), 1)
     level_history.sort(key=lambda item: (item["date"], item.get("createdAt") or ""))
     return {
         "level": level,
-        "rule": "highest_level_with_reversible_experience_and_penalty_guard",
+        "rule": "experience_driven_level_with_reversible_latest_award",
         "levelUps": ups,
-        "levelDowns": 0,
+        "levelDowns": level_downs,
         "experienceDowns": experience_downs + (1 if penalty_deduction > 0 else 0),
         "experience": round(total_xp, 2),
         "experiencePercent": round(progress * 100, 1),
@@ -2055,7 +2065,7 @@ def create_log():
             "levelBefore": before_stats["level"],
             "levelAfter": after_stats["level"],
             "leveledUp": after_stats["level"] > before_stats["level"],
-            "leveledDown": False,
+            "leveledDown": after_stats["level"] < before_stats["level"],
             "experienceBefore": before_stats["experience"],
             "experienceAfter": after_stats["experience"],
             "experienceReduced": after_stats["experience"] < before_stats["experience"],

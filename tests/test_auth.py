@@ -14,7 +14,7 @@ os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB.as_posix()}"
 os.environ["SETCOUNTER_ALLOW_LOCAL_SQLITE"] = "1"
 os.environ["SECRET_KEY"] = secrets.token_urlsafe(48)
 
-from app import REQUIRED_SCHEMA, app, breakthrough_rate_for_level, db, stats_from_logs
+from app import REQUIRED_SCHEMA, app, db, level_for_experience, stats_from_logs
 from migrate_auth_data import migrate
 from models import (
     AuthAccount,
@@ -474,7 +474,7 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertEqual(db.session.query(HealthWorkout).count(), 0)
             self.assertEqual(db.session.query(HealthSet).count(), 0)
 
-    def test_level_history_keeps_earned_level_and_deducts_latest_experience(self):
+    def test_level_history_deducts_latest_experience_and_recalculates_level(self):
         key = "level-history-key-0001"
         workout_date = date.today().isoformat()
 
@@ -506,10 +506,10 @@ class AuthSystemTestCase(unittest.TestCase):
 
         lower_record = save(9)
         self.assertEqual(lower_record.status_code, 201, lower_record.get_json())
-        self.assertFalse(lower_record.get_json()["leveledDown"])
+        self.assertTrue(lower_record.get_json()["leveledDown"])
         self.assertTrue(lower_record.get_json()["experienceReduced"])
         self.assertEqual(lower_record.get_json()["levelBefore"], 2)
-        self.assertEqual(lower_record.get_json()["levelAfter"], 2)
+        self.assertEqual(lower_record.get_json()["levelAfter"], 1)
         self.assertEqual(lower_record.get_json()["experienceBefore"], 1)
         self.assertEqual(lower_record.get_json()["experienceAfter"], 0)
 
@@ -517,18 +517,18 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(stats.status_code, 200, stats.get_json())
         history = stats.get_json()["levelHistory"]
         self.assertEqual(len(history), 2)
-        self.assertEqual(stats.get_json()["level"], 2)
-        self.assertEqual(stats.get_json()["levelDowns"], 0)
+        self.assertEqual(stats.get_json()["level"], 1)
+        self.assertEqual(stats.get_json()["levelDowns"], 1)
         self.assertEqual(stats.get_json()["experienceDowns"], 1)
-        self.assertEqual(history[0]["type"], "experience_down")
+        self.assertEqual(history[0]["type"], "level_down")
         self.assertEqual(history[0]["levelBefore"], 2)
-        self.assertEqual(history[0]["levelAfter"], 2)
+        self.assertEqual(history[0]["levelAfter"], 1)
         self.assertEqual(history[0]["experienceDelta"], -1)
         self.assertEqual(history[1]["type"], "level_up")
         self.assertEqual(history[1]["exercise"], "Bench Press")
         self.assertEqual(history[1]["date"], workout_date)
 
-    def test_high_level_loss_removes_latest_fractional_award_without_level_down(self):
+    def test_high_level_loss_removes_latest_fractional_award_and_recalculates_level(self):
         workout_date = date.today().isoformat()
         logs = []
         for index in range(32):
@@ -544,9 +544,10 @@ class AuthSystemTestCase(unittest.TestCase):
                 }
             )
 
+        before_last_gain = stats_from_logs(logs[:-1], set())
         before = stats_from_logs(logs, set())
         self.assertGreaterEqual(before["level"], 20)
-        latest_award = breakthrough_rate_for_level(before["level"])
+        latest_award = before["experience"] - before_last_gain["experience"]
         logs.append(
             {
                 "exercise": "Bench Press",
@@ -560,10 +561,50 @@ class AuthSystemTestCase(unittest.TestCase):
         )
 
         after = stats_from_logs(logs, set())
-        self.assertEqual(after["level"], before["level"])
         self.assertAlmostEqual(after["experience"], before["experience"] - latest_award, places=2)
-        self.assertEqual(after["levelHistory"][0]["type"], "experience_down")
+        self.assertEqual(after["level"], level_for_experience(after["experience"]))
+        expected_type = "level_down" if after["level"] < before["level"] else "experience_down"
+        self.assertEqual(after["levelHistory"][0]["type"], expected_type)
+        self.assertEqual(after["levelDowns"], 1 if after["level"] < before["level"] else 0)
         self.assertAlmostEqual(after["levelHistory"][0]["experienceDelta"], -latest_award, places=2)
+
+    def test_experience_loss_keeps_level_when_xp_remains_above_level_floor(self):
+        workout_date = date.today().isoformat()
+        logs = [
+            {
+                "exercise": "Squat",
+                "date": workout_date,
+                "createdAt": f"2026-07-26T02:{index:02d}:00+00:00",
+                "volume": 100 + index,
+                "totalReps": 10,
+                "completedSets": 1,
+                "suspicionScore": 0,
+            }
+            for index in range(11)
+        ]
+        before_last_gain = stats_from_logs(logs[:-1], set())
+        before = stats_from_logs(logs, set())
+        self.assertEqual(before_last_gain["level"], 10)
+        self.assertEqual(before["level"], 10)
+        self.assertAlmostEqual(before["experience"], 9.9, places=2)
+
+        logs.append(
+            {
+                "exercise": "Squat",
+                "date": workout_date,
+                "createdAt": "2026-07-26T03:00:00+00:00",
+                "volume": 50,
+                "totalReps": 10,
+                "completedSets": 1,
+                "suspicionScore": 0,
+            }
+        )
+        after = stats_from_logs(logs, set())
+        self.assertEqual(after["level"], 10)
+        self.assertAlmostEqual(after["experience"], 9, places=2)
+        self.assertEqual(after["levelDowns"], 0)
+        self.assertEqual(after["levelHistory"][0]["type"], "experience_down")
+        self.assertAlmostEqual(after["levelHistory"][0]["experienceDelta"], -0.9, places=2)
 
     def test_board_and_push_records_keep_user_ownership(self):
         author_key = "board-author-key-0001"
