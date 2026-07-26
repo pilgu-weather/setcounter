@@ -3899,23 +3899,9 @@ select:focus {
 }
 
 [data-screen="home"] .home-brand {
-  gap: 12px;
   min-width: 0;
 }
 
-[data-screen="home"] .home-brand .brand-logo {
-  width: 46px;
-  height: 46px;
-  flex: 0 0 46px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 10px;
-  background: #11151c;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 8px 22px rgba(0, 0, 0, 0.34);
-}
-
-[data-screen="home"] .home-brand .eyebrow,
 [data-screen="home"] .home-section-head .eyebrow,
 [data-screen="home"] .home-progress-head .eyebrow {
   color: #78aaff;
@@ -3924,9 +3910,10 @@ select:focus {
 
 [data-screen="home"] .home-header h1 {
   color: var(--sc-text);
-  font-size: 25px;
-  font-weight: 850;
-  line-height: 1.08;
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 [data-screen="home"] .menu-button {
@@ -4436,7 +4423,7 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
 }
 
 @media (max-width: 380px) {
-  [data-screen="home"] .home-header h1 { font-size: 23px; }
+  [data-screen="home"] .home-header h1 { font-size: 32px; }
   [data-screen="home"] .home-profile-row { gap: 8px; }
   [data-screen="home"] .home-profile-row > span { padding-inline: 7px; font-size: 11px; }
   [data-screen="home"] .workout-plan-card { flex-basis: calc(100vw - 46px); min-height: 304px; padding: 18px; }

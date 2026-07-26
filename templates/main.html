@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=71">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=72">
   </head>
   <body>
     <main class="app-shell" id="home">
@@ -18,8 +18,7 @@
         <header class="home-header">
           <div class="hero-top">
             <div class="home-brand">
-              <img class="brand-logo" src="{{ url_for('static', filename='assets/newlogo.webp') }}?v=1" alt="Set Counter 로고" decoding="async">
-              <div><p class="eyebrow">SET COUNTER</p><h1 id="homeTitle">오늘의 플랜</h1></div>
+              <h1 id="homeTitle">SET COUNTER</h1>
             </div>
             <button class="menu-button" id="menuButton" type="button" aria-haspopup="true" aria-expanded="false" aria-label="메뉴"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12h16"/><path d="M4 6h16"/><path d="M4 18h16"/></svg></button>
             <div class="menu-popover" id="menuPopover" hidden>
