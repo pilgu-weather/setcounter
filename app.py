@@ -2011,7 +2011,7 @@ def create_log():
     try:
         workout_date = parse_date(payload.get("date") or today_kst().isoformat())
         set_data = normalized_set_data(payload, exercise_name)
-        rest_seconds = min(max(int(payload.get("restSeconds", 90)), 15), 600)
+        rest_seconds = min(max(int(payload.get("restSeconds", 90)), 10), 600)
     except (TypeError, ValueError):
         return jsonify({"error": "valid date, weight, reps, and completed sets are required"}), 400
     existing_logs = [

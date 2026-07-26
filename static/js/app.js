@@ -666,7 +666,7 @@ const state = {
 
 const storedRestTimerDuration = Number.parseInt(window.localStorage.getItem(REST_TIMER_DURATION_STORAGE), 10);
 const initialRestTimerDuration = Number.isFinite(storedRestTimerDuration)
-  ? Math.min(Math.max(storedRestTimerDuration, 15), 600)
+  ? Math.min(Math.max(Math.round(storedRestTimerDuration / 10) * 10, 10), 600)
   : 90;
 const restTimerState = {
   duration: initialRestTimerDuration,
@@ -3839,7 +3839,7 @@ function resetRestTimer() {
 
 function setRestTimerDuration(value) {
   const parsed = Number.parseInt(value, 10);
-  const next = Math.min(Math.max(Math.round((Number.isFinite(parsed) ? parsed : 90) / 15) * 15, 15), 600);
+  const next = Math.min(Math.max(Math.round((Number.isFinite(parsed) ? parsed : 90) / 10) * 10, 10), 600);
   restTimerState.duration = next;
   window.localStorage.setItem(REST_TIMER_DURATION_STORAGE, String(next));
   resetRestTimer();

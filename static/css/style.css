@@ -4039,6 +4039,10 @@ select:focus {
 }
 
 .rest-timer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
   margin-top: 14px;
   overflow: hidden;
   padding: 10px 0 0;
@@ -4077,7 +4081,7 @@ select:focus {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .rest-duration-stepper {
@@ -4147,6 +4151,10 @@ select:focus {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   padding: 0;
   transition: transform 140ms var(--sc-ease), filter 160ms var(--sc-ease);
+}
+
+.rest-timer-controls .rest-timer-toggle[hidden] {
+  display: none;
 }
 
 .rest-timer-toggle svg {

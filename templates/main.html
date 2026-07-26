@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=78">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=79">
   </head>
   <body>
     <main class="app-shell" id="home">
@@ -205,11 +205,11 @@
               <div class="rest-duration-stepper" aria-label="휴식 시간 설정">
                 <output id="restDurationValue">휴식 90초</output>
                 <span class="rest-duration-buttons">
-                  <button type="button" data-rest-step="15" aria-label="휴식 시간 15초 늘리기"><svg viewBox="0 0 12 8" aria-hidden="true"><path d="m2 6 4-4 4 4"></path></svg></button>
-                  <button type="button" data-rest-step="-15" aria-label="휴식 시간 15초 줄이기"><svg viewBox="0 0 12 8" aria-hidden="true"><path d="m2 2 4 4 4-4"></path></svg></button>
+                  <button type="button" data-rest-step="10" aria-label="휴식 시간 10초 늘리기"><svg viewBox="0 0 12 8" aria-hidden="true"><path d="m2 6 4-4 4 4"></path></svg></button>
+                  <button type="button" data-rest-step="-10" aria-label="휴식 시간 10초 줄이기"><svg viewBox="0 0 12 8" aria-hidden="true"><path d="m2 2 4 4 4-4"></path></svg></button>
                 </span>
               </div>
-              <button class="rest-timer-toggle" id="restTimerToggleButton" type="button" aria-label="휴식 시작">
+              <button class="rest-timer-toggle" id="restTimerToggleButton" type="button" aria-label="휴식 시작" hidden>
                 <svg class="rest-timer-play-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8Z"/></svg>
                 <svg class="rest-timer-pause-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
               </button>
@@ -738,6 +738,6 @@
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=106"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=107"></script>
   </body>
 </html>
