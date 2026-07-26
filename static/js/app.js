@@ -928,6 +928,7 @@ async function api(path, options = {}) {
   };
   const response = await fetch(path, {
     ...options,
+    cache: "no-store",
     credentials: "same-origin",
     headers,
   });
@@ -1542,12 +1543,18 @@ function renderLevelHistory() {
   });
 }
 
-function openLevelHistory() {
+async function openLevelHistory() {
   rememberMenuOverlayTrigger();
   renderLevelHistory();
   els.levelHistoryModal.hidden = false;
   syncMenuOverlayLock();
   window.SetCounterMotion?.openOverlay(els.levelHistoryModal, { sheet: true, onComplete: () => els.closeLevelHistoryButton.focus() });
+  try {
+    await loadStatsOnly();
+    renderLevelHistory();
+  } catch (error) {
+    showToast(error.message);
+  }
 }
 
 function closeLevelHistory() {
