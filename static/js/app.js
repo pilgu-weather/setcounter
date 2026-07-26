@@ -199,6 +199,7 @@ let koInstructionsMap = {};
 let setCounterDefaultExercises = [];
 const defaultApiNameOverrides = {
   Barbell_Hip_Thrust: "바벨 힙 쓰러스트",
+  Romanian_Deadlift: "루마니안 데드리프트",
 };
 const libraryState = { body: "전체", equipment: "전체" };
 
@@ -519,8 +520,8 @@ function mergeSetCounterDefaults(freeExercises) {
     return true;
   }).map((preset) => {
     const base = bySourceId.get(preset.sourceId) || {};
-    const apiDisplayName = koCommonExerciseMap[preset.sourceId]?.displayName
-      || defaultApiNameOverrides[preset.sourceId]
+    const apiDisplayName = defaultApiNameOverrides[preset.sourceId]
+      || koCommonExerciseMap[preset.sourceId]?.displayName
       || base.englishName
       || base.freeDbName
       || preset.sourceId;
@@ -1599,10 +1600,49 @@ function exerciseImage(name) {
 }
 
 const workoutPlans = [
-  { id: "upper-push", label: "3종목 · 가슴/어깨", title: "넓고 탄탄한 상체 만들기", copy: "벤치프레스부터 어깨까지, 상체 앞라인을 꽉 채우는 덤벨 루틴입니다.", duration: "약 35분", theme: "gold", image: "plan-upper-push.webp", exercises: ["벤치프레스", "숄더 프레스", "사이드 레터럴 레이즈"] },
-  { id: "upper-pull", label: "3종목 · 등/팔", title: "등과 팔 라인 채우기", copy: "등을 단단히 잡고 팔까지 채워, 당기는 힘을 고르게 끌어올립니다.", duration: "약 30분", theme: "cyan", image: "plan-upper-pull.webp", exercises: ["덤벨 로우", "덤벨 컬", "해머 컬"] },
-  { id: "lower-body", label: "3종목 · 하체/둔근", title: "하체 힘 꽉 채우기", copy: "스쿼트와 힙, 힌지 동작으로 다리와 둔근을 단단하게 깨웁니다.", duration: "약 40분", theme: "coral", image: "plan-lower-body.webp", exercises: ["고블릿 스쿼트", "덤벨 힙", "덤벨 루마니안 데드리프트"] },
-  { id: "quick-full-body", label: "3종목 · 빠른 전신", title: "25분 전신 깨우기", copy: "시간이 없는 날에도 밀기·하체·당기기를 한 번에 챙기는 빠른 루틴입니다.", duration: "약 25분", theme: "violet", image: "plan-quick-full-body.webp", exercises: ["중량가방 푸쉬업", "고블릿 스쿼트", "덤벨 로우"] },
+  {
+    id: "upper-push", focus: "가슴 · 어깨 · 삼두", title: "넓고 탄탄한 상체 만들기",
+    copy: "가슴의 두께부터 어깨 너비, 삼두 마무리까지 한 번에 채웁니다.", duration: "약 50분", theme: "gold", image: "plan-upper-push.webp",
+    exercises: [
+      { sourceId: "Barbell_Bench_Press_-_Medium_Grip", name: "바벨 벤치프레스", fallbackName: "벤치프레스", sets: 3, reps: "6-10", defaultReps: 8, rest: 90 },
+      { sourceId: "Barbell_Incline_Bench_Press_-_Medium_Grip", name: "인클라인 바벨 벤치프레스", sets: 3, reps: "8-12", defaultReps: 10, rest: 75 },
+      { sourceId: "Dumbbell_Shoulder_Press", name: "덤벨 숄더 프레스", fallbackName: "숄더 프레스", sets: 3, reps: "8-12", defaultReps: 10, rest: 75 },
+      { sourceId: "Side_Lateral_Raise", name: "사이드 레터럴 레이즈", fallbackName: "사이드 레터럴 레이즈", sets: 3, reps: "12-15", defaultReps: 12, rest: 45 },
+      { sourceId: "Triceps_Pushdown_-_Rope_Attachment", name: "로프 트라이셉스 푸쉬다운", sets: 3, reps: "10-15", defaultReps: 12, rest: 45 },
+    ],
+  },
+  {
+    id: "upper-pull", focus: "등 · 후면 어깨 · 이두", title: "등과 팔 라인 채우기",
+    copy: "등 너비와 두께를 먼저 만들고 후면 어깨와 팔까지 단단히 마칩니다.", duration: "약 45분", theme: "cyan", image: "plan-upper-pull.webp",
+    exercises: [
+      { sourceId: "Wide-Grip_Lat_Pulldown", name: "와이드 그립 랫풀다운", sets: 3, reps: "8-12", defaultReps: 10, rest: 75 },
+      { sourceId: "Bent_Over_Barbell_Row", name: "벤트오버 바벨 로우", sets: 3, reps: "6-10", defaultReps: 8, rest: 90 },
+      { sourceId: "Seated_Cable_Rows", name: "시티드 케이블 로우", sets: 3, reps: "8-12", defaultReps: 10, rest: 75 },
+      { sourceId: "Face_Pull", name: "페이스 풀", sets: 3, reps: "12-15", defaultReps: 12, rest: 45 },
+      { sourceId: "Hammer_Curls", name: "해머 컬", fallbackName: "해머 컬", sets: 3, reps: "10-12", defaultReps: 10, rest: 45 },
+    ],
+  },
+  {
+    id: "lower-body", focus: "허벅지 · 둔근 · 햄스트링", title: "하체 힘 꽉 채우기",
+    copy: "스쿼트, 힌지, 런지를 중심으로 하체 앞뒤와 둔근을 고르게 단련합니다.", duration: "약 50분", theme: "coral", image: "plan-lower-body.webp",
+    exercises: [
+      { sourceId: "Barbell_Full_Squat", name: "바벨 백 스쿼트", sets: 3, reps: "6-10", defaultReps: 8, rest: 90 },
+      { sourceId: "Romanian_Deadlift", name: "루마니안 데드리프트", fallbackName: "덤벨 루마니안 데드리프트", sets: 3, reps: "8-12", defaultReps: 10, rest: 90 },
+      { sourceId: "Barbell_Hip_Thrust", name: "바벨 힙 쓰러스트", fallbackName: "덤벨 힙", sets: 3, reps: "8-12", defaultReps: 10, rest: 75 },
+      { sourceId: "Barbell_Walking_Lunge", name: "바벨 워킹 런지", sets: 3, reps: "좌우 8-10", defaultReps: 8, rest: 75 },
+      { sourceId: "Calf_Raise_On_A_Dumbbell", name: "덤벨 카프 레이즈", sets: 3, reps: "12-15", defaultReps: 12, rest: 45 },
+    ],
+  },
+  {
+    id: "quick-full-body", focus: "하체 · 밀기 · 당기기", title: "25분 전신 깨우기",
+    copy: "큰 근육을 쓰는 네 동작으로 짧지만 빠짐없는 전신 루틴을 완성합니다.", duration: "약 25분", theme: "violet", image: "plan-quick-full-body.webp",
+    exercises: [
+      { sourceId: "Goblet_Squat", name: "고블릿 스쿼트", fallbackName: "고블릿 스쿼트", sets: 2, reps: "10-12", defaultReps: 10, rest: 30 },
+      { sourceId: "Pushups", name: "푸쉬업", fallbackName: "중량가방 푸쉬업", sets: 2, reps: "8-15", defaultReps: 10, rest: 30 },
+      { sourceId: "One-Arm_Dumbbell_Row", name: "원암 덤벨 로우", fallbackName: "덤벨 로우", sets: 2, reps: "좌우 10-12", defaultReps: 10, rest: 30 },
+      { sourceId: "Dumbbell_Shoulder_Press", name: "덤벨 숄더 프레스", fallbackName: "숄더 프레스", sets: 2, reps: "8-12", defaultReps: 10, rest: 30 },
+    ],
+  },
 ];
 
 const planDetailContent = {
@@ -1624,14 +1664,38 @@ const planDetailContent = {
   },
 };
 
+function exerciseBySourceId(sourceId, fallbackName = "") {
+  const candidates = uniqueExercises([...libraryExercises, ...exercises]);
+  return candidates.find((exercise) => exercise.freeDbSourceId === sourceId || exercise.sourceId === sourceId)
+    || candidates.find((exercise) => exercise.name === fallbackName || exerciseDisplayName(exercise) === fallbackName)
+    || null;
+}
+
 function exercisesForPlan(plan) {
-  const matched = plan.exercises.map((name) => exercises.find((exercise) => exercise.name === name)).filter(Boolean);
-  return matched.length >= 2 ? matched : exercises.slice(0, Math.min(3, exercises.length));
+  return plan.exercises.map((prescription) => {
+    const exercise = exerciseBySourceId(prescription.sourceId, prescription.fallbackName);
+    return exercise ? { ...exercise, displayName: prescription.name || exerciseDisplayName(exercise), planPrescription: prescription } : null;
+  }).filter(Boolean);
+}
+
+function planStepImage(exercise, fallbackImage) {
+  const firstImage = exercise?.images?.[0];
+  if (firstImage) return freeDbImageUrl(firstImage);
+  if (exercise?.image) return `/static/assets/${exercise.image}`;
+  return `/static/assets/${fallbackImage}`;
+}
+
+function planImageUrl(image) {
+  const value = String(image || "");
+  return value.startsWith("/") || /^https?:/i.test(value) ? value : `/static/assets/${value || "newlogo.webp"}`;
 }
 
 function startWorkoutPlan(plan, startIndex = 0) {
   const routineExercises = exercisesForPlan(plan);
   if (!routineExercises.length) return;
+  exercises = uniqueExercises([...exercises, ...routineExercises]);
+  saveMyExerciseSettings();
+  renderExerciseCards();
   const safeStartIndex = Math.max(0, Math.min(startIndex, routineExercises.length - 1));
   state.activeRoutine = { id: plan.id, title: plan.title, exercises: routineExercises, index: safeStartIndex };
   state.recommendedExerciseKey = exerciseKey(routineExercises[safeStartIndex]);
@@ -1641,22 +1705,60 @@ function startWorkoutPlan(plan, startIndex = 0) {
     .catch((error) => showToast(error.message));
 }
 
-function planSupportSteps(plan) {
-  const lowerBody = plan.id === "lower-body";
-  return {
+const planSupportPrescriptions = {
+  "upper-push": {
     warmup: [
-      { name: "가벼운 관절 풀기", meta: "00:30", image: lowerBody ? "gblitsquate.webp" : "pushup.webp", description: "호흡을 고르게 유지하면서 관절을 천천히 움직여 운동 준비를 합니다.", muscles: ["전신", "관절 가동성"] },
-      { name: lowerBody ? "힙 힌지 연습" : "어깨와 등 활성화", meta: "00:30", image: lowerBody ? "dumbbell-rdl.webp" : "shoulderpress.webp", description: "주요 운동에 들어가기 전, 움직임 범위와 자세를 가볍게 점검합니다.", muscles: lowerBody ? ["둔근", "햄스트링"] : ["어깨", "등"] },
+      { sourceId: "Arm_Circles", name: "암 서클", meta: "00:45", description: "팔을 작게 돌리기 시작해 천천히 원을 키우며 어깨 관절을 준비합니다.", muscles: ["어깨", "가동성"] },
+      { sourceId: "Dynamic_Chest_Stretch", name: "다이내믹 가슴 스트레칭", meta: "00:45", description: "팔을 부드럽게 열고 모으며 가슴과 어깨 앞쪽을 동적으로 준비합니다.", muscles: ["가슴", "어깨"] },
+      { sourceId: "Pushups", name: "가벼운 푸쉬업", meta: "1세트 · 8회", description: "본 운동보다 여유 있는 강도로 밀기 동작과 견갑 움직임을 점검합니다.", muscles: ["가슴", "삼두"] },
     ],
     cooldown: [
-      { name: lowerBody ? "하체 스트레칭" : "상체 스트레칭", meta: "00:30", image: lowerBody ? "gblitsquate.webp" : "dumbellow.webp", description: "사용한 근육을 천천히 늘리며 긴장을 풀어줍니다.", muscles: lowerBody ? ["하체", "둔근"] : ["상체", "등"] },
-      { name: "호흡 정리", meta: "00:30", image: plan.image, description: "호흡을 정리하며 오늘의 루틴을 마무리합니다.", muscles: ["회복", "전신"] },
+      { sourceId: "Behind_Head_Chest_Stretch", name: "가슴 스트레칭", meta: "좌우 00:30", description: "어깨가 들리지 않게 유지하며 가슴 앞쪽을 편안한 범위에서 늘립니다.", muscles: ["가슴", "어깨"] },
+      { sourceId: "Triceps_Stretch", name: "삼두근 스트레칭", meta: "좌우 00:30", description: "한 팔을 머리 뒤로 접고 반대손으로 가볍게 눌러 삼두근을 이완합니다.", muscles: ["삼두"] },
     ],
-  };
+  },
+  "upper-pull": {
+    warmup: [
+      { sourceId: "Arm_Circles", name: "암 서클", meta: "00:45", description: "어깨를 긴장시키지 않고 팔의 회전 범위를 천천히 넓힙니다.", muscles: ["어깨", "가동성"] },
+      { sourceId: "Band_Pull_Apart", name: "밴드 풀 어파트", meta: "1세트 · 12-15회", description: "갈비뼈가 들리지 않게 밴드를 벌려 등 상부와 후면 어깨를 깨웁니다.", muscles: ["등 상부", "후면 어깨"] },
+      { sourceId: "Scapular_Pull-Up", name: "스캡 풀업", meta: "1세트 · 8-10회", description: "팔을 굽히지 않고 견갑만 아래로 당겨 본 운동의 당기기 감각을 준비합니다.", muscles: ["광배근", "견갑"] },
+    ],
+    cooldown: [
+      { sourceId: "Upper_Back_Stretch", name: "등 스트레칭", meta: "00:45", description: "양손을 앞으로 뻗고 등을 둥글게 만들어 등 상부의 긴장을 풉니다.", muscles: ["등 상부"] },
+      { sourceId: "Standing_Biceps_Stretch", name: "이두근 스트레칭", meta: "좌우 00:30", description: "팔꿈치를 편 상태에서 손바닥 방향을 조절해 이두근을 천천히 늘립니다.", muscles: ["이두"] },
+    ],
+  },
+  "lower-body": {
+    warmup: [
+      { sourceId: "Walking_Treadmill", name: "가벼운 걷기", meta: "02:00", description: "편안한 속도로 걸으며 체온을 올리고 하체 움직임을 준비합니다.", muscles: ["전신", "하체"] },
+      { sourceId: "Worlds_Greatest_Stretch", name: "월드 그레이티스트 스트레칭", meta: "좌우 5회", description: "런지 자세에서 흉추를 회전해 고관절과 몸통의 가동 범위를 함께 엽니다.", muscles: ["고관절", "흉추"] },
+      { sourceId: "Bodyweight_Squat", name: "맨몸 스쿼트", meta: "1세트 · 10회", description: "발바닥을 안정적으로 지지하고 가벼운 스쿼트로 무릎과 엉덩이를 준비합니다.", muscles: ["허벅지", "둔근"] },
+    ],
+    cooldown: [
+      { sourceId: "Walking_Treadmill", name: "느린 걷기", meta: "02:00", description: "속도를 낮춰 걸으며 호흡과 심박을 서서히 안정시킵니다.", muscles: ["전신", "회복"] },
+      { sourceId: "Hamstring_Stretch", name: "햄스트링 스트레칭", meta: "좌우 00:30", description: "허리를 과하게 굽히지 않고 엉덩이를 뒤로 보내 허벅지 뒤를 늘립니다.", muscles: ["햄스트링"] },
+    ],
+  },
+  "quick-full-body": {
+    warmup: [
+      { sourceId: "Walking_Treadmill", name: "빠른 걷기", meta: "02:00", description: "가볍게 숨이 차는 정도로 걸으며 전신 체온을 올립니다.", muscles: ["전신", "심폐"] },
+      { sourceId: "Worlds_Greatest_Stretch", name: "월드 그레이티스트 스트레칭", meta: "좌우 5회", description: "고관절과 흉추를 함께 움직여 스쿼트와 밀기, 당기기 동작을 준비합니다.", muscles: ["고관절", "흉추"] },
+    ],
+    cooldown: [
+      { sourceId: "Upper_Back_Stretch", name: "등 스트레칭", meta: "00:30", description: "팔을 앞으로 길게 뻗어 등과 어깨 뒤쪽의 긴장을 천천히 풉니다.", muscles: ["등", "어깨"] },
+      { sourceId: "Hamstring_Stretch", name: "햄스트링 스트레칭", meta: "좌우 00:30", description: "무릎을 잠그지 않고 편안한 범위에서 허벅지 뒤를 늘립니다.", muscles: ["햄스트링"] },
+    ],
+  },
+};
+
+function planSupportSteps(plan) {
+  const prescription = planSupportPrescriptions[plan.id] || { warmup: [], cooldown: [] };
+  const resolve = (step) => ({ ...step, image: planStepImage(exerciseBySourceId(step.sourceId), plan.image) });
+  return { warmup: prescription.warmup.map(resolve), cooldown: prescription.cooldown.map(resolve) };
 }
 
 function exerciseDetailAsset(image) {
-  return `/static/assets/${image || "newlogo.webp"}`;
+  return planImageUrl(image);
 }
 
 function renderPlanExerciseDetail(direction = 0) {
@@ -1712,7 +1814,7 @@ function renderPlanWorkoutGroup(title, rows, options = {}) {
     if (options.onSelect) item.type = "button";
     item.className = `plan-workout-row${options.onSelect ? " is-selectable" : ""}`;
     item.innerHTML = `
-      <img src="/static/assets/${escapeHtml(row.image)}" alt="">
+      <img src="${escapeHtml(planImageUrl(row.image))}" alt="">
       <span><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.meta)}</small></span>
       ${options.onSelect ? '<b aria-hidden="true">→</b>' : ""}
     `;
@@ -1742,17 +1844,21 @@ function openPlanDetail(plan) {
   });
   els.planWorkoutSections.replaceChildren();
   const supportSteps = planSupportSteps(plan);
-  const mainSteps = routineExercises.map((exercise) => ({
+  const mainSteps = routineExercises.map((exercise) => {
+    const prescription = exercise.planPrescription;
+    const muscleNames = translateMuscleList(exercise.primaryMuscles, "").split(", ").filter(Boolean);
+    return {
       name: exerciseDisplayName(exercise),
-      meta: "3세트 · 8-12회",
-      image: exercise.image || plan.image,
-      description: translateMuscleList(exercise.primaryMuscles, "")
-        ? `${translateMuscleList(exercise.primaryMuscles)} 중심으로 안정적인 자세를 유지하며 8-12회를 진행하세요.`
-        : "안정적인 자세로 8-12회를 진행하며 이전 기록을 천천히 넘겨보세요.",
-      muscles: translateMuscleList(exercise.primaryMuscles, "").split(", ").filter(Boolean).length
-        ? translateMuscleList(exercise.primaryMuscles, "").split(", ")
+      meta: `${prescription.sets}세트 · ${prescription.reps}회 · 휴식 ${prescription.rest}초`,
+      image: planStepImage(exercise, plan.image),
+      description: muscleNames.length
+        ? `${muscleNames.join(", ")}을 중심으로 사용합니다. 정해진 반복 범위의 상단을 안정적으로 채우면 다음 운동에서 무게를 조금 높여보세요.`
+        : `정해진 반복 범위를 안정적으로 채운 뒤 다음 운동에서 무게를 조금 높여보세요.`,
+      muscles: muscleNames.length
+        ? muscleNames
         : [exercise.area || "전신"],
-    }));
+    };
+  });
   const detailSteps = [...supportSteps.warmup, ...mainSteps, ...supportSteps.cooldown];
   const openStep = (step) => openPlanExerciseDetail(detailSteps, detailSteps.indexOf(step));
   renderPlanWorkoutGroup("준비 운동", supportSteps.warmup, { onSelect: openStep });
@@ -1777,9 +1883,9 @@ function openPlanDetail(plan) {
     els.planBenefitList.append(item);
   });
   const schedule = [
-    ["1-2회", "동작 익히기", "가벼운 무게로 루틴의 순서와 움직임 범위를 익히세요."],
-    ["3-6회", "점진적 볼륨 쌓기", "반복 수나 무게를 조금씩 늘리며 나만의 기준 기록을 만드세요."],
-    ["7회부터", "기록 경신 도전", "안정적인 자세를 유지한 채 이전 기록을 넘겨보세요."],
+    ["01", "준비 운동", `${supportSteps.warmup.length}가지 동적 준비 운동으로 체온과 관절 가동 범위를 먼저 올립니다.`],
+    ["02", "본 운동", `${mainSteps.length}가지 본 운동을 큰 복합 동작부터 진행하고, 정해진 휴식 시간을 지킵니다.`],
+    ["03", "쿨다운", `${supportSteps.cooldown.length}가지 마무리 동작으로 호흡을 낮추고 사용한 부위를 천천히 이완합니다.`],
   ];
   els.planSchedule.replaceChildren();
   schedule.forEach(([range, title, copy]) => {
@@ -1800,8 +1906,9 @@ function renderWorkoutPlans() {
     card.dataset.motionKey = `plan-${plan.id || plan.title}`;
     card.style.setProperty("--plan-image", `url('/static/assets/${plan.image}')`);
     card.innerHTML = `
-      <div class="workout-plan-card-copy"><p>${escapeHtml(plan.label.replace("3종목", `${routineExercises.length}종목`))}</p><h3>${escapeHtml(plan.title)}</h3><span>${escapeHtml(plan.copy)}</span></div>
-      <div class="workout-plan-meta"><span>${plan.duration}</span><span>${routineExercises.length}종목</span></div>
+      <div class="workout-plan-card-copy"><p>${routineExercises.length}종목 · ${escapeHtml(plan.focus)}</p><h3>${escapeHtml(plan.title)}</h3><span>${escapeHtml(plan.copy)}</span></div>
+      <div class="workout-plan-sequence" aria-label="플랜 구성"><span>준비 ${planSupportSteps(plan).warmup.length}</span><i></i><span>본 운동 ${routineExercises.length}</span><i></i><span>마무리 ${planSupportSteps(plan).cooldown.length}</span></div>
+      <div class="workout-plan-meta"><span>${plan.duration}</span><span>${routineExercises.reduce((total, exercise) => total + exercise.planPrescription.sets, 0)}세트</span></div>
       <span class="workout-plan-open">상세 보기 <b aria-hidden="true">→</b></span>
     `;
     card.tabIndex = 0;
@@ -2465,6 +2572,11 @@ async function selectExercise(exercise) {
   window.SetCounterMotion?.animateContentChange(els.exerciseDetailCard, 1);
   window.SetCounterMotion?.animateSelection(els.exerciseGrid.querySelector('[aria-pressed="true"]'));
   await loadLatestRecord();
+  if (!state.lastRecord && exercise.planPrescription) {
+    els.setsInput.value = String(exercise.planPrescription.sets);
+    els.currentRepsInput.value = String(exercise.planPrescription.defaultReps);
+    syncCounter();
+  }
   renderBoard();
 }
 
