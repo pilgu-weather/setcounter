@@ -1095,65 +1095,85 @@ def level_for_experience(experience):
 def stats_from_logs(logs, excuse_dates):
     previous_by_exercise = {}
     xp = 0.0
-    ups = downs = 0
+    level = 1
+    ups = experience_downs = 0
+    earned_awards = []
     level_history = []
     for log in logs:
         previous = previous_by_exercise.get(log["exercise"])
         if previous is not None:
-            before_level = level_for_experience(xp)
+            before_level = level
             xp_delta = 0.0
             if log["volume"] > previous:
                 xp_delta = breakthrough_rate_for_level(before_level)
                 xp += xp_delta
+                earned_awards.append(xp_delta)
                 ups += 1
+                level = max(level, level_for_experience(xp))
+                if level > before_level:
+                    level_history.append(
+                        {
+                            "type": "level_up",
+                            "date": log["date"],
+                            "createdAt": log["createdAt"],
+                            "exercise": log["exercise"],
+                            "levelBefore": before_level,
+                            "levelAfter": level,
+                            "experienceDelta": round(xp_delta, 2),
+                            "volume": log["volume"],
+                            "previousVolume": previous,
+                        }
+                    )
             elif log["volume"] < previous:
-                xp_delta = -1
-                xp -= 1
-                downs += 1
-            after_level = level_for_experience(xp)
-            if after_level != before_level:
-                level_history.append(
-                    {
-                        "type": "level_up" if after_level > before_level else "level_down",
-                        "date": log["date"],
-                        "createdAt": log["createdAt"],
-                        "exercise": log["exercise"],
-                        "levelBefore": before_level,
-                        "levelAfter": after_level,
-                        "experienceDelta": round(xp_delta, 2),
-                        "volume": log["volume"],
-                        "previousVolume": previous,
-                    }
-                )
+                last_award = earned_awards.pop() if earned_awards else breakthrough_rate_for_level(level)
+                deducted_xp = min(last_award, xp)
+                if deducted_xp > 0:
+                    xp_delta = -deducted_xp
+                    xp -= deducted_xp
+                    experience_downs += 1
+                    level_history.append(
+                        {
+                            "type": "experience_down",
+                            "date": log["date"],
+                            "createdAt": log["createdAt"],
+                            "exercise": log["exercise"],
+                            "levelBefore": level,
+                            "levelAfter": level,
+                            "experienceDelta": round(xp_delta, 2),
+                            "volume": log["volume"],
+                            "previousVolume": previous,
+                        }
+                    )
         previous_by_exercise[log["exercise"]] = log["volume"]
     challenge = daily_challenge_penalty(logs, excuse_dates)
     suspicious_count = sum(1 for log in logs if log.get("suspicionScore", 0) > 0)
     cheat_penalty = cheat_penalty_from_logs(logs)
     total_penalty = challenge["penalty"] + cheat_penalty
-    raw_level = level_for_experience(xp)
     total_xp = max(xp - total_penalty, 0)
-    level = level_for_experience(total_xp)
-    progress = 1 if total_xp >= 98 else total_xp - math.floor(total_xp)
-    if level < raw_level:
+    progress = 1 if level >= 99 else min(max(total_xp - (level - 1), 0), 1)
+    penalty_deduction = min(total_penalty, xp)
+    if penalty_deduction > 0:
         penalty_dates = challenge["failedDates"] or [log["date"] for log in logs if log.get("suspicionScore", 0) > 0]
         level_history.append(
             {
-                "type": "level_down",
+                "type": "experience_down",
                 "date": max(penalty_dates) if penalty_dates else today_kst().isoformat(),
                 "createdAt": None,
                 "exercise": "기록 패널티",
-                "levelBefore": raw_level,
+                "levelBefore": level,
                 "levelAfter": level,
-                "experienceDelta": -total_penalty,
+                "experienceDelta": round(-penalty_deduction, 2),
                 "volume": None,
                 "previousVolume": None,
             }
         )
+    level_history.sort(key=lambda item: (item["date"], item.get("createdAt") or ""))
     return {
         "level": level,
-        "rule": "weighted_previous_record_delta_with_daily_challenge_and_cheat_guard",
+        "rule": "highest_level_with_reversible_experience_and_penalty_guard",
         "levelUps": ups,
-        "levelDowns": downs,
+        "levelDowns": 0,
+        "experienceDowns": experience_downs + (1 if penalty_deduction > 0 else 0),
         "experience": round(total_xp, 2),
         "experiencePercent": round(progress * 100, 1),
         "nextBreakthroughRate": breakthrough_rate_for_level(level),
@@ -2035,7 +2055,10 @@ def create_log():
             "levelBefore": before_stats["level"],
             "levelAfter": after_stats["level"],
             "leveledUp": after_stats["level"] > before_stats["level"],
-            "leveledDown": after_stats["level"] < before_stats["level"],
+            "leveledDown": False,
+            "experienceBefore": before_stats["experience"],
+            "experienceAfter": after_stats["experience"],
+            "experienceReduced": after_stats["experience"] < before_stats["experience"],
         }
     )
     return jsonify(saved_log), 201

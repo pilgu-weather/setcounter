@@ -1512,24 +1512,28 @@ function renderLevelHistory() {
   els.levelHistoryXpTrack.setAttribute("aria-valuenow", String(level >= 99 ? 100 : percent));
   els.levelHistoryXpDetail.textContent = level >= 99
     ? `최고 레벨 달성 · 누적 경험치 ${cleanNumber(stats.experience || 0)}`
-    : `누적 경험치 ${cleanNumber(stats.experience || 0)} · 신기록 ${stats.levelUps || 0}회 · 하락 ${stats.levelDowns || 0}회`;
+    : `누적 경험치 ${cleanNumber(stats.experience || 0)} · 신기록 ${stats.levelUps || 0}회 · 경험치 차감 ${stats.experienceDowns || 0}회`;
   els.levelHistoryCount.textContent = `${history.length}건`;
   els.levelHistoryList.replaceChildren();
   if (!history.length) {
     const empty = document.createElement("div");
     empty.className = "level-history-empty";
-    empty.innerHTML = `<strong>아직 레벨 변동이 없습니다.</strong><span>같은 운동의 이전 볼륨을 넘으면 첫 레벨업이 기록됩니다.</span>`;
+    empty.innerHTML = `<strong>아직 레벨·경험치 변동이 없습니다.</strong><span>같은 운동의 이전 볼륨을 넘으면 첫 레벨업이 기록됩니다.</span>`;
     els.levelHistoryList.append(empty);
     return;
   }
   history.forEach((event) => {
     const up = event.type === "level_up";
+    const experienceDelta = Math.abs(Number(event.experienceDelta) || 0);
+    const resultMarkup = up
+      ? `<small>LV.${event.levelBefore}</small><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg><strong>LV.${event.levelAfter}</strong>`
+      : `<strong>-${cleanNumber(experienceDelta)} XP</strong>`;
     const item = document.createElement("article");
     item.className = `level-history-item ${up ? "is-up" : "is-down"}`;
     item.innerHTML = `
       <span class="level-history-direction" aria-hidden="true"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${up ? "m18 15-6-6-6 6" : "m6 9 6 6 6-6"}"/></svg></span>
-      <span class="level-history-copy"><small>${escapeHtml(formatLevelHistoryDate(event.date))}</small><strong>${escapeHtml(event.exercise || (up ? "레벨업" : "레벨다운"))}</strong><em>${up ? "신기록 달성" : "기록 또는 패널티 반영"}</em></span>
-      <span class="level-history-level"><small>LV.${event.levelBefore}</small><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg><strong>LV.${event.levelAfter}</strong></span>
+      <span class="level-history-copy"><small>${escapeHtml(formatLevelHistoryDate(event.date))}</small><strong>${escapeHtml(event.exercise || (up ? "레벨업" : "경험치 차감"))}</strong><em>${up ? "신기록 달성" : "레벨 유지 · 경험치 차감"}</em></span>
+      <span class="level-history-level">${resultMarkup}</span>
     `;
     els.levelHistoryList.append(item);
   });
@@ -1585,10 +1589,10 @@ function exerciseImage(name) {
 }
 
 const workoutPlans = [
-  { id: "upper-push", label: "3종목 · 가슴/어깨", title: "넓고 탄탄한 상체 만들기", copy: "벤치프레스부터 어깨까지, 상체 앞라인을 꽉 채우는 덤벨 루틴입니다.", duration: "약 35분", theme: "gold", image: "benchpress.webp", exercises: ["벤치프레스", "숄더 프레스", "사이드 레터럴 레이즈"] },
-  { id: "upper-pull", label: "3종목 · 등/팔", title: "등과 팔 라인 채우기", copy: "등을 단단히 잡고 팔까지 채워, 당기는 힘을 고르게 끌어올립니다.", duration: "약 30분", theme: "cyan", image: "dumbellow.webp", exercises: ["덤벨 로우", "덤벨 컬", "해머 컬"] },
-  { id: "lower-body", label: "3종목 · 하체/둔근", title: "하체 힘 꽉 채우기", copy: "스쿼트와 힙, 힌지 동작으로 다리와 둔근을 단단하게 깨웁니다.", duration: "약 40분", theme: "coral", image: "gblitsquate.webp", exercises: ["고블릿 스쿼트", "덤벨 힙", "덤벨 루마니안 데드리프트"] },
-  { id: "quick-full-body", label: "3종목 · 빠른 전신", title: "25분 전신 깨우기", copy: "시간이 없는 날에도 밀기·하체·당기기를 한 번에 챙기는 빠른 루틴입니다.", duration: "약 25분", theme: "violet", image: "pushup.webp", exercises: ["중량가방 푸쉬업", "고블릿 스쿼트", "덤벨 로우"] },
+  { id: "upper-push", label: "3종목 · 가슴/어깨", title: "넓고 탄탄한 상체 만들기", copy: "벤치프레스부터 어깨까지, 상체 앞라인을 꽉 채우는 덤벨 루틴입니다.", duration: "약 35분", theme: "gold", image: "plan-upper-push.webp", exercises: ["벤치프레스", "숄더 프레스", "사이드 레터럴 레이즈"] },
+  { id: "upper-pull", label: "3종목 · 등/팔", title: "등과 팔 라인 채우기", copy: "등을 단단히 잡고 팔까지 채워, 당기는 힘을 고르게 끌어올립니다.", duration: "약 30분", theme: "cyan", image: "plan-upper-pull.webp", exercises: ["덤벨 로우", "덤벨 컬", "해머 컬"] },
+  { id: "lower-body", label: "3종목 · 하체/둔근", title: "하체 힘 꽉 채우기", copy: "스쿼트와 힙, 힌지 동작으로 다리와 둔근을 단단하게 깨웁니다.", duration: "약 40분", theme: "coral", image: "plan-lower-body.webp", exercises: ["고블릿 스쿼트", "덤벨 힙", "덤벨 루마니안 데드리프트"] },
+  { id: "quick-full-body", label: "3종목 · 빠른 전신", title: "25분 전신 깨우기", copy: "시간이 없는 날에도 밀기·하체·당기기를 한 번에 챙기는 빠른 루틴입니다.", duration: "약 25분", theme: "violet", image: "plan-quick-full-body.webp", exercises: ["중량가방 푸쉬업", "고블릿 스쿼트", "덤벨 로우"] },
 ];
 
 const planDetailContent = {
@@ -1923,8 +1927,8 @@ function syncSelectedDateUi() {
 }
 
 function announceLevelChange(previousLevel, nextLevel) {
-  if (!previousLevel || previousLevel === nextLevel) return;
-  showToast(nextLevel > previousLevel ? `레벨업: LV.${nextLevel}` : `레벨다운: LV.${nextLevel}`);
+  if (!previousLevel || nextLevel <= previousLevel) return;
+  showToast(`레벨업: LV.${nextLevel}`);
 }
 
 function reducedMotionPreferred() {
@@ -2054,7 +2058,7 @@ function announceCheatGuard(previousStats, nextStats) {
   const nextCount = nextStats.cheatSuspicionCount || 0;
   if (nextPenalty > previousPenalty) {
     const email = nextStats.complaintEmail || "";
-    showToast(`부정행위로 인한 레벨다운입니다. 컴플레인 이메일: ${email}`);
+    showToast(`부정행위 판정으로 경험치가 차감되었습니다. 컴플레인 이메일: ${email}`);
     openComplaintModal();
     return true;
   }

@@ -451,7 +451,7 @@
     <div class="profile-modal level-history-modal" id="levelHistoryModal" role="dialog" aria-modal="true" aria-labelledby="levelHistoryTitle" hidden>
       <section class="profile-dialog level-history-dialog">
         <header class="menu-dialog-head">
-          <div><p class="eyebrow">ATHLETE PROGRESS</p><h2 id="levelHistoryTitle">레벨 기록</h2></div>
+          <div><p class="eyebrow">ATHLETE PROGRESS</p><h2 id="levelHistoryTitle">레벨·경험치 기록</h2></div>
           <button class="library-close" id="closeLevelHistoryButton" type="button" aria-label="닫기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </header>
         <div class="level-history-summary">
@@ -460,7 +460,7 @@
           <div class="level-history-xp-track" role="progressbar" aria-label="레벨 경험치" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="levelHistoryXpBar"></span></div>
           <p id="levelHistoryXpDetail">누적 경험치 0</p>
         </div>
-        <div class="level-history-list-head"><h3>레벨 변동 내역</h3><span id="levelHistoryCount">0건</span></div>
+        <div class="level-history-list-head"><h3>레벨 및 경험치 내역</h3><span id="levelHistoryCount">0건</span></div>
         <div class="level-history-list" id="levelHistoryList"></div>
       </section>
     </div>
@@ -720,6 +720,6 @@
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=98"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=99"></script>
   </body>
 </html>
