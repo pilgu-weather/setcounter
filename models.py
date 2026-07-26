@@ -125,6 +125,7 @@ class HealthWorkout(db.Model):
     updated_at = db.Column(
         db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
     )
+    rest_seconds = db.Column(db.Integer, nullable=False, default=90)
     suspicion_score = db.Column(db.Integer, nullable=False, default=0)
     suspicion_flags = db.Column(db.Text, nullable=False, default="[]")
 

@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=76">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=77">
   </head>
   <body>
     <main class="app-shell" id="home">
@@ -134,13 +134,14 @@
             <div class="exercise-tools">
               <button class="edit-exercise-button" id="toggleExerciseEditButton" type="button" aria-label="운동종목 빼기 모드"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
               <button class="add-exercise-button" id="openExerciseLibraryButton" type="button" aria-label="운동 라이브러리 열기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
+              <button class="toggle-exercise-grid-button" id="toggleExerciseGridButton" type="button" aria-label="운동 종목 펼치기" aria-controls="exerciseGrid" aria-expanded="false"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
             </div>
           </div>
           <div class="exercise-edit-bar" id="exerciseEditBar" hidden>
             <span id="exerciseEditCount">0개 선택</span>
             <button class="delete-selected-exercises" id="deleteSelectedExercisesButton" type="button">삭제하기</button>
           </div>
-          <div class="exercise-grid" id="exerciseGrid"></div>
+          <div class="exercise-grid" id="exerciseGrid" hidden></div>
         </section>
 
         <section class="counter-panel" aria-labelledby="counterTitle">
@@ -734,6 +735,6 @@
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=104"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=105"></script>
   </body>
 </html>

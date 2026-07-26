@@ -121,6 +121,7 @@ REQUIRED_SCHEMA = {
         "workout_date",
         "created_at",
         "updated_at",
+        "rest_seconds",
         "suspicion_score",
         "suspicion_flags",
     },
@@ -890,6 +891,7 @@ def workout_to_log(workout):
         "volume": sum(row["volume"] for row in set_rows),
         "targetSets": len(set_rows),
         "completedSets": len(set_rows),
+        "restSeconds": workout.rest_seconds or 90,
         "notes": rows[0].memo if rows else "",
         "suspicionScore": workout.suspicion_score or 0,
         "suspicionFlags": parsed_suspicion_flags(workout.suspicion_flags),
@@ -2009,6 +2011,7 @@ def create_log():
     try:
         workout_date = parse_date(payload.get("date") or today_kst().isoformat())
         set_data = normalized_set_data(payload, exercise_name)
+        rest_seconds = min(max(int(payload.get("restSeconds", 90)), 15), 600)
     except (TypeError, ValueError):
         return jsonify({"error": "valid date, weight, reps, and completed sets are required"}), 400
     existing_logs = [
@@ -2047,6 +2050,7 @@ def create_log():
     workout = HealthWorkout(
         user_id=user.id,
         workout_date=workout_date,
+        rest_seconds=rest_seconds,
         suspicion_score=len(suspicion_flags),
         suspicion_flags=json.dumps(suspicion_flags, ensure_ascii=False),
     )

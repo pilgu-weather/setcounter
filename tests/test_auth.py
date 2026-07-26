@@ -10,6 +10,8 @@ from unittest.mock import patch
 from sqlalchemy import create_engine, inspect, text
 
 TEST_DB = Path(tempfile.gettempdir()) / "setcounter-auth-tests.sqlite3"
+if TEST_DB.exists():
+    TEST_DB.unlink()
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB.as_posix()}"
 os.environ["SETCOUNTER_ALLOW_LOCAL_SQLITE"] = "1"
 os.environ["SECRET_KEY"] = secrets.token_urlsafe(48)
@@ -60,7 +62,7 @@ class AuthSystemTestCase(unittest.TestCase):
         response = self.client.post(
             "/api/logs",
             headers=self.csrf_headers(self.client, user_key),
-            json={"exercise": exercise_name, "date": "2026-07-16", "weightKg": 40, "reps": 10, "completedSets": 2},
+            json={"exercise": exercise_name, "date": "2026-07-16", "weightKg": 40, "reps": 10, "completedSets": 2, "restSeconds": 75},
         )
         self.assertEqual(response.status_code, 201, response.get_json())
 
@@ -402,6 +404,7 @@ class AuthSystemTestCase(unittest.TestCase):
                 "completedSets": 3,
                 "setWeights": [17, 18, 19],
                 "setReps": [10, 10, 12],
+                "restSeconds": 105,
             },
         )
         self.assertEqual(created.status_code, 201, created.get_json())
@@ -409,6 +412,7 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(created_log["setWeights"], [17.0, 18.0, 19.0])
         self.assertEqual(created_log["setReps"], [10, 10, 12])
         self.assertEqual(created_log["volume"], 578.0)
+        self.assertEqual(created_log["restSeconds"], 105)
 
         excuse_headers = self.csrf_headers(self.client, key)
         first_excuse = self.client.post(
@@ -436,6 +440,7 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(len(day_logs.get_json()), 1)
         self.assertEqual(len(month_logs.get_json()), 1)
         self.assertEqual(latest.get_json()["id"], created_log["id"])
+        self.assertEqual(latest.get_json()["restSeconds"], 105)
         self.assertEqual(stats.get_json()["totalVolume"], 578.0)
         self.assertEqual(stats.get_json()["totalReps"], 32)
         self.assertEqual(stats.get_json()["totalSets"], 3)

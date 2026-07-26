@@ -642,6 +642,7 @@ const state = {
   boardSortLoading: false,
   complaintSubmitting: false,
   editingExercises: false,
+  exercisePickerExpanded: false,
   excuses: [],
   lastRecord: null,
   logs: [],
@@ -680,6 +681,7 @@ const restTimerState = {
 const els = {
   exerciseGrid: document.querySelector("#exerciseGrid"),
   toggleExerciseEditButton: document.querySelector("#toggleExerciseEditButton"),
+  toggleExerciseGridButton: document.querySelector("#toggleExerciseGridButton"),
   exerciseEditBar: document.querySelector("#exerciseEditBar"),
   exerciseEditCount: document.querySelector("#exerciseEditCount"),
   deleteSelectedExercisesButton: document.querySelector("#deleteSelectedExercisesButton"),
@@ -1428,6 +1430,7 @@ function syncCounter() {
   const target = targetSets();
   const completed = state.setRows.length;
   els.confirmWorkoutButton.disabled = completed === 0;
+  els.confirmWorkoutButton.classList.toggle("is-target-complete", completed >= target);
   els.countSetButton.disabled = completed >= target;
   renderSetTable();
   syncPlannedRecord();
@@ -2511,10 +2514,27 @@ function syncExerciseEditUi() {
   els.deleteSelectedExercisesButton.disabled = count === 0;
 }
 
+function syncExercisePickerUi() {
+  els.exerciseGrid.hidden = !state.exercisePickerExpanded;
+  els.toggleExerciseGridButton.setAttribute("aria-expanded", String(state.exercisePickerExpanded));
+  els.toggleExerciseGridButton.setAttribute("aria-label", state.exercisePickerExpanded ? "운동 종목 접기" : "운동 종목 펼치기");
+  els.toggleExerciseGridButton.classList.toggle("is-expanded", state.exercisePickerExpanded);
+}
+
+function toggleExercisePicker() {
+  state.exercisePickerExpanded = !state.exercisePickerExpanded;
+  syncExercisePickerUi();
+  if (state.exercisePickerExpanded) {
+    window.SetCounterMotion?.animateListEnter(els.exerciseGrid.children, { scope: "exercise-grid", limit: 12, y: 8 });
+  }
+}
+
 function toggleExerciseEditMode(force) {
   state.editingExercises = typeof force === "boolean" ? force : !state.editingExercises;
+  if (state.editingExercises) state.exercisePickerExpanded = true;
   if (!state.editingExercises) state.selectedExercisesForDelete.clear();
   syncExerciseEditUi();
+  syncExercisePickerUi();
   renderExerciseCards();
 }
 
@@ -2578,8 +2598,10 @@ function renderExerciseCards() {
     });
     els.exerciseGrid.append(card);
   });
-  window.SetCounterMotion?.animateListEnter(els.exerciseGrid.children, { scope: "exercise-grid", limit: 12, y: 10 });
-  els.exerciseGrid.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: "nearest", inline: "center" });
+  if (state.exercisePickerExpanded) {
+    window.SetCounterMotion?.animateListEnter(els.exerciseGrid.children, { scope: "exercise-grid", limit: 12, y: 8 });
+  }
+  syncExercisePickerUi();
   syncExerciseEditUi();
 }
 
@@ -2610,6 +2632,7 @@ function renderLatestRecord(latest) {
     syncRecordCompare();
     return;
   }
+  setRestTimerDuration(latest.restSeconds || restTimerState.duration);
   const rows = rowsFromLog(latest);
   applyInputsFromLatestRecord(latest);
   const title = document.createElement("div");
@@ -3612,6 +3635,7 @@ async function saveWorkout() {
     setReps: state.setRows.map((row) => row.reps),
     targetSets: targetSets(),
     completedSets: state.setRows.length,
+    restSeconds: restTimerState.duration,
   };
   const savedLog = await api("/api/logs", {
     method: "POST",
@@ -3861,6 +3885,7 @@ function bindEvents() {
     if (event.target === els.planExerciseDetailModal) closePlanExerciseDetail();
   });
   els.toggleExerciseEditButton.addEventListener("click", () => toggleExerciseEditMode());
+  els.toggleExerciseGridButton.addEventListener("click", toggleExercisePicker);
   els.deleteSelectedExercisesButton.addEventListener("click", () => {
     deleteSelectedExercises().catch((error) => showToast(error.message));
   });
