@@ -474,6 +474,53 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertEqual(db.session.query(HealthWorkout).count(), 0)
             self.assertEqual(db.session.query(HealthSet).count(), 0)
 
+    def test_level_history_and_save_response_track_real_level_changes(self):
+        key = "level-history-key-0001"
+        workout_date = date.today().isoformat()
+
+        def save(weight):
+            return self.client.post(
+                "/api/logs",
+                headers=self.csrf_headers(self.client, key),
+                json={
+                    "exercise": "Bench Press",
+                    "date": workout_date,
+                    "weightKg": weight,
+                    "setWeights": [weight, weight],
+                    "setReps": [10, 10],
+                    "completedSets": 2,
+                },
+            )
+
+        baseline = save(10)
+        self.assertEqual(baseline.status_code, 201, baseline.get_json())
+        self.assertFalse(baseline.get_json()["leveledUp"])
+        self.assertEqual(baseline.get_json()["levelBefore"], 1)
+        self.assertEqual(baseline.get_json()["levelAfter"], 1)
+
+        personal_best = save(11)
+        self.assertEqual(personal_best.status_code, 201, personal_best.get_json())
+        self.assertTrue(personal_best.get_json()["leveledUp"])
+        self.assertEqual(personal_best.get_json()["levelBefore"], 1)
+        self.assertEqual(personal_best.get_json()["levelAfter"], 2)
+
+        lower_record = save(9)
+        self.assertEqual(lower_record.status_code, 201, lower_record.get_json())
+        self.assertTrue(lower_record.get_json()["leveledDown"])
+        self.assertEqual(lower_record.get_json()["levelBefore"], 2)
+        self.assertEqual(lower_record.get_json()["levelAfter"], 1)
+
+        stats = self.client.get("/api/stats", headers=self.headers(key))
+        self.assertEqual(stats.status_code, 200, stats.get_json())
+        history = stats.get_json()["levelHistory"]
+        self.assertEqual(len(history), 2)
+        self.assertEqual(history[0]["type"], "level_down")
+        self.assertEqual(history[0]["levelBefore"], 2)
+        self.assertEqual(history[0]["levelAfter"], 1)
+        self.assertEqual(history[1]["type"], "level_up")
+        self.assertEqual(history[1]["exercise"], "Bench Press")
+        self.assertEqual(history[1]["date"], workout_date)
+
     def test_board_and_push_records_keep_user_ownership(self):
         author_key = "board-author-key-0001"
         reader_key = "board-reader-key-0001"

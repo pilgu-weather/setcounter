@@ -684,6 +684,15 @@ const els = {
   changeNicknameButton: document.querySelector("#changeNicknameButton"),
   menuNicknameButton: document.querySelector("#menuNicknameButton"),
   userBadgeLabel: document.querySelector("#userBadgeLabel"),
+  levelHistoryModal: document.querySelector("#levelHistoryModal"),
+  closeLevelHistoryButton: document.querySelector("#closeLevelHistoryButton"),
+  levelHistoryAthlete: document.querySelector("#levelHistoryAthlete"),
+  levelHistoryXpText: document.querySelector("#levelHistoryXpText"),
+  levelHistoryXpBar: document.querySelector("#levelHistoryXpBar"),
+  levelHistoryXpTrack: document.querySelector(".level-history-xp-track"),
+  levelHistoryXpDetail: document.querySelector("#levelHistoryXpDetail"),
+  levelHistoryCount: document.querySelector("#levelHistoryCount"),
+  levelHistoryList: document.querySelector("#levelHistoryList"),
   menuUserBadge: document.querySelector("#menuUserBadge"),
   menuExpCopy: document.querySelector("#menuExpCopy"),
   menuNicknameAvailability: document.querySelector("#menuNicknameAvailability"),
@@ -968,7 +977,7 @@ function rememberMenuOverlayTrigger() {
 }
 
 function syncMenuOverlayLock() {
-  const overlays = [els.profileModal, els.complaintModal, els.registerModal, els.loginModal, els.deleteAccountModal, els.authConflictModal, els.faqModal, els.privacyModal];
+  const overlays = [els.profileModal, els.levelHistoryModal, els.complaintModal, els.registerModal, els.loginModal, els.deleteAccountModal, els.authConflictModal, els.faqModal, els.privacyModal];
   document.body.classList.toggle("has-modal-open", overlays.some((overlay) => overlay && !overlay.hidden));
 }
 
@@ -1455,6 +1464,7 @@ function renderProfile(profile = state.profile) {
   }
   renderMenuSos();
   renderBoard();
+  renderLevelHistory();
   if (state.profile?.nicknameRequired) {
     openNicknameModal(true);
   }
@@ -1478,6 +1488,67 @@ function openNicknameModal(required = false) {
   els.profileModal.hidden = false;
   syncMenuOverlayLock();
   window.SetCounterMotion?.openOverlay(els.profileModal, { onComplete: () => els.nicknameInput.focus() });
+}
+
+function formatLevelHistoryDate(value) {
+  const date = dateFromKey(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" });
+}
+
+function renderLevelHistory() {
+  if (!els.levelHistoryAthlete || !els.levelHistoryList) return;
+  const stats = state.stats || {};
+  const level = stats.level || state.profile?.level || 1;
+  const nickname = displayNickname(state.profile?.nickname);
+  const percent = Math.min(Math.max(Number(stats.experiencePercent) || 0, 0), 100);
+  const history = Array.isArray(stats.levelHistory) ? stats.levelHistory : [];
+  els.levelHistoryAthlete.innerHTML = `
+    ${levelBadgeMarkup(level)}
+    <span><small>LEVEL ${level}</small><strong>${escapeHtml(nickname)}</strong></span>
+  `;
+  els.levelHistoryXpText.textContent = level >= 99 ? "MAX" : `${cleanNumber(percent)}%`;
+  els.levelHistoryXpBar.style.transform = `scaleX(${level >= 99 ? 1 : percent / 100})`;
+  els.levelHistoryXpTrack.setAttribute("aria-valuenow", String(level >= 99 ? 100 : percent));
+  els.levelHistoryXpDetail.textContent = level >= 99
+    ? `최고 레벨 달성 · 누적 경험치 ${cleanNumber(stats.experience || 0)}`
+    : `누적 경험치 ${cleanNumber(stats.experience || 0)} · 신기록 ${stats.levelUps || 0}회 · 하락 ${stats.levelDowns || 0}회`;
+  els.levelHistoryCount.textContent = `${history.length}건`;
+  els.levelHistoryList.replaceChildren();
+  if (!history.length) {
+    const empty = document.createElement("div");
+    empty.className = "level-history-empty";
+    empty.innerHTML = `<strong>아직 레벨 변동이 없습니다.</strong><span>같은 운동의 이전 볼륨을 넘으면 첫 레벨업이 기록됩니다.</span>`;
+    els.levelHistoryList.append(empty);
+    return;
+  }
+  history.forEach((event) => {
+    const up = event.type === "level_up";
+    const item = document.createElement("article");
+    item.className = `level-history-item ${up ? "is-up" : "is-down"}`;
+    item.innerHTML = `
+      <span class="level-history-direction" aria-hidden="true"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${up ? "m18 15-6-6-6 6" : "m6 9 6 6 6-6"}"/></svg></span>
+      <span class="level-history-copy"><small>${escapeHtml(formatLevelHistoryDate(event.date))}</small><strong>${escapeHtml(event.exercise || (up ? "레벨업" : "레벨다운"))}</strong><em>${up ? "신기록 달성" : "기록 또는 패널티 반영"}</em></span>
+      <span class="level-history-level"><small>LV.${event.levelBefore}</small><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg><strong>LV.${event.levelAfter}</strong></span>
+    `;
+    els.levelHistoryList.append(item);
+  });
+}
+
+function openLevelHistory() {
+  rememberMenuOverlayTrigger();
+  renderLevelHistory();
+  els.levelHistoryModal.hidden = false;
+  syncMenuOverlayLock();
+  window.SetCounterMotion?.openOverlay(els.levelHistoryModal, { sheet: true, onComplete: () => els.closeLevelHistoryButton.focus() });
+}
+
+function closeLevelHistory() {
+  window.SetCounterMotion?.closeOverlay(els.levelHistoryModal, { sheet: true, onComplete: () => {
+    els.levelHistoryModal.hidden = true;
+    syncMenuOverlayLock();
+    restoreMenuOverlayFocus();
+  } });
 }
 
 function closeNicknameModal(force = false) {
@@ -3420,8 +3491,15 @@ async function saveWorkout() {
       if (nextExercise) openNextRecommendation(nextExercise);
     }
   };
-  if (previousStats && data.stats.level > previousLevel) {
-    openLevelUpScreen(previousStats, data.stats, data.profile, continueWorkoutFlow);
+  const authoritativePreviousLevel = Number(savedLog.levelBefore) || previousLevel;
+  const authoritativeNextLevel = Number(savedLog.levelAfter) || data.stats.level;
+  if (previousStats && authoritativeNextLevel > authoritativePreviousLevel) {
+    openLevelUpScreen(
+      { ...previousStats, level: authoritativePreviousLevel },
+      { ...data.stats, level: authoritativeNextLevel },
+      data.profile,
+      continueWorkoutFlow,
+    );
     return;
   }
   renderStats(data.stats);
@@ -3542,6 +3620,11 @@ function bindEvents() {
     closeNicknameModal(true);
     openAuthModal("login");
   });
+  els.userBadgeLabel.addEventListener("click", openLevelHistory);
+  els.closeLevelHistoryButton.addEventListener("click", closeLevelHistory);
+  els.levelHistoryModal.addEventListener("click", (event) => {
+    if (event.target === els.levelHistoryModal) closeLevelHistory();
+  });
   els.profileModal.addEventListener("click", (event) => {
     if (event.target === els.profileModal) {
       closeNicknameModal();
@@ -3610,6 +3693,7 @@ function bindEvents() {
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     if (!els.boardReportModal.hidden) closeBoardReportModal();
+    else if (!els.levelHistoryModal.hidden) closeLevelHistory();
     else if (!els.profileModal.hidden) closeNicknameModal();
     else if (!els.complaintModal.hidden) closeComplaintModal();
     else if (!els.registerModal.hidden) closeAuthModal("register");

@@ -1085,39 +1085,70 @@ def breakthrough_rate_for_level(level):
     return 1
 
 
+def level_for_experience(experience):
+    experience = max(experience, 0)
+    if experience >= 98:
+        return 99
+    return max(math.floor(experience) + 1, 1)
+
+
 def stats_from_logs(logs, excuse_dates):
     previous_by_exercise = {}
     xp = 0.0
     ups = downs = 0
+    level_history = []
     for log in logs:
         previous = previous_by_exercise.get(log["exercise"])
         if previous is not None:
+            before_level = level_for_experience(xp)
+            xp_delta = 0.0
             if log["volume"] > previous:
-                current_level = max(math.floor(xp) + 1, 1)
-                if current_level >= 20:
-                    xp += 0.8
-                elif current_level >= 15:
-                    xp += 0.85
-                elif current_level >= 10:
-                    xp += 0.9
-                else:
-                    xp += 1
+                xp_delta = breakthrough_rate_for_level(before_level)
+                xp += xp_delta
                 ups += 1
             elif log["volume"] < previous:
+                xp_delta = -1
                 xp -= 1
                 downs += 1
+            after_level = level_for_experience(xp)
+            if after_level != before_level:
+                level_history.append(
+                    {
+                        "type": "level_up" if after_level > before_level else "level_down",
+                        "date": log["date"],
+                        "createdAt": log["createdAt"],
+                        "exercise": log["exercise"],
+                        "levelBefore": before_level,
+                        "levelAfter": after_level,
+                        "experienceDelta": round(xp_delta, 2),
+                        "volume": log["volume"],
+                        "previousVolume": previous,
+                    }
+                )
         previous_by_exercise[log["exercise"]] = log["volume"]
     challenge = daily_challenge_penalty(logs, excuse_dates)
     suspicious_count = sum(1 for log in logs if log.get("suspicionScore", 0) > 0)
     cheat_penalty = cheat_penalty_from_logs(logs)
     total_penalty = challenge["penalty"] + cheat_penalty
+    raw_level = level_for_experience(xp)
     total_xp = max(xp - total_penalty, 0)
-    if total_xp >= 98:
-        level = 99
-        progress = 1
-    else:
-        level = max(math.floor(total_xp) + 1, 1)
-        progress = total_xp - math.floor(total_xp)
+    level = level_for_experience(total_xp)
+    progress = 1 if total_xp >= 98 else total_xp - math.floor(total_xp)
+    if level < raw_level:
+        penalty_dates = challenge["failedDates"] or [log["date"] for log in logs if log.get("suspicionScore", 0) > 0]
+        level_history.append(
+            {
+                "type": "level_down",
+                "date": max(penalty_dates) if penalty_dates else today_kst().isoformat(),
+                "createdAt": None,
+                "exercise": "기록 패널티",
+                "levelBefore": raw_level,
+                "levelAfter": level,
+                "experienceDelta": -total_penalty,
+                "volume": None,
+                "previousVolume": None,
+            }
+        )
     return {
         "level": level,
         "rule": "weighted_previous_record_delta_with_daily_challenge_and_cheat_guard",
@@ -1144,6 +1175,7 @@ def stats_from_logs(logs, excuse_dates):
             {"exercise": exercise, "volume": volume}
             for exercise, volume in sorted(previous_by_exercise.items())
         ],
+        "levelHistory": list(reversed(level_history[-50:])),
     }
 
 
@@ -1959,6 +1991,13 @@ def create_log():
             )
         )
     ]
+    excuse_dates = {
+        item.excuse_date.isoformat()
+        for item in db.session.scalars(
+            select(HealthExcuse).where(HealthExcuse.user_id == user.id)
+        ).all()
+    }
+    before_stats = stats_from_logs(existing_logs, excuse_dates)
     candidate_log = {
         "date": workout_date.isoformat(),
         "exercise": exercise_name,
@@ -1989,7 +2028,17 @@ def create_log():
             HealthSet(exercise_id=exercise.id, set_index=index, weight=weight, reps=reps, memo=memo)
         )
     db.session.commit()
-    return jsonify(workout_to_log(workout)), 201
+    saved_log = workout_to_log(workout)
+    after_stats = volume_stats(user.id)
+    saved_log.update(
+        {
+            "levelBefore": before_stats["level"],
+            "levelAfter": after_stats["level"],
+            "leveledUp": after_stats["level"] > before_stats["level"],
+            "leveledDown": after_stats["level"] < before_stats["level"],
+        }
+    )
+    return jsonify(saved_log), 201
 
 
 @app.route("/api/logs/<int:log_id>", methods=["DELETE"])
