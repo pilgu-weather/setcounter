@@ -3909,7 +3909,7 @@ select:focus {
 }
 
 [data-screen="home"] .home-header h1 {
-  color: var(--sc-text);
+  color: #78aaff;
   font-size: 36px;
   font-weight: 900;
   line-height: 1;
