@@ -83,6 +83,7 @@ const BOARD_MIGRATED_STORAGE = "setCounterBoardPostsMigrated";
 const MY_EXERCISES_STORAGE = "setCounterMyExercises";
 const HIDDEN_EXERCISES_STORAGE = "setCounterHiddenExercises";
 const EXERCISE_DETAIL_COLLAPSED_STORAGE = "setCounterExerciseDetailCollapsed";
+const REST_TIMER_DURATION_STORAGE = "setCounterRestTimerSeconds";
 const USER_KEY_PATTERN = /^[A-Za-z0-9._:-]{16,128}$/;
 const LOCAL_RECOVERY_USER_KEY = "1e0bb65e-47d7-4f5b-ace1-03f0809b952e";
 const bodyFilters = ["전체", "가슴", "등", "어깨", "팔", "하체", "코어", "전완그립", "전신컨디셔닝"];
@@ -662,6 +663,20 @@ const state = {
   auth: { loaded: false, authenticated: false, anonymous: true, accountLinked: false, emailMasked: null, hasAnonymousData: false, csrfToken: null },
 };
 
+const storedRestTimerDuration = Number.parseInt(window.localStorage.getItem(REST_TIMER_DURATION_STORAGE), 10);
+const initialRestTimerDuration = Number.isFinite(storedRestTimerDuration)
+  ? Math.min(Math.max(storedRestTimerDuration, 15), 600)
+  : 90;
+const restTimerState = {
+  duration: initialRestTimerDuration,
+  remaining: initialRestTimerDuration,
+  deadline: 0,
+  intervalId: null,
+  running: false,
+  paused: false,
+  finished: false,
+};
+
 const els = {
   exerciseGrid: document.querySelector("#exerciseGrid"),
   toggleExerciseEditButton: document.querySelector("#toggleExerciseEditButton"),
@@ -830,6 +845,13 @@ const els = {
   weightInput: document.querySelector("#weightInput"),
   currentRepsInput: document.querySelector("#currentRepsInput"),
   setsInput: document.querySelector("#setsInput"),
+  restTimer: document.querySelector("#restTimer"),
+  restTimerStatus: document.querySelector("#restTimerStatus"),
+  restTimerDisplay: document.querySelector("#restTimerDisplay"),
+  restDurationInput: document.querySelector("#restDurationInput"),
+  restTimerToggleButton: document.querySelector("#restTimerToggleButton"),
+  restTimerResetButton: document.querySelector("#restTimerResetButton"),
+  restTimeStepButtons: document.querySelectorAll("[data-rest-step]"),
   plannedRecord: document.querySelector("#plannedRecord"),
   setTableBody: document.querySelector("#setTableBody"),
   lastRecord: document.querySelector("#lastRecord"),
@@ -1415,6 +1437,7 @@ function syncCounter() {
 
 function resetSession(keepInputs = true) {
   state.setRows = [];
+  resetRestTimer();
   syncWeightControls();
   if (!keepInputs) {
     els.weightInput.value = String(weightStepForExercise());
@@ -3649,7 +3672,12 @@ function countSet() {
   syncCounter();
   const completedChip = els.lastRecord.querySelector(`.record-chip[data-set-index="${completedIndex}"]`);
   window.SetCounterMotion?.animateSetChipComplete(completedChip);
-  if (state.setRows.length >= targetSets()) showToast("목표 세트 완료. 확인을 눌러 저장하세요.");
+  if (state.setRows.length >= targetSets()) {
+    resetRestTimer();
+    showToast("목표 세트 완료. 확인을 눌러 저장하세요.");
+  } else {
+    startRestTimer(true);
+  }
 }
 
 function undoSet() {
@@ -3658,7 +3686,128 @@ function undoSet() {
     els.weightInput.value = cleanNumber(revertedSet.weightKg);
     els.currentRepsInput.value = String(Math.max(revertedSet.reps || 1, 1));
   }
+  resetRestTimer();
   syncCounter();
+}
+
+function formatRestTimer(seconds) {
+  const safeSeconds = Math.max(Math.ceil(seconds || 0), 0);
+  return `${pad(Math.floor(safeSeconds / 60))}:${pad(safeSeconds % 60)}`;
+}
+
+function syncRestTimerUi() {
+  if (!els.restTimer) return;
+  els.restTimerDisplay.textContent = formatRestTimer(restTimerState.remaining);
+  if (document.activeElement !== els.restDurationInput) {
+    els.restDurationInput.value = String(restTimerState.duration);
+  }
+  els.restTimer.classList.toggle("is-running", restTimerState.running);
+  els.restTimer.classList.toggle("is-paused", restTimerState.paused);
+  els.restTimer.classList.toggle("is-finished", restTimerState.finished);
+  if (restTimerState.running) {
+    els.restTimerStatus.textContent = "다음 세트까지 휴식 중";
+    els.restTimerToggleButton.textContent = "일시정지";
+  } else if (restTimerState.finished) {
+    els.restTimerStatus.textContent = "휴식 완료 · 다음 세트 준비";
+    els.restTimerToggleButton.textContent = "다시 시작";
+  } else if (restTimerState.paused) {
+    els.restTimerStatus.textContent = "일시정지됨";
+    els.restTimerToggleButton.textContent = "계속";
+  } else {
+    els.restTimerStatus.textContent = "세트 완료 후 자동 시작";
+    els.restTimerToggleButton.textContent = "시작";
+  }
+}
+
+function clearRestTimerInterval() {
+  if (restTimerState.intervalId !== null) {
+    window.clearInterval(restTimerState.intervalId);
+    restTimerState.intervalId = null;
+  }
+}
+
+function playRestTimerSignal() {
+  navigator.vibrate?.([100, 70, 140]);
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.0001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.16, context.currentTime + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.34);
+    gain.connect(context.destination);
+    [0, 0.16].forEach((offset, index) => {
+      const oscillator = context.createOscillator();
+      oscillator.type = "sine";
+      oscillator.frequency.value = index ? 1046 : 880;
+      oscillator.connect(gain);
+      oscillator.start(context.currentTime + offset);
+      oscillator.stop(context.currentTime + offset + 0.14);
+    });
+    window.setTimeout(() => context.close(), 600);
+  } catch (_error) {
+    // 진동과 화면 알림은 오디오를 지원하지 않는 환경에서도 유지됩니다.
+  }
+}
+
+function finishRestTimer() {
+  clearRestTimerInterval();
+  restTimerState.remaining = 0;
+  restTimerState.running = false;
+  restTimerState.paused = false;
+  restTimerState.finished = true;
+  syncRestTimerUi();
+  playRestTimerSignal();
+  window.gsap?.fromTo(els.restTimerDisplay, { scale: 0.82 }, { scale: 1, duration: 0.42, ease: "back.out(2)" });
+  showToast("휴식 완료. 다음 세트를 시작하세요.");
+}
+
+function updateRestTimer() {
+  if (!restTimerState.running) return;
+  restTimerState.remaining = Math.max(Math.ceil((restTimerState.deadline - Date.now()) / 1000), 0);
+  if (restTimerState.remaining <= 0) {
+    finishRestTimer();
+    return;
+  }
+  syncRestTimerUi();
+}
+
+function startRestTimer(restart = false) {
+  clearRestTimerInterval();
+  if (restart || restTimerState.remaining <= 0) restTimerState.remaining = restTimerState.duration;
+  restTimerState.deadline = Date.now() + restTimerState.remaining * 1000;
+  restTimerState.running = true;
+  restTimerState.paused = false;
+  restTimerState.finished = false;
+  restTimerState.intervalId = window.setInterval(updateRestTimer, 250);
+  syncRestTimerUi();
+}
+
+function pauseRestTimer() {
+  if (!restTimerState.running) return;
+  restTimerState.remaining = Math.max(Math.ceil((restTimerState.deadline - Date.now()) / 1000), 0);
+  clearRestTimerInterval();
+  restTimerState.running = false;
+  restTimerState.paused = restTimerState.remaining > 0;
+  syncRestTimerUi();
+}
+
+function resetRestTimer() {
+  clearRestTimerInterval();
+  restTimerState.remaining = restTimerState.duration;
+  restTimerState.running = false;
+  restTimerState.paused = false;
+  restTimerState.finished = false;
+  syncRestTimerUi();
+}
+
+function setRestTimerDuration(value) {
+  const parsed = Number.parseInt(value, 10);
+  const next = Math.min(Math.max(Math.round((Number.isFinite(parsed) ? parsed : 90) / 15) * 15, 15), 600);
+  restTimerState.duration = next;
+  window.localStorage.setItem(REST_TIMER_DURATION_STORAGE, String(next));
+  resetRestTimer();
 }
 
 function changeMonth(offset) {
@@ -3780,6 +3929,20 @@ function bindEvents() {
   [els.weightInput, els.currentRepsInput, els.setsInput].forEach((input) => {
     input.addEventListener("input", syncCounter);
   });
+  els.restDurationInput.addEventListener("change", () => setRestTimerDuration(els.restDurationInput.value));
+  els.restTimeStepButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setRestTimerDuration(restTimerState.duration + Number.parseInt(button.dataset.restStep, 10));
+    });
+  });
+  els.restTimerToggleButton.addEventListener("click", () => {
+    if (restTimerState.running) pauseRestTimer();
+    else startRestTimer(restTimerState.finished);
+  });
+  els.restTimerResetButton.addEventListener("click", resetRestTimer);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && restTimerState.running) updateRestTimer();
+  });
   document.querySelectorAll("[data-step-for]").forEach((button) => {
     button.addEventListener("click", () => {
       const input = document.querySelector(`#${button.dataset.stepFor}`);
@@ -3884,6 +4047,7 @@ async function init() {
   bindEvents();
   bindAuthEvents();
   syncWeightControls();
+  syncRestTimerUi();
   normalizedWeight(true);
   syncCounter();
   setActiveScreen("record");
