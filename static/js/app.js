@@ -846,6 +846,9 @@ const els = {
   anonymousConflictSummary: document.querySelector("#anonymousConflictSummary"),
   accountConflictSummary: document.querySelector("#accountConflictSummary"),
   closeAuthConflictButton: document.querySelector("#closeAuthConflictButton"),
+  authAlertModal: document.querySelector("#authAlertModal"),
+  authAlertMessage: document.querySelector("#authAlertMessage"),
+  closeAuthAlertButton: document.querySelector("#closeAuthAlertButton"),
   nextRecommendationModal: document.querySelector("#nextRecommendationModal"),
   nextRecommendationTitle: document.querySelector("#nextRecommendationTitle"),
   nextRecommendationName: document.querySelector("#nextRecommendationName"),
@@ -1078,7 +1081,7 @@ function rememberMenuOverlayTrigger() {
 }
 
 function syncMenuOverlayLock() {
-  const overlays = [els.profileModal, els.levelHistoryModal, els.complaintModal, els.registerModal, els.loginModal, els.deleteAccountModal, els.authConflictModal, els.faqModal, els.privacyModal];
+  const overlays = [els.profileModal, els.levelHistoryModal, els.complaintModal, els.registerModal, els.loginModal, els.deleteAccountModal, els.authConflictModal, els.authAlertModal, els.faqModal, els.privacyModal];
   document.body.classList.toggle("has-modal-open", overlays.some((overlay) => overlay && !overlay.hidden));
 }
 
@@ -1090,6 +1093,25 @@ function restoreMenuOverlayFocus() {
 
 function clearAuthForm(form, errorElement) { form.reset(); errorElement.textContent = ""; }
 function setAuthSubmitting(button, submitting, label) { button.disabled = submitting; button.textContent = submitting ? "처리 중..." : label; }
+function showAuthAlert(message, focusTarget = null) {
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  els.authAlertMessage.textContent = message;
+  els.authAlertModal.hidden = false;
+  els.authAlertModal._focusTarget = focusTarget;
+  syncMenuOverlayLock();
+  window.SetCounterMotion?.openOverlay(els.authAlertModal, {
+    onComplete: () => els.closeAuthAlertButton.focus(),
+  });
+}
+function closeAuthAlert() {
+  const focusTarget = els.authAlertModal._focusTarget;
+  window.SetCounterMotion?.closeOverlay(els.authAlertModal, { onComplete: () => {
+    els.authAlertModal.hidden = true;
+    els.authAlertModal._focusTarget = null;
+    syncMenuOverlayLock();
+    if (focusTarget?.isConnected) focusTarget.focus();
+  } });
+}
 function openAuthModal(kind) {
   const modal = kind === "register" ? els.registerModal : els.loginModal;
   rememberMenuOverlayTrigger();
@@ -1114,16 +1136,19 @@ async function refreshAuthenticatedApp() { await loadAuthStatus(); await loadBoo
 async function submitRegister(event) {
   event.preventDefault();
   const email = els.registerEmailInput.value.trim(), password = els.registerPasswordInput.value, passwordConfirm = els.registerPasswordConfirmInput.value;
-  if (!/^\S+@\S+\.\S+$/.test(email)) return (els.registerError.textContent = "유효한 이메일을 입력해주세요.");
-  if (password.length < 8) return (els.registerError.textContent = "비밀번호는 8자 이상이어야 합니다.");
-  if (password !== passwordConfirm) return (els.registerError.textContent = "비밀번호 확인이 일치하지 않습니다.");
-  if (!els.registerTermsInput.checked) return (els.registerError.textContent = "이용약관 및 개인정보 처리방침 동의가 필요합니다.");
+  if (!/^\S+@\S+\.\S+$/.test(email)) return showAuthAlert("유효한 이메일을 입력해주세요.", els.registerEmailInput);
+  if (password.length < 8) return showAuthAlert("비밀번호는 8자 이상 입력해주세요.", els.registerPasswordInput);
+  if (password !== passwordConfirm) return showAuthAlert("비밀번호 확인이 일치하지 않습니다.", els.registerPasswordConfirmInput);
+  if (!els.registerTermsInput.checked) return showAuthAlert("이용약관 및 개인정보 처리방침에 동의해주세요.", els.registerTermsInput);
   els.registerError.textContent = ""; setAuthSubmitting(els.registerSubmitButton, true, "계정에 기록 연결");
   try {
     await api("/api/auth/register", { method: "POST", body: JSON.stringify({ email, password, passwordConfirm, termsAccepted: true }) });
     clearAuthForm(els.registerForm, els.registerError); closeAuthModal("register"); await refreshAuthenticatedApp(); showToast("기록이 계정에 안전하게 연결되었습니다.");
   } catch (error) {
-    els.registerError.textContent = error.body?.error === "email_already_registered" ? "이미 등록된 이메일입니다." : "계정 연결에 실패했습니다. 입력 내용을 확인해주세요.";
+    showAuthAlert(
+      error.body?.error === "email_already_registered" ? "이미 등록된 이메일입니다." : "계정 연결에 실패했습니다. 입력 내용을 확인해주세요.",
+      error.body?.error === "email_already_registered" ? els.registerEmailInput : null,
+    );
   } finally { setAuthSubmitting(els.registerSubmitButton, false, "계정에 기록 연결"); }
 }
 
@@ -4097,6 +4122,7 @@ function bindEvents() {
     else if (!els.levelHistoryModal.hidden) closeLevelHistory();
     else if (!els.profileModal.hidden) closeNicknameModal();
     else if (!els.complaintModal.hidden) closeComplaintModal();
+    else if (!els.authAlertModal.hidden) closeAuthAlert();
     else if (!els.registerModal.hidden) closeAuthModal("register");
     else if (!els.loginModal.hidden) closeAuthModal("login");
     else if (!els.deleteAccountModal.hidden) closeDeleteAccountModal();
@@ -4146,6 +4172,7 @@ function bindAuthEvents() {
     syncMenuOverlayLock();
   } });
   els.closeAuthConflictButton.addEventListener("click", closeConflict);
+  els.closeAuthAlertButton.addEventListener("click", closeAuthAlert);
   els.registerModal.addEventListener("click", (event) => { if (event.target === els.registerModal) closeAuthModal("register"); });
   els.loginModal.addEventListener("click", (event) => { if (event.target === els.loginModal) closeAuthModal("login"); });
   els.deleteAccountModal.addEventListener("click", (event) => { if (event.target === els.deleteAccountModal) closeDeleteAccountModal(); });

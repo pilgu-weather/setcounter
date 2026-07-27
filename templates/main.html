@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=82">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=83">
   </head>
   <body>
     <main class="app-shell" id="home">
@@ -595,12 +595,13 @@
       </form>
     </div>
     <div class="profile-modal" id="registerModal" role="dialog" aria-modal="true" aria-labelledby="registerModalTitle" hidden>
-      <form class="profile-dialog auth-dialog" id="registerForm">
+      <form class="profile-dialog auth-dialog" id="registerForm" novalidate>
         <p class="eyebrow">ACCOUNT</p>
         <h2 id="registerModalTitle">현재 기록을 계정에 연결하기</h2>
         <p>계정을 연결하면 다른 기기에서도 운동 기록을 이어서 볼 수 있어요.</p>
         <label><span>이메일</span><input id="registerEmailInput" type="email" autocomplete="email" inputmode="email" maxlength="320" required></label>
-        <label><span>비밀번호</span><input id="registerPasswordInput" type="password" autocomplete="new-password" minlength="8" required></label>
+        <label><span>비밀번호</span><input id="registerPasswordInput" type="password" autocomplete="new-password" minlength="8" aria-describedby="registerPasswordHint" required></label>
+        <p class="auth-field-hint" id="registerPasswordHint">비밀번호는 8자 이상 입력해주세요.</p>
         <label><span>비밀번호 확인</span><input id="registerPasswordConfirmInput" type="password" autocomplete="new-password" minlength="8" required></label>
         <label class="terms-check"><input id="registerTermsInput" type="checkbox" required><span><a href="/terms" target="_blank" rel="noopener">이용약관</a> 및 <a href="/privacy" target="_blank" rel="noopener">개인정보 처리방침</a>에 동의합니다.</span></label>
         <p class="profile-error" id="registerError" role="alert"></p>
@@ -760,8 +761,16 @@
         </div>
       </section>
     </div>
+    <div class="profile-modal auth-alert-modal" id="authAlertModal" role="alertdialog" aria-modal="true" aria-labelledby="authAlertTitle" aria-describedby="authAlertMessage" hidden>
+      <section class="profile-dialog auth-alert-dialog">
+        <p class="eyebrow danger">입력 확인</p>
+        <h2 id="authAlertTitle">가입 정보를 확인해주세요</h2>
+        <p id="authAlertMessage"></p>
+        <button class="confirm-button" id="closeAuthAlertButton" type="button">확인</button>
+      </section>
+    </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=108"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=109"></script>
   </body>
 </html>

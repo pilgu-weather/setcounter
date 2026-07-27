@@ -7232,6 +7232,41 @@ body.keyboard-open :is(.profile-dialog, .exercise-library-dialog, .exercise-step
   font-size: 16px;
 }
 
+.auth-field-hint {
+  margin-top: -7px;
+  color: var(--sc-text-secondary) !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  line-height: 1.45 !important;
+}
+
+.auth-alert-modal {
+  z-index: 180;
+}
+
+.auth-alert-dialog {
+  width: min(100%, 340px);
+  gap: 10px;
+  padding: 22px;
+}
+
+.auth-alert-dialog h2 {
+  font-size: 20px;
+}
+
+.auth-alert-dialog > p:not(.eyebrow) {
+  color: var(--sc-text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.auth-alert-dialog .confirm-button {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 8px;
+}
+
 .auth-dialog .complaint-actions {
   position: sticky;
   z-index: 3;
