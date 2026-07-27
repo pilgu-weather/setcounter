@@ -662,6 +662,7 @@ const state = {
   stats: null,
   profile: null,
   auth: { loaded: false, authenticated: false, anonymous: true, accountLinked: false, emailMasked: null, hasAnonymousData: false, csrfToken: null },
+  weeklyGoalDraft: null,
 };
 
 const storedRestTimerDuration = Number.parseInt(window.localStorage.getItem(REST_TIMER_DURATION_STORAGE), 10);
@@ -806,6 +807,18 @@ const els = {
   openLoginButton: document.querySelector("#openLoginButton"),
   logoutButton: document.querySelector("#logoutButton"),
   openDeleteAccountButton: document.querySelector("#openDeleteAccountButton"),
+  weeklyGoalPanel: document.querySelector("#weeklyGoalPanel"),
+  weeklyGoalForm: document.querySelector("#weeklyGoalForm"),
+  weeklyGoalBadge: document.querySelector("#weeklyGoalBadge"),
+  weeklyGoalProgress: document.querySelector("#weeklyGoalProgress"),
+  weeklyGoalRemaining: document.querySelector("#weeklyGoalRemaining"),
+  weeklyGoalTrack: document.querySelector(".weekly-goal-track"),
+  weeklyGoalBar: document.querySelector("#weeklyGoalBar"),
+  weeklyGoalValue: document.querySelector("#weeklyGoalValue"),
+  weeklyGoalDecrease: document.querySelector("#weeklyGoalDecrease"),
+  weeklyGoalIncrease: document.querySelector("#weeklyGoalIncrease"),
+  weeklyGoalSaveButton: document.querySelector("#weeklyGoalSaveButton"),
+  weeklyGoalHelp: document.querySelector("#weeklyGoalHelp"),
   registerModal: document.querySelector("#registerModal"),
   registerForm: document.querySelector("#registerForm"),
   registerEmailInput: document.querySelector("#registerEmailInput"),
@@ -992,6 +1005,69 @@ function renderAuthPanel() {
   els.accountPanel.dataset.authState = authenticated ? "authenticated" : "anonymous";
   if (previousAuthState && previousAuthState !== els.accountPanel.dataset.authState) {
     window.SetCounterMotion?.animateContentChange(els.accountPanel, authenticated ? 1 : -1);
+  }
+  renderWeeklyGoal();
+}
+
+function weeklyGoalTarget() {
+  const target = Number(state.profile?.weeklyWorkoutTarget || state.stats?.weeklyWorkoutTarget || 3);
+  return Math.min(Math.max(Math.round(target), 1), 7);
+}
+
+function renderWeeklyGoal(resetDraft = false) {
+  if (!els.weeklyGoalPanel) return;
+  const enabled = Boolean(state.auth.authenticated && state.profile?.weeklyGoalEnabled);
+  els.weeklyGoalPanel.hidden = !enabled;
+  if (!enabled) {
+    state.weeklyGoalDraft = null;
+    return;
+  }
+  const target = weeklyGoalTarget();
+  if (resetDraft || state.weeklyGoalDraft === null) state.weeklyGoalDraft = target;
+  const draft = Math.min(Math.max(Number(state.weeklyGoalDraft) || target, 1), 7);
+  const completed = Math.max(Number(state.stats?.weeklyWorkoutCompleted) || 0, 0);
+  const remaining = Math.max(target - completed, 0);
+  const ratio = target > 0 ? Math.min(completed / target, 1) : 0;
+  els.weeklyGoalBadge.textContent = `주 ${target}회`;
+  els.weeklyGoalProgress.textContent = `${completed} / ${target}회`;
+  els.weeklyGoalRemaining.textContent = remaining > 0 ? `이번 주 ${remaining}회 남음` : "이번 주 목표 완료";
+  els.weeklyGoalBar.style.transform = `scaleX(${ratio})`;
+  els.weeklyGoalTrack.setAttribute("aria-valuemax", String(target));
+  els.weeklyGoalTrack.setAttribute("aria-valuenow", String(Math.min(completed, target)));
+  els.weeklyGoalValue.textContent = `${draft}회`;
+  els.weeklyGoalDecrease.disabled = draft <= 1;
+  els.weeklyGoalIncrease.disabled = draft >= 7;
+  els.weeklyGoalSaveButton.disabled = draft === target;
+  els.weeklyGoalHelp.textContent = `월요일부터 일요일 사이 원하는 ${draft}일에 운동하면 됩니다. 나머지 ${7 - draft}일은 쉬어도 경험치가 차감되지 않습니다. 설정한 주는 안내 기간이며 다음 완료 주부터 판정합니다.`;
+}
+
+function changeWeeklyGoalDraft(offset) {
+  state.weeklyGoalDraft = Math.min(Math.max((Number(state.weeklyGoalDraft) || weeklyGoalTarget()) + offset, 1), 7);
+  renderWeeklyGoal();
+}
+
+async function saveWeeklyGoal(event) {
+  event.preventDefault();
+  if (!state.auth.authenticated) return;
+  const target = Math.min(Math.max(Number(state.weeklyGoalDraft) || 3, 1), 7);
+  els.weeklyGoalSaveButton.disabled = true;
+  els.weeklyGoalSaveButton.textContent = "저장 중";
+  try {
+    const result = await api("/api/profile/weekly-goal", {
+      method: "POST",
+      body: JSON.stringify({ target }),
+    });
+    state.profile = result.profile;
+    state.stats = result.stats;
+    state.weeklyGoalDraft = result.profile.weeklyWorkoutTarget;
+    renderStats(result.stats);
+    renderProfile(result.profile);
+    showToast(`주 ${target}회 운동 목표를 저장했습니다.`);
+  } catch (error) {
+    showToast(error.status === 401 ? "로그인 후 설정할 수 있습니다." : "주간 운동 목표를 저장하지 못했습니다.");
+  } finally {
+    els.weeklyGoalSaveButton.textContent = "적용";
+    renderWeeklyGoal();
   }
 }
 
@@ -1460,6 +1536,7 @@ function renderStats(stats) {
 }
 
 function renderProfile(profile = state.profile) {
+  const previousWeeklyTarget = state.profile?.weeklyWorkoutTarget;
   if (profile) {
     state.profile = profile;
   }
@@ -1489,6 +1566,7 @@ function renderProfile(profile = state.profile) {
     els.menuNicknameAvailability.textContent = state.profile?.canChangeNickname === false ? availableLabel : "지금 변경 가능";
     els.menuNicknameButton.disabled = state.profile?.canChangeNickname === false;
   }
+  renderWeeklyGoal(previousWeeklyTarget !== state.profile?.weeklyWorkoutTarget);
   renderMenuSos();
   renderBoard();
   renderLevelHistory();
@@ -4050,6 +4128,9 @@ function bindEvents() {
 }
 
 function bindAuthEvents() {
+  els.weeklyGoalDecrease.addEventListener("click", () => changeWeeklyGoalDraft(-1));
+  els.weeklyGoalIncrease.addEventListener("click", () => changeWeeklyGoalDraft(1));
+  els.weeklyGoalForm.addEventListener("submit", saveWeeklyGoal);
   els.openRegisterButton.addEventListener("click", () => openAuthModal("register"));
   els.openLoginButton.addEventListener("click", () => openAuthModal("login"));
   els.closeRegisterButton.addEventListener("click", () => closeAuthModal("register"));

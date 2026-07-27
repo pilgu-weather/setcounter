@@ -29,6 +29,8 @@ class HealthUser(db.Model):
     )
     is_anonymous = db.Column(db.Boolean, nullable=False, default=True)
     last_seen_at = db.Column(db.DateTime(timezone=True))
+    weekly_workout_target = db.Column(db.Integer)
+    weekly_target_updated_at = db.Column(db.DateTime(timezone=True))
 
     account = db.relationship("AuthAccount", back_populates="health_user")
 

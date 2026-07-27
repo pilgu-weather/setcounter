@@ -80,6 +80,7 @@ AUTH_LOGIN_RATE_LIMIT = 8
 AUTH_REGISTER_RATE_LIMIT = 5
 CHEAT_WARNING_LIMIT = 2
 CHEAT_PENALTY_THRESHOLD = 3
+DEFAULT_WEEKLY_WORKOUT_TARGET = 3
 COMPLAINT_EMAIL = ""
 REQUIRED_SCHEMA = {
     "auth_rate_limits": {
@@ -113,6 +114,8 @@ REQUIRED_SCHEMA = {
         "account_id",
         "is_anonymous",
         "last_seen_at",
+        "weekly_workout_target",
+        "weekly_target_updated_at",
     },
     "health_exercises": {"id", "name", "created_at"},
     "health_workouts": {
@@ -625,6 +628,21 @@ def validate_nickname(value):
     return nickname
 
 
+def weekly_target_for_user(user):
+    if user is None or user.account_id is None:
+        return None
+    try:
+        return min(max(int(user.weekly_workout_target or DEFAULT_WEEKLY_WORKOUT_TARGET), 1), 7)
+    except (TypeError, ValueError):
+        return DEFAULT_WEEKLY_WORKOUT_TARGET
+
+
+def weekly_target_start_date(user):
+    if user is None or user.account_id is None or user.weekly_target_updated_at is None:
+        return None
+    return aware_datetime(user.weekly_target_updated_at).astimezone(KST).date()
+
+
 def profile_to_dict(user, stats=None):
     available_at = nickname_available_at(user)
     now = utc_now()
@@ -639,6 +657,8 @@ def profile_to_dict(user, stats=None):
             else None
         ),
         "level": stats["level"] if stats else None,
+        "weeklyWorkoutTarget": weekly_target_for_user(user),
+        "weeklyGoalEnabled": user.account_id is not None,
     }
 
 
@@ -1063,6 +1083,66 @@ def daily_challenge_penalty(logs, excuse_dates):
     return {"penalty": len(failed_dates), "failedDates": failed_dates, "passedDates": passed_dates}
 
 
+def start_of_week(day):
+    return day - timedelta(days=day.weekday())
+
+
+def weekly_challenge_penalty(logs, excuse_dates, target, started_on, as_of=None):
+    target = min(max(int(target), 1), 7)
+    today = as_of or today_kst()
+    current_week_start = start_of_week(today)
+    current_week_end = current_week_start + timedelta(days=6)
+    workout_dates = {date.fromisoformat(item["date"]) for item in logs if item.get("date")}
+    recovery_dates = {date.fromisoformat(item) for item in excuse_dates}
+
+    current_workouts = {item for item in workout_dates if current_week_start <= item <= today}
+    current_recovery = {item for item in recovery_dates if current_week_start <= item <= today}
+    first_eligible_week = start_of_week(started_on or today) + timedelta(days=7)
+    failed_dates = []
+    failed_weeks = []
+    passed_dates = []
+    week_start = first_eligible_week
+    penalty = 0
+    while week_start < current_week_start:
+        week_end = week_start + timedelta(days=6)
+        week_workouts = {item for item in workout_dates if week_start <= item <= week_end}
+        week_recovery = {item for item in recovery_dates if week_start <= item <= week_end}
+        covered_days = week_workouts | week_recovery
+        missing = max(target - len(covered_days), 0)
+        passed_dates.extend(item.isoformat() for item in sorted(week_workouts))
+        if missing:
+            penalty += missing
+            available_dates = [
+                week_start + timedelta(days=offset)
+                for offset in range(7)
+                if week_start + timedelta(days=offset) not in covered_days
+            ]
+            failed_dates.extend(item.isoformat() for item in available_dates[-missing:])
+            failed_weeks.append(
+                {
+                    "weekStart": week_start.isoformat(),
+                    "weekEnd": week_end.isoformat(),
+                    "workouts": len(week_workouts),
+                    "recoveryDays": len(week_recovery),
+                    "missing": missing,
+                }
+            )
+        week_start += timedelta(days=7)
+
+    return {
+        "penalty": penalty,
+        "failedDates": failed_dates,
+        "passedDates": passed_dates,
+        "failedWeeks": failed_weeks,
+        "currentWeekStart": current_week_start.isoformat(),
+        "currentWeekEnd": current_week_end.isoformat(),
+        "currentWorkouts": len(current_workouts),
+        "currentRecoveryDays": len(current_recovery),
+        "currentRemaining": max(target - len(current_workouts), 0),
+        "evaluatesFrom": first_eligible_week.isoformat(),
+    }
+
+
 def breakthrough_rate_for_level(level):
     if level >= 90:
         return 0.05
@@ -1094,7 +1174,7 @@ def level_for_experience(experience):
     return max(math.floor(experience) + 1, 1)
 
 
-def stats_from_logs(logs, excuse_dates):
+def stats_from_logs(logs, excuse_dates, weekly_target=None, weekly_target_started_on=None):
     previous_by_exercise = {}
     xp = 0.0
     level = 1
@@ -1151,7 +1231,12 @@ def stats_from_logs(logs, excuse_dates):
                         }
                     )
         previous_by_exercise[log["exercise"]] = log["volume"]
-    challenge = daily_challenge_penalty(logs, excuse_dates)
+    weekly_goal_active = weekly_target is not None
+    challenge = (
+        weekly_challenge_penalty(logs, excuse_dates, weekly_target, weekly_target_started_on)
+        if weekly_goal_active
+        else daily_challenge_penalty(logs, excuse_dates)
+    )
     suspicious_count = sum(1 for log in logs if log.get("suspicionScore", 0) > 0)
     cheat_penalty = cheat_penalty_from_logs(logs)
     total_penalty = challenge["penalty"] + cheat_penalty
@@ -1168,7 +1253,7 @@ def stats_from_logs(logs, excuse_dates):
                 "type": "level_down" if level < before_level else "experience_down",
                 "date": max(penalty_dates) if penalty_dates else today_kst().isoformat(),
                 "createdAt": None,
-                "exercise": "기록 패널티",
+                "exercise": "주간 운동 목표 미달" if weekly_goal_active and challenge["penalty"] else "기록 패널티",
                 "levelBefore": before_level,
                 "levelAfter": level,
                 "experienceDelta": round(-penalty_deduction, 2),
@@ -1189,7 +1274,17 @@ def stats_from_logs(logs, excuse_dates):
         "experience": round(total_xp, 2),
         "experiencePercent": round(progress * 100, 1),
         "nextBreakthroughRate": breakthrough_rate_for_level(level),
-        "dailyPenalty": challenge["penalty"],
+        "dailyPenalty": 0 if weekly_goal_active else challenge["penalty"],
+        "attendancePenalty": challenge["penalty"],
+        "penaltyMode": "weekly" if weekly_goal_active else "daily",
+        "weeklyWorkoutTarget": weekly_target if weekly_goal_active else None,
+        "weeklyWorkoutCompleted": challenge.get("currentWorkouts", 0),
+        "weeklyWorkoutRemaining": challenge.get("currentRemaining", 0),
+        "weeklyRecoveryDays": challenge.get("currentRecoveryDays", 0),
+        "weeklyGoalWeekStart": challenge.get("currentWeekStart"),
+        "weeklyGoalWeekEnd": challenge.get("currentWeekEnd"),
+        "weeklyGoalEvaluatesFrom": challenge.get("evaluatesFrom"),
+        "weeklyFailedWeeks": challenge.get("failedWeeks", []),
         "cheatWarnings": min(suspicious_count, CHEAT_WARNING_LIMIT),
         "cheatSuspicionCount": suspicious_count,
         "cheatPenalty": cheat_penalty,
@@ -1221,7 +1316,13 @@ def volume_stats(user_id):
     )
     logs = [workout_to_log(workout) for workout in workouts]
     excuses = db.session.scalars(select(HealthExcuse).where(HealthExcuse.user_id == user_id)).all()
-    return stats_from_logs(logs, {item.excuse_date.isoformat() for item in excuses})
+    user = db.session.get(HealthUser, user_id)
+    return stats_from_logs(
+        logs,
+        {item.excuse_date.isoformat() for item in excuses},
+        weekly_target_for_user(user),
+        weekly_target_start_date(user),
+    )
 
 
 def claim_legacy_records(user):
@@ -1486,6 +1587,25 @@ def update_profile():
     return jsonify(profile_to_dict(user, volume_stats(user.id)))
 
 
+@app.route("/api/profile/weekly-goal", methods=["POST"])
+def update_weekly_goal():
+    user = request_user()
+    if user.account_id is None:
+        return jsonify({"error": "login_required"}), 401
+    payload = request.get_json(silent=True) or {}
+    try:
+        target = int(payload.get("target"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "weekly_target_must_be_between_1_and_7"}), 400
+    if target < 1 or target > 7:
+        return jsonify({"error": "weekly_target_must_be_between_1_and_7"}), 400
+    user.weekly_workout_target = target
+    user.weekly_target_updated_at = utc_now()
+    db.session.commit()
+    stats_data = volume_stats(user.id)
+    return jsonify({"profile": profile_to_dict(user, stats_data), "stats": stats_data})
+
+
 @app.route("/api/auth/status", methods=["GET"])
 def auth_status():
     csrf_token = csrf_token_for_session()
@@ -1552,6 +1672,8 @@ def auth_register():
         anonymous_user.account = account
         anonymous_user.is_anonymous = False
         anonymous_user.last_seen_at = utc_now()
+        anonymous_user.weekly_workout_target = DEFAULT_WEEKLY_WORKOUT_TARGET
+        anonymous_user.weekly_target_updated_at = utc_now()
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
@@ -1708,7 +1830,12 @@ def bootstrap():
         if before is not None and item["date"] >= before:
             continue
         latest_by_exercise[item["exercise"]] = item
-    stats_data = stats_from_logs(logs, {item["date"] for item in excuse_rows})
+    stats_data = stats_from_logs(
+        logs,
+        {item["date"] for item in excuse_rows},
+        weekly_target_for_user(user),
+        weekly_target_start_date(user),
+    )
     return jsonify(
         {
             "claimedLegacy": claimed,
@@ -2030,7 +2157,12 @@ def create_log():
             select(HealthExcuse).where(HealthExcuse.user_id == user.id)
         ).all()
     }
-    before_stats = stats_from_logs(existing_logs, excuse_dates)
+    before_stats = stats_from_logs(
+        existing_logs,
+        excuse_dates,
+        weekly_target_for_user(user),
+        weekly_target_start_date(user),
+    )
     candidate_log = {
         "date": workout_date.isoformat(),
         "exercise": exercise_name,

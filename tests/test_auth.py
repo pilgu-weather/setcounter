@@ -16,7 +16,7 @@ os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB.as_posix()}"
 os.environ["SETCOUNTER_ALLOW_LOCAL_SQLITE"] = "1"
 os.environ["SECRET_KEY"] = secrets.token_urlsafe(48)
 
-from app import REQUIRED_SCHEMA, app, db, level_for_experience, stats_from_logs
+from app import REQUIRED_SCHEMA, app, db, level_for_experience, stats_from_logs, weekly_challenge_penalty
 from migrate_auth_data import migrate
 from models import (
     AuthAccount,
@@ -121,7 +121,57 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertEqual(user.id, before_id)
             self.assertFalse(user.is_anonymous)
             self.assertIsNotNone(user.account_id)
+            self.assertEqual(user.weekly_workout_target, 3)
+            self.assertIsNotNone(user.weekly_target_updated_at)
             self.assertEqual(db.session.query(HealthWorkout).filter_by(user_id=before_id).count(), 1)
+
+    def test_weekly_goal_allows_four_rest_days_after_three_workout_days(self):
+        result = weekly_challenge_penalty(
+            [{"date": day} for day in ("2026-07-13", "2026-07-15", "2026-07-18")],
+            set(),
+            target=3,
+            started_on=date(2026, 7, 6),
+            as_of=date(2026, 7, 20),
+        )
+        self.assertEqual(result["penalty"], 0)
+        self.assertEqual(result["failedWeeks"], [])
+
+    def test_weekly_goal_penalizes_only_missing_sessions_in_completed_weeks(self):
+        result = weekly_challenge_penalty(
+            [{"date": day} for day in ("2026-07-13", "2026-07-15")],
+            set(),
+            target=3,
+            started_on=date(2026, 7, 6),
+            as_of=date(2026, 7, 20),
+        )
+        self.assertEqual(result["penalty"], 1)
+        self.assertEqual(result["failedWeeks"][0]["missing"], 1)
+
+    def test_weekly_goal_is_login_only_and_can_be_changed(self):
+        key = "weekly-goal-key-0001"
+        anonymous = self.client.post(
+            "/api/profile/weekly-goal",
+            headers=self.csrf_headers(self.client, key),
+            json={"target": 4},
+        )
+        self.assertEqual(anonymous.status_code, 401)
+
+        registered = self.register(key)
+        self.assertEqual(registered.status_code, 201, registered.get_json())
+        bootstrap = self.client.get("/api/bootstrap", headers=self.headers(key))
+        self.assertEqual(bootstrap.status_code, 200, bootstrap.get_json())
+        self.assertEqual(bootstrap.get_json()["profile"]["weeklyWorkoutTarget"], 3)
+
+        changed = self.client.post(
+            "/api/profile/weekly-goal",
+            headers=self.csrf_headers(self.client, key),
+            json={"target": 4},
+        )
+        self.assertEqual(changed.status_code, 200, changed.get_json())
+        self.assertEqual(changed.get_json()["profile"]["weeklyWorkoutTarget"], 4)
+        with app.app_context():
+            user = db.session.query(HealthUser).filter_by(user_key=key).one()
+            self.assertEqual(user.weekly_workout_target, 4)
 
     def test_auth_status_issues_csrf_and_register_requires_it(self):
         key = "csrf-register-key-0001"
