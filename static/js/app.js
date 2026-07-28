@@ -2832,18 +2832,31 @@ function logsForDate(dateKey) {
 }
 
 function exerciseTrainingGroup(exercise) {
+  const primaryProfile = [
+    exercise?.area,
+    ...(exercise?.primaryMuscles || []),
+  ].join(" ").toLowerCase();
   const haystack = [
     exercise?.name,
     exerciseDisplayName(exercise),
     exerciseEnglishName(exercise),
     exercise?.area,
     ...(exercise?.primaryMuscles || []),
-    ...(exercise?.secondaryMuscles || []),
   ].join(" ").toLowerCase();
-  if (/chest|triceps|shoulder|가슴|삼두|어깨|프레스|푸쉬업|딥스/.test(haystack)) return "push";
-  if (/back|lats|biceps|forearms|등|광배|이두|전완|로우|풀업|풀다운|컬|추감기/.test(haystack)) return "pull";
-  if (/quadriceps|hamstrings|glutes|calves|하체|둔근|햄스트링|종아리|스쿼트|런지|데드리프트|힙/.test(haystack)) return "legs";
-  if (/abdominals|core|복근|코어|크런치|플랭크|싯업/.test(haystack)) return "core";
+
+  // Primary muscle region decides lower-body/core work. For upper-body work,
+  // the API's force field is more reliable than secondary-muscle keywords.
+  if (/abdominals|obliques|core|복근|복사근|코어/.test(primaryProfile)) return "core";
+  if (/quadriceps|hamstrings|glutes|calves|adductors|abductors|하체|대퇴|둔근|햄스트링|종아리|내전근|외전근/.test(primaryProfile)) return "legs";
+
+  const force = String(exercise?.force || "").toLowerCase();
+  if (force === "pull") return "pull";
+  if (force === "push") return "push";
+
+  if (/back|middle back|lower back|lats|biceps|forearms|등|광배|이두|전완|로우|풀업|풀다운|친업|컬|추감기|슈러그|페이스풀/.test(haystack)) return "pull";
+  if (/chest|triceps|shoulder|가슴|삼두|어깨|프레스|푸쉬업|푸시업|딥스|레이즈/.test(haystack)) return "push";
+  if (/스쿼트|런지|데드리프트|힙|leg|squat|lunge|deadlift/.test(haystack)) return "legs";
+  if (/크런치|플랭크|싯업|crunch|plank|sit-up/.test(haystack)) return "core";
   return "general";
 }
 
@@ -2895,7 +2908,8 @@ function chooseRecommendedExercise(options = {}) {
     targetGroups.includes(exerciseTrainingGroup(exercise)) &&
     (!completedExercise || exerciseKey(exercise) !== exerciseKey(completedExercise))
   );
-  const pool = candidates.length ? candidates : exercises;
+  if (!candidates.length) return null;
+  const pool = candidates;
   return [...pool]
     .map((exercise) => ({ exercise, lastDate: lastDateForExercise(exercise) }))
     .sort((a, b) => a.lastDate.localeCompare(b.lastDate) || exerciseDisplayName(a.exercise).localeCompare(exerciseDisplayName(b.exercise)))[0]?.exercise || exercises[0];
