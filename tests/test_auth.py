@@ -529,6 +529,32 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertEqual(db.session.query(HealthWorkout).count(), 0)
             self.assertEqual(db.session.query(HealthSet).count(), 0)
 
+    def test_bodyweight_zero_weight_round_trip(self):
+        key = "bodyweight-round-trip-key-0001"
+        created = self.client.post(
+            "/api/logs",
+            headers=self.csrf_headers(self.client, key),
+            json={
+                "exercise": "Push-Up",
+                "date": "2026-07-22",
+                "weightKg": 0,
+                "setWeights": [0, 0, 0],
+                "setReps": [12, 10, 8],
+                "completedSets": 3,
+            },
+        )
+        self.assertEqual(created.status_code, 201, created.get_json())
+        created_log = created.get_json()
+        self.assertEqual(created_log["weightKg"], 0.0)
+        self.assertEqual(created_log["setWeights"], [0.0, 0.0, 0.0])
+        self.assertEqual(created_log["volume"], 0.0)
+
+        latest = self.client.get(
+            "/api/logs/latest?exercise=Push-Up", headers=self.headers(key)
+        )
+        self.assertEqual(latest.status_code, 200, latest.get_json())
+        self.assertEqual(latest.get_json()["setWeights"], [0.0, 0.0, 0.0])
+
     def test_level_history_deducts_latest_experience_and_recalculates_level(self):
         key = "level-history-key-0001"
         workout_date = date.today().isoformat()

@@ -2094,8 +2094,8 @@ def create_excuse():
 
 def normalized_set_data(payload, exercise):
     step = 1
-    raw_weight = min(max(float(payload.get("weightKg", step)), step), MAX_WEIGHT_KG)
-    fallback_weight = max(math.floor(raw_weight / step + 0.5) * step, step)
+    raw_weight = min(max(float(payload.get("weightKg", 0)), 0), MAX_WEIGHT_KG)
+    fallback_weight = max(math.floor(raw_weight / step + 0.5) * step, 0)
     raw_reps = payload.get("setReps", [])
     raw_weights = payload.get("setWeights", [])
     if not isinstance(raw_reps, list) or not isinstance(raw_weights, list):
@@ -2108,7 +2108,7 @@ def normalized_set_data(payload, exercise):
         if str(value).strip()
     ]
     weights = [
-        max(math.floor(min(max(float(value), step), MAX_WEIGHT_KG) / step + 0.5) * step, step)
+        max(math.floor(min(max(float(value), 0), MAX_WEIGHT_KG) / step + 0.5) * step, 0)
         for value in raw_weights
         if str(value).strip()
     ]

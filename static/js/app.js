@@ -1351,16 +1351,45 @@ function weightStepForExercise(exercise = state.selectedExercise) {
   return 1;
 }
 
+function isBodyweightExercise(exercise = state.selectedExercise) {
+  if (!exercise) return false;
+  const rawEquipment = String(exercise.equipment || "").trim().toLowerCase();
+  const translatedEquipment = String(translateEquipment(exercise.equipment) || "").trim();
+  const inferredEquipment = equipmentForExercise(exerciseDisplayName(exercise), exercise.area || "");
+  return rawEquipment === "body only" || translatedEquipment === "맨몸" || inferredEquipment === "맨몸";
+}
+
+function defaultWeightForExercise(exercise = state.selectedExercise) {
+  return isBodyweightExercise(exercise) ? 0 : 8;
+}
+
 function cleanNumber(value) {
   const number = Number.parseFloat(value) || 0;
   return Number.isInteger(number) ? String(number) : number.toFixed(1);
 }
 
+function weightLabel(value) {
+  const number = Number.parseFloat(value) || 0;
+  return number === 0 ? "맨몸" : `${cleanNumber(number)}kg`;
+}
+
+function readWeightInput() {
+  const value = String(els.weightInput.value || "").trim();
+  if (value === "맨몸" || value === "0") return 0;
+  return Number.parseFloat(value.replace(/kg$/i, ""));
+}
+
+function writeWeightInput(value) {
+  const number = Math.max(Number.parseFloat(value) || 0, 0);
+  els.weightInput.value = number === 0 ? "맨몸" : cleanNumber(number);
+}
+
 function normalizedWeight(commit = false) {
-  const raw = Number.parseFloat(els.weightInput.value);
+  const raw = readWeightInput();
   const step = weightStepForExercise();
-  const next = Math.max(Math.round((Number.isFinite(raw) ? raw : step) / step) * step, step);
-  if (commit) els.weightInput.value = String(next);
+  const fallback = defaultWeightForExercise();
+  const next = Math.max(Math.round((Number.isFinite(raw) ? raw : fallback) / step) * step, 0);
+  if (commit) writeWeightInput(next);
   return next;
 }
 
@@ -1385,7 +1414,7 @@ function rowsFromLog(log) {
     return log.setRows.map((row) => ({ weightKg: row.weightKg, reps: row.reps }));
   }
   return (log?.setReps || []).map((reps, index) => ({
-    weightKg: (log.setWeights && log.setWeights[index]) || log.weightKg || 0,
+    weightKg: (log.setWeights && log.setWeights[index]) ?? log.weightKg ?? 0,
     reps,
   }));
 }
@@ -1395,7 +1424,7 @@ function applyInputsFromLatestRecord(log) {
   if (!rows.length) return;
   const firstRow = rows[0];
   const step = weightStepForExercise();
-  els.weightInput.value = String(Math.max(Math.round((firstRow.weightKg || step) / step) * step, step));
+  writeWeightInput(Math.max(Math.round((Number(firstRow.weightKg) || 0) / step) * step, 0));
   els.currentRepsInput.value = String(Math.max(firstRow.reps || 1, 1));
   els.setsInput.value = String(Math.max(log.targetSets || rows.length || 1, 1));
   syncCounter();
@@ -1408,15 +1437,13 @@ function applyNextSetFromLatestRecord() {
     return false;
   }
   const step = weightStepForExercise();
-  els.weightInput.value = String(Math.max(Math.round((nextRow.weightKg || step) / step) * step, step));
+  writeWeightInput(Math.max(Math.round((Number(nextRow.weightKg) || 0) / step) * step, 0));
   els.currentRepsInput.value = String(Math.max(nextRow.reps || 1, 1));
   return true;
 }
 
 function syncWeightControls() {
   const step = weightStepForExercise();
-  els.weightInput.min = String(step);
-  els.weightInput.step = String(step);
   document.querySelectorAll("[data-step-for='weightInput']").forEach((button) => {
     const direction = Math.sign(Number.parseFloat(button.dataset.step) || 0) || 1;
     button.dataset.step = String(direction * step);
@@ -1426,12 +1453,13 @@ function syncWeightControls() {
 function stepNumberInput(input, delta) {
   const min = Number.parseFloat(input.min);
   const max = Number.parseFloat(input.max);
-  const current = Number.parseFloat(input.value);
-  const fallback = Number.parseFloat(input.defaultValue) || 0;
+  const current = input === els.weightInput ? readWeightInput() : Number.parseFloat(input.value);
+  const fallback = input === els.weightInput ? defaultWeightForExercise() : Number.parseFloat(input.defaultValue) || 0;
   const adjustedDelta = input === els.weightInput ? weightStepForExercise() * Math.sign(delta || 0) : delta;
   const next = Math.max(Number.isFinite(min) ? min : 0, (Number.isFinite(current) ? current : fallback) + adjustedDelta);
-  input.value = String(Number.isFinite(max) ? Math.min(next, max) : next);
-  if (input === els.weightInput) normalizedWeight(true);
+  const limited = Number.isFinite(max) ? Math.min(next, max) : next;
+  if (input === els.weightInput) writeWeightInput(limited);
+  else input.value = String(limited);
   syncCounter();
 }
 
@@ -1446,7 +1474,7 @@ function buildRecordTable(rows) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${index + 1}</td>
-      <td>${cleanNumber(row.weightKg)}kg</td>
+      <td>${weightLabel(row.weightKg)}</td>
       <td>${row.reps}회</td>
       <td>${Math.round(row.weightKg * row.reps)}kg</td>
     `;
@@ -1470,6 +1498,7 @@ function syncRecordCompare() {
   if (!lastVolume || completed !== Math.max(target - 1, 0)) return;
 
   const currentWeight = normalizedWeight(false);
+  if (currentWeight <= 0) return;
   const afterNextSetVolume = totalVolume(state.setRows) + currentWeight * currentReps();
   const remainingVolume = Math.max(lastVolume - afterNextSetVolume, 0);
   const remainingReps = Math.ceil(remainingVolume / currentWeight);
@@ -1484,11 +1513,11 @@ function syncRecordCompare() {
 
 function syncPlannedRecord() {
   const dateLabel = state.selectedDate === todayKey ? "오늘" : state.selectedDate;
-  const weight = cleanNumber(normalizedWeight(false));
+  const weight = weightLabel(normalizedWeight(false));
   const nextSet = state.setRows.length + 1;
   const doneReps = totalReps(state.setRows);
   const doneVolume = Math.round(totalVolume(state.setRows));
-  els.plannedRecord.textContent = `${dateLabel}: ${weight}kg · ${doneReps}회 완료 · 볼륨 ${doneVolume}kg · ${nextSet}세트는 ${currentReps()}회`;
+  els.plannedRecord.textContent = `${dateLabel}: ${weight} · ${doneReps}회 완료 · 볼륨 ${doneVolume}kg · ${nextSet}세트는 ${currentReps()}회`;
   syncRecordCompare();
 }
 
@@ -1518,7 +1547,7 @@ function renderSetTable() {
     tr.dataset.motionKey = `set-${state.selectedDate}-${exerciseKey(state.selectedExercise)}-${index}`;
     tr.innerHTML = `
       <td>${index + 1}</td>
-      <td>${cleanNumber(row.weightKg)}kg</td>
+      <td>${weightLabel(row.weightKg)}</td>
       <td>${row.reps}회</td>
       <td>${Math.round(row.weightKg * row.reps)}kg</td>
     `;
@@ -1543,7 +1572,7 @@ function resetSession(keepInputs = true) {
   resetRestTimer();
   syncWeightControls();
   if (!keepInputs) {
-    els.weightInput.value = String(weightStepForExercise());
+    writeWeightInput(defaultWeightForExercise());
     els.currentRepsInput.value = "12";
     els.setsInput.value = "3";
   }
@@ -2710,6 +2739,7 @@ function renderExerciseCards() {
 
 async function selectExercise(exercise) {
   state.selectedExercise = exercise;
+  writeWeightInput(defaultWeightForExercise(exercise));
   els.counterTitle.textContent = exerciseDisplayName(exercise);
   renderExerciseDetail(exercise);
   document.querySelector(".counter-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2747,7 +2777,7 @@ function renderLatestRecord(latest) {
     const chip = document.createElement("span");
     chip.className = "record-chip";
     chip.dataset.setIndex = String(index);
-    chip.textContent = `${index + 1}세트 ${cleanNumber(row.weightKg)}kg ${row.reps}회`;
+    chip.textContent = `${index + 1}세트 ${weightLabel(row.weightKg)} ${row.reps}회`;
     chips.append(chip);
   });
   els.lastRecord.append(title, chips);
@@ -2876,6 +2906,7 @@ function applyTodayRecommendation() {
   if (!recommended) return null;
   state.recommendedExerciseKey = exerciseKey(recommended);
   state.selectedExercise = recommended;
+  writeWeightInput(defaultWeightForExercise(recommended));
   els.counterTitle.textContent = exerciseDisplayName(recommended);
   renderExerciseDetail(recommended);
   syncWeightControls();
@@ -3733,7 +3764,7 @@ async function saveWorkout() {
   const log = {
     date: state.selectedDate,
     exercise: state.selectedExercise.name,
-    weightKg: state.setRows[state.setRows.length - 1]?.weightKg || normalizedWeight(true),
+    weightKg: state.setRows[state.setRows.length - 1]?.weightKg ?? normalizedWeight(true),
     setWeights: state.setRows.map((row) => row.weightKg),
     setReps: state.setRows.map((row) => row.reps),
     targetSets: targetSets(),
@@ -3809,7 +3840,7 @@ function countSet() {
 function undoSet() {
   const revertedSet = state.setRows.pop();
   if (revertedSet) {
-    els.weightInput.value = cleanNumber(revertedSet.weightKg);
+    writeWeightInput(revertedSet.weightKg);
     els.currentRepsInput.value = String(Math.max(revertedSet.reps || 1, 1));
   }
   resetRestTimer();
