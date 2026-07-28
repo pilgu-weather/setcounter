@@ -40,6 +40,11 @@ def migrate(engine):
             "weekly_target_updated_at",
             f"weekly_target_updated_at {timestamp_type}",
         )
+        add_column_if_missing(
+            connection,
+            "weekly_penalty_carryover",
+            "weekly_penalty_carryover INTEGER NOT NULL DEFAULT 0",
+        )
         connection.execute(
             text(
                 """

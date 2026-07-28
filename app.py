@@ -116,6 +116,7 @@ REQUIRED_SCHEMA = {
         "last_seen_at",
         "weekly_workout_target",
         "weekly_target_updated_at",
+        "weekly_penalty_carryover",
     },
     "health_exercises": {"id", "name", "created_at"},
     "health_workouts": {
@@ -643,6 +644,15 @@ def weekly_target_start_date(user):
     return aware_datetime(user.weekly_target_updated_at).astimezone(KST).date()
 
 
+def weekly_penalty_carryover_for_user(user):
+    if user is None:
+        return 0
+    try:
+        return max(int(user.weekly_penalty_carryover or 0), 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def profile_to_dict(user, stats=None):
     available_at = nickname_available_at(user)
     now = utc_now()
@@ -1143,6 +1153,36 @@ def weekly_challenge_penalty(logs, excuse_dates, target, started_on, as_of=None)
     }
 
 
+def attendance_penalty_snapshot(user):
+    if user is None:
+        return 0
+    workouts = load_workouts(
+        workout_query(user.id).order_by(
+            HealthWorkout.workout_date.asc(),
+            HealthWorkout.created_at.asc(),
+            HealthWorkout.id.asc(),
+        )
+    )
+    logs = [workout_to_log(workout) for workout in workouts]
+    excuse_dates = {
+        item.excuse_date.isoformat()
+        for item in db.session.scalars(
+            select(HealthExcuse).where(HealthExcuse.user_id == user.id)
+        ).all()
+    }
+    carryover = weekly_penalty_carryover_for_user(user)
+    target = weekly_target_for_user(user)
+    if target is None:
+        return daily_challenge_penalty(logs, excuse_dates)["penalty"]
+    current_weekly = weekly_challenge_penalty(
+        logs,
+        excuse_dates,
+        target,
+        weekly_target_start_date(user),
+    )["penalty"]
+    return carryover + current_weekly
+
+
 def breakthrough_rate_for_level(level):
     if level >= 90:
         return 0.05
@@ -1174,7 +1214,13 @@ def level_for_experience(experience):
     return max(math.floor(experience) + 1, 1)
 
 
-def stats_from_logs(logs, excuse_dates, weekly_target=None, weekly_target_started_on=None):
+def stats_from_logs(
+    logs,
+    excuse_dates,
+    weekly_target=None,
+    weekly_target_started_on=None,
+    attendance_penalty_carryover=0,
+):
     previous_by_exercise = {}
     xp = 0.0
     level = 1
@@ -1239,7 +1285,9 @@ def stats_from_logs(logs, excuse_dates, weekly_target=None, weekly_target_starte
     )
     suspicious_count = sum(1 for log in logs if log.get("suspicionScore", 0) > 0)
     cheat_penalty = cheat_penalty_from_logs(logs)
-    total_penalty = challenge["penalty"] + cheat_penalty
+    carryover_penalty = max(int(attendance_penalty_carryover or 0), 0)
+    attendance_penalty = carryover_penalty + challenge["penalty"]
+    total_penalty = attendance_penalty + cheat_penalty
     total_xp = max(xp - total_penalty, 0)
     penalty_deduction = min(total_penalty, xp)
     if penalty_deduction > 0:
@@ -1248,12 +1296,20 @@ def stats_from_logs(logs, excuse_dates, weekly_target=None, weekly_target_starte
         if level < before_level:
             level_downs += 1
         penalty_dates = challenge["failedDates"] or [log["date"] for log in logs if log.get("suspicionScore", 0) > 0]
+        if not penalty_dates and carryover_penalty and logs:
+            penalty_dates = [logs[0]["date"]]
+        if challenge["penalty"]:
+            penalty_label = "주간 운동 목표 미달" if weekly_goal_active else "기록 패널티"
+        elif carryover_penalty:
+            penalty_label = "이전 운동 목표 미달"
+        else:
+            penalty_label = "기록 패널티"
         level_history.append(
             {
                 "type": "level_down" if level < before_level else "experience_down",
                 "date": max(penalty_dates) if penalty_dates else today_kst().isoformat(),
                 "createdAt": None,
-                "exercise": "주간 운동 목표 미달" if weekly_goal_active and challenge["penalty"] else "기록 패널티",
+                "exercise": penalty_label,
                 "levelBefore": before_level,
                 "levelAfter": level,
                 "experienceDelta": round(-penalty_deduction, 2),
@@ -1275,7 +1331,8 @@ def stats_from_logs(logs, excuse_dates, weekly_target=None, weekly_target_starte
         "experiencePercent": round(progress * 100, 1),
         "nextBreakthroughRate": breakthrough_rate_for_level(level),
         "dailyPenalty": 0 if weekly_goal_active else challenge["penalty"],
-        "attendancePenalty": challenge["penalty"],
+        "attendancePenalty": attendance_penalty,
+        "attendancePenaltyCarryover": carryover_penalty,
         "penaltyMode": "weekly" if weekly_goal_active else "daily",
         "weeklyWorkoutTarget": weekly_target if weekly_goal_active else None,
         "weeklyWorkoutCompleted": challenge.get("currentWorkouts", 0),
@@ -1322,6 +1379,7 @@ def volume_stats(user_id):
         {item.excuse_date.isoformat() for item in excuses},
         weekly_target_for_user(user),
         weekly_target_start_date(user),
+        weekly_penalty_carryover_for_user(user),
     )
 
 
@@ -1599,8 +1657,10 @@ def update_weekly_goal():
         return jsonify({"error": "weekly_target_must_be_between_1_and_7"}), 400
     if target < 1 or target > 7:
         return jsonify({"error": "weekly_target_must_be_between_1_and_7"}), 400
+    penalty_carryover = attendance_penalty_snapshot(user)
     user.weekly_workout_target = target
     user.weekly_target_updated_at = utc_now()
+    user.weekly_penalty_carryover = penalty_carryover
     db.session.commit()
     stats_data = volume_stats(user.id)
     return jsonify({"profile": profile_to_dict(user, stats_data), "stats": stats_data})
@@ -1665,6 +1725,7 @@ def auth_register():
     if db.session.scalar(select(AuthAccount.id).where(AuthAccount.email == email)) is not None:
         return jsonify({"error": "email_already_registered"}), 409
 
+    penalty_carryover = attendance_penalty_snapshot(anonymous_user)
     account = AuthAccount(email=email, password_hash=generate_password_hash(password))
     try:
         # One commit keeps account creation and the existing anonymous profile link atomic.
@@ -1674,6 +1735,7 @@ def auth_register():
         anonymous_user.last_seen_at = utc_now()
         anonymous_user.weekly_workout_target = DEFAULT_WEEKLY_WORKOUT_TARGET
         anonymous_user.weekly_target_updated_at = utc_now()
+        anonymous_user.weekly_penalty_carryover = penalty_carryover
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
@@ -1835,6 +1897,7 @@ def bootstrap():
         {item["date"] for item in excuse_rows},
         weekly_target_for_user(user),
         weekly_target_start_date(user),
+        weekly_penalty_carryover_for_user(user),
     )
     return jsonify(
         {
@@ -2162,6 +2225,7 @@ def create_log():
         excuse_dates,
         weekly_target_for_user(user),
         weekly_target_start_date(user),
+        weekly_penalty_carryover_for_user(user),
     )
     candidate_log = {
         "date": workout_date.isoformat(),

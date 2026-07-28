@@ -123,6 +123,7 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertIsNotNone(user.account_id)
             self.assertEqual(user.weekly_workout_target, 3)
             self.assertIsNotNone(user.weekly_target_updated_at)
+            self.assertGreater(user.weekly_penalty_carryover, 0)
             self.assertEqual(db.session.query(HealthWorkout).filter_by(user_id=before_id).count(), 1)
 
     def test_weekly_goal_allows_four_rest_days_after_three_workout_days(self):
@@ -172,6 +173,26 @@ class AuthSystemTestCase(unittest.TestCase):
         with app.app_context():
             user = db.session.query(HealthUser).filter_by(user_key=key).one()
             self.assertEqual(user.weekly_workout_target, 4)
+
+    def test_weekly_goal_change_preserves_existing_penalty_carryover(self):
+        key = "weekly-carryover-key-0001"
+        registered = self.register(key)
+        self.assertEqual(registered.status_code, 201, registered.get_json())
+        with app.app_context():
+            user = db.session.query(HealthUser).filter_by(user_key=key).one()
+            user.weekly_penalty_carryover = 2
+            db.session.commit()
+
+        changed = self.client.post(
+            "/api/profile/weekly-goal",
+            headers=self.csrf_headers(self.client, key),
+            json={"target": 5},
+        )
+        self.assertEqual(changed.status_code, 200, changed.get_json())
+        self.assertEqual(changed.get_json()["stats"]["attendancePenaltyCarryover"], 2)
+        with app.app_context():
+            user = db.session.query(HealthUser).filter_by(user_key=key).one()
+            self.assertEqual(user.weekly_penalty_carryover, 2)
 
     def test_auth_status_issues_csrf_and_register_requires_it(self):
         key = "csrf-register-key-0001"
@@ -648,6 +669,52 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(after["levelHistory"][0]["type"], expected_type)
         self.assertEqual(after["levelDowns"], 1 if after["level"] < before["level"] else 0)
         self.assertAlmostEqual(after["levelHistory"][0]["experienceDelta"], -latest_award, places=2)
+
+    def test_breakthrough_after_penalty_advances_from_current_level_only(self):
+        workout_date = date.today().isoformat()
+        logs = [
+            {
+                "exercise": "Bench Press",
+                "date": workout_date,
+                "createdAt": f"2026-07-28T01:{index:02d}:00+00:00",
+                "volume": 100 + index,
+                "totalReps": 10,
+                "completedSets": 1,
+                "suspicionScore": 0,
+            }
+            for index in range(11)
+        ]
+        before = stats_from_logs(
+            logs,
+            set(),
+            weekly_target=3,
+            weekly_target_started_on=date.today(),
+            attendance_penalty_carryover=6,
+        )
+        self.assertEqual(before["level"], 4)
+        self.assertAlmostEqual(before["experience"], 3.9, places=2)
+
+        logs.append(
+            {
+                "exercise": "Bench Press",
+                "date": workout_date,
+                "createdAt": "2026-07-28T02:00:00+00:00",
+                "volume": 111,
+                "totalReps": 10,
+                "completedSets": 1,
+                "suspicionScore": 0,
+            }
+        )
+        after = stats_from_logs(
+            logs,
+            set(),
+            weekly_target=3,
+            weekly_target_started_on=date.today(),
+            attendance_penalty_carryover=6,
+        )
+        self.assertEqual(after["level"], 5)
+        self.assertLessEqual(after["level"] - before["level"], 1)
+        self.assertAlmostEqual(after["experience"], 4.8, places=2)
 
     def test_experience_loss_keeps_level_when_xp_remains_above_level_floor(self):
         workout_date = date.today().isoformat()

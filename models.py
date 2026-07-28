@@ -31,6 +31,7 @@ class HealthUser(db.Model):
     last_seen_at = db.Column(db.DateTime(timezone=True))
     weekly_workout_target = db.Column(db.Integer)
     weekly_target_updated_at = db.Column(db.DateTime(timezone=True))
+    weekly_penalty_carryover = db.Column(db.Integer, nullable=False, default=0, server_default="0")
 
     account = db.relationship("AuthAccount", back_populates="health_user")
 
