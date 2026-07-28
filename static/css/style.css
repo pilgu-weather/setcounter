@@ -3054,6 +3054,11 @@ body:has(.exercise-step-modal:not([hidden])) {
   gap: 10px;
 }
 
+.complaint-actions > button {
+  height: 50px;
+  min-height: 50px;
+}
+
 .auth-dialog label {
   display: grid;
   gap: 6px;
@@ -4193,6 +4198,11 @@ select:focus {
 .record-actions .action-row,
 .record-actions .confirm-button {
   margin-top: 0;
+}
+
+.record-actions .action-row > button {
+  height: 56px;
+  min-height: 56px;
 }
 
 .record-actions .confirm-button:not(.is-target-complete):not(:disabled) {
@@ -6994,7 +7004,7 @@ body:has([data-screen="level-up"].is-active) .app-shell {
   margin-top: 2px;
 }
 
-[data-screen="menu"] .account-actions button { min-height: 48px; border-radius: 12px; }
+[data-screen="menu"] .account-actions button { height: 48px; min-height: 48px; border-radius: 12px; }
 [data-screen="menu"] #authenticatedAccountActions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 [data-screen="menu"] #logoutButton { color: var(--sc-text-secondary); }
 [data-screen="menu"] .account-delete-button {
