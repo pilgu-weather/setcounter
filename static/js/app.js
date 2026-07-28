@@ -105,8 +105,8 @@ function bodyForExercise(name, area = "") {
   if (/등|로우|랫|풀업|친업|풀다운|풀오버|랙풀|슈러그|데드행/.test(value)) return "등";
   if (/어깨|숄더|오버헤드|레터럴|프론트|리어델트|페이스풀|업라이트|랜드마인|Y 레이즈|스캡션/.test(value)) return "어깨";
   if (/팔|컬|트라이셉스|스컬|킥백|푸쉬다운|익스텐션|그립|리스트|전완|프로나션|수피네이션/.test(value)) return "팔";
-  if (/하체|스쿼트|런지|레그|데드리프트|힙|글루트|카프|브릿지|어브덕션|어덕션|스텝업|노르딕|월싯/.test(value)) return "하체";
   if (/코어|크런치|싯업|레그 레이즈|플랭크|데드버그|버드독|트위스트|마운틴|롤아웃|우드찹|팔로프|브이업|힐터치/.test(value)) return "코어";
+  if (/하체|스쿼트|런지|레그|데드리프트|힙|글루트|카프|브릿지|어브덕션|어덕션|스텝업|노르딕|월싯/.test(value)) return "하체";
   if (/버피|스윙|스내치|클린|배틀로프|슬레드|월볼|박스 점프|점핑잭|로잉|바이크|스텝밀|트레드밀|사이클/.test(value)) return "전신컨디셔닝";
   return area || "기타";
 }
@@ -921,6 +921,7 @@ const els = {
   historyList: document.querySelector("#historyList"),
   monthSummary: document.querySelector("#monthSummary"),
   toast: document.querySelector("#toast"),
+  restCompleteAlert: document.querySelector("#restCompleteAlert"),
 };
 
 function showToast(message) {
@@ -1463,28 +1464,27 @@ function stepNumberInput(input, delta) {
   syncCounter();
 }
 
-function buildRecordTable(rows) {
+function buildRecordTable(rows, options = {}) {
+  const repsOnly = Boolean(options.repsOnly);
   const table = document.createElement("table");
   table.className = "record-table";
-  table.innerHTML = `
-    <thead><tr><th>세트</th><th>무게</th><th>횟수</th><th>볼륨</th></tr></thead>
-  `;
+  table.classList.toggle("is-reps-only", repsOnly);
+  table.innerHTML = repsOnly
+    ? `<thead><tr><th>세트</th><th>횟수</th></tr></thead>`
+    : `<thead><tr><th>세트</th><th>무게</th><th>횟수</th><th>볼륨</th></tr></thead>`;
   const body = document.createElement("tbody");
   rows.forEach((row, index) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${index + 1}</td>
-      <td>${weightLabel(row.weightKg)}</td>
-      <td>${row.reps}회</td>
-      <td>${Math.round(row.weightKg * row.reps)}kg</td>
-    `;
+    tr.innerHTML = repsOnly
+      ? `<td>${index + 1}</td><td>${row.reps}회</td>`
+      : `<td>${index + 1}</td><td>${weightLabel(row.weightKg)}</td><td>${row.reps}회</td><td>${Math.round(row.weightKg * row.reps)}kg</td>`;
     body.append(tr);
   });
   table.append(body);
   const foot = document.createElement("tfoot");
-  foot.innerHTML = `
-    <tr><td>합계</td><td>-</td><td>${totalReps(rows)}회</td><td>${Math.round(totalVolume(rows))}kg</td></tr>
-  `;
+  foot.innerHTML = repsOnly
+    ? `<tr><td>합계</td><td>${totalReps(rows)}회</td></tr>`
+    : `<tr><td>합계</td><td>-</td><td>${totalReps(rows)}회</td><td>${Math.round(totalVolume(rows))}kg</td></tr>`;
   table.append(foot);
   return table;
 }
@@ -2992,15 +2992,36 @@ function volumeBreakdownForLogs(logs) {
   const byPart = new Map();
   (logs || []).forEach((log) => {
     const part = exercisePartName(log.exercise);
-    byPart.set(part, (byPart.get(part) || 0) + (log.volume || 0));
+    const row = byPart.get(part) || { part, volume: 0, reps: 0 };
+    row.volume += log.volume || 0;
+    row.reps += log.totalReps || 0;
+    byPart.set(part, row);
   });
-  return Array.from(byPart.entries())
-    .map(([part, volume]) => ({ part, volume }))
-    .sort((a, b) => b.volume - a.volume || a.part.localeCompare(b.part));
+  return Array.from(byPart.values())
+    .sort((a, b) => (b.part === "코어" ? b.reps : b.volume) - (a.part === "코어" ? a.reps : a.volume) || a.part.localeCompare(b.part));
+}
+
+function formatBreakdownRow(row) {
+  return row.part === "코어"
+    ? `${row.part} ${formatNumber(row.reps)}회`
+    : `${row.part} ${formatNumber(row.volume)}kg`;
 }
 
 function formatBreakdownText(breakdown) {
-  return breakdown.map((row) => `${row.part} ${formatNumber(row.volume)}kg`).join(" · ");
+  return breakdown.map(formatBreakdownRow).join(" · ");
+}
+
+function calendarActivitySummary(logs) {
+  const breakdown = volumeBreakdownForLogs(logs);
+  const nonCoreVolume = breakdown
+    .filter((row) => row.part !== "코어")
+    .reduce((sum, row) => sum + row.volume, 0);
+  const coreReps = breakdown.find((row) => row.part === "코어")?.reps || 0;
+  const metrics = [];
+  if (nonCoreVolume > 0) metrics.push(`${formatNumber(nonCoreVolume)}kg`);
+  if (coreReps > 0) metrics.push(`코어 ${formatNumber(coreReps)}회`);
+  if (!metrics.length) metrics.push(`${formatNumber(logs.reduce((sum, log) => sum + (log.totalReps || 0), 0))}회`);
+  return `${logs.length}종목 · ${metrics.join(" · ")}`;
 }
 
 function renderCalendar() {
@@ -3043,7 +3064,7 @@ function renderCalendar() {
       meta.className = "day-cell-breakdown";
       breakdown.slice(0, 2).forEach((row) => {
         const line = document.createElement("small");
-        line.textContent = `${row.part} ${formatNumber(row.volume)}kg`;
+        line.textContent = formatBreakdownRow(row);
         meta.append(line);
       });
       if (breakdown.length > 2) {
@@ -3082,8 +3103,7 @@ function renderDayDetail() {
   const title = document.createElement("strong");
   title.textContent = `${selectedDateText()} 기록`;
   const summary = document.createElement("span");
-  const total = logs.reduce((sum, log) => sum + (log.volume || 0), 0);
-  summary.textContent = logs.length ? `${logs.length}종목 · ${formatNumber(total)}kg` : "기록 없음";
+  summary.textContent = logs.length ? calendarActivitySummary(logs) : "기록 없음";
   head.append(title, summary);
   els.calendarDayDetail.append(head);
   if (logs.length) {
@@ -3091,7 +3111,7 @@ function renderDayDetail() {
     breakdown.className = "day-volume-breakdown";
     volumeBreakdownForLogs(logs).forEach((row) => {
       const chip = document.createElement("span");
-      chip.textContent = `${row.part} ${formatNumber(row.volume)}kg`;
+      chip.textContent = formatBreakdownRow(row);
       breakdown.append(chip);
     });
     els.calendarDayDetail.append(breakdown);
@@ -3125,8 +3145,11 @@ function renderDayDetail() {
     });
     top.append(label, remove);
     const meta = document.createElement("p");
-    meta.textContent = `총 ${formatNumber(log.totalReps)}회 · 볼륨 ${formatNumber(log.volume)}kg${log.notes ? ` · ${log.notes}` : ""}`;
-    item.append(top, meta, buildRecordTable(rowsFromLog(log)));
+    const coreExercise = exercisePartName(log.exercise) === "코어";
+    meta.textContent = coreExercise
+      ? `총 ${formatNumber(log.totalReps)}회`
+      : `총 ${formatNumber(log.totalReps)}회 · 볼륨 ${formatNumber(log.volume)}kg`;
+    item.append(top, meta, buildRecordTable(rowsFromLog(log), { repsOnly: coreExercise }));
     els.calendarDayDetail.append(item);
     });
   }
@@ -3691,8 +3714,8 @@ async function submitBoardPost(event) {
 
 function renderHistory() {
   const totalSets = state.logs.reduce((sum, log) => sum + log.completedSets, 0);
-  const volume = state.logs.reduce((sum, log) => sum + (log.volume || 0), 0);
-  els.monthSummary.textContent = `${state.logs.length}회 · ${totalSets}세트 · ${formatNumber(volume)}kg`;
+  const monthlyMetrics = state.logs.length ? calendarActivitySummary(state.logs).replace(/^\d+종목 · /, "") : "0kg";
+  els.monthSummary.textContent = `${state.logs.length}회 · ${totalSets}세트 · ${monthlyMetrics}`;
   els.historyList.replaceChildren();
   if (!state.logs.length) {
     const empty = document.createElement("p");
@@ -3705,10 +3728,11 @@ function renderHistory() {
 
   const daily = new Map();
   state.logs.forEach((log) => {
-    const row = daily.get(log.date) || { date: log.date, volume: 0, count: 0, names: [] };
+    const row = daily.get(log.date) || { date: log.date, volume: 0, count: 0, names: [], logs: [] };
     row.volume += log.volume || 0;
     row.count += 1;
     row.names.push(storedExerciseDisplayName(log.exercise));
+    row.logs.push(log);
     daily.set(log.date, row);
   });
   Array.from(daily.values())
@@ -3724,7 +3748,7 @@ function renderHistory() {
       title.textContent = day.date;
       const meta = document.createElement("span");
       meta.className = "history-meta";
-      meta.textContent = `${day.count}종목 · ${formatNumber(day.volume)}kg · ${day.names.join(", ")}`;
+      meta.textContent = `${calendarActivitySummary(day.logs)} · ${day.names.join(", ")}`;
       body.append(title, meta);
       const open = document.createElement("span");
       open.className = "history-open";
@@ -3943,7 +3967,11 @@ function finishRestTimer() {
   syncRestTimerUi();
   playRestTimerSignal();
   window.gsap?.fromTo(els.restTimerProgress, { scaleY: 0.72 }, { scaleY: 1, duration: 0.42, ease: "back.out(2)" });
-  showToast("휴식 완료. 다음 세트를 시작하세요.");
+  if (els.restCompleteAlert && window.SetCounterMotion?.animateRestComplete) {
+    window.SetCounterMotion.animateRestComplete(els.restCompleteAlert);
+  } else {
+    showToast("휴식 완료. 다음 세트를 시작하세요.");
+  }
 }
 
 function updateRestTimer() {

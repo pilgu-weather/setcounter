@@ -359,6 +359,36 @@
     gsap.fromTo(element, { autoAlpha: 0, y: 12, scale: 0.98 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.22, ease: "power2.out", clearProps: "transform,opacity,visibility", overwrite: "auto" });
   }
 
+  function animateRestComplete(element) {
+    if (!element) return;
+    const panel = element.querySelector(".rest-complete-alert-panel");
+    const glow = element.querySelector(".rest-complete-alert-glow");
+    element.hidden = false;
+    if (!canAnimate() || !panel) {
+      element.classList.add("is-visible");
+      window.setTimeout(() => {
+        element.classList.remove("is-visible");
+        element.hidden = true;
+      }, 2200);
+      return;
+    }
+    gsap.killTweensOf([element, panel, glow]);
+    const timeline = gsap.timeline({
+      onComplete: () => {
+        element.hidden = true;
+        gsap.set([element, panel, glow], { clearProps: "all" });
+      },
+    });
+    timeline
+      .fromTo(element, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.16, ease: "power1.out" }, 0)
+      .fromTo(panel, { autoAlpha: 0, y: 26, scale: 0.78 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.42, ease: "back.out(1.8)" }, 0.02)
+      .fromTo(glow, { autoAlpha: 0.8, scale: 0.35 }, { autoAlpha: 0, scale: 1.7, duration: 0.68, ease: "power2.out" }, 0.08)
+      .fromTo(panel.querySelector("strong"), { scale: 0.8 }, { scale: 1, duration: 0.34, ease: "back.out(2.4)" }, 0.12)
+      .to(panel, { scale: 1.025, duration: 0.14, ease: "power1.inOut" }, 0.7)
+      .to(panel, { scale: 1, duration: 0.18, ease: "power2.out" }, 0.84)
+      .to(element, { autoAlpha: 0, duration: 0.24, ease: "power1.in" }, 2.05);
+  }
+
   function cleanupScreenAnimations(screen) {
     if (!screen || !gsap) return;
     gsap.killTweensOf([screen, ...screen.querySelectorAll("[data-motion-key]")]);
@@ -409,6 +439,7 @@
     animateSetChipComplete,
     animateWorkoutSuccess,
     animateToast,
+    animateRestComplete,
     animateBottomNavIndicator,
     cleanupScreenAnimations,
     reduced: () => reducedQuery.matches,

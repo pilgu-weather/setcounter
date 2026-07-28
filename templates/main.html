@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=84">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=85">
   </head>
   <body>
     <main class="app-shell" id="home">
@@ -490,6 +490,14 @@
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="rest-complete-alert" id="restCompleteAlert" role="alert" aria-live="assertive" hidden>
+      <span class="rest-complete-alert-glow" aria-hidden="true"></span>
+      <section class="rest-complete-alert-panel">
+        <small>REST COMPLETE</small>
+        <strong>휴식 끝</strong>
+        <p>다음 세트를 시작하세요</p>
+      </section>
+    </div>
     <div class="profile-modal level-history-modal" id="levelHistoryModal" role="dialog" aria-modal="true" aria-labelledby="levelHistoryTitle" hidden>
       <section class="profile-dialog level-history-dialog">
         <header class="menu-dialog-head">
@@ -770,7 +778,7 @@
       </section>
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
-    <script src="{{ url_for('static', filename='js/motion.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=110"></script>
+    <script src="{{ url_for('static', filename='js/motion.js') }}?v=4"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=111"></script>
   </body>
 </html>
