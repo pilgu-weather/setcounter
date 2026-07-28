@@ -197,12 +197,14 @@ let koCommonExerciseMap = {};
 let koMuscleMap = {};
 let koEquipmentMap = {};
 let koInstructionsMap = {};
+let koInstructionsLoadPromise = null;
 let setCounterDefaultExercises = [];
 const defaultApiNameOverrides = {
   Barbell_Hip_Thrust: "바벨 힙 쓰러스트",
   Romanian_Deadlift: "루마니안 데드리프트",
 };
-const libraryState = { body: "전체", equipment: "전체" };
+const LIBRARY_PAGE_SIZE = 40;
+const libraryState = { body: "전체", equipment: "전체", visible: LIBRARY_PAGE_SIZE };
 
 function isLocalAccess() {
   return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname.startsWith("172.30.1.") || window.location.hostname.startsWith("192.168.");
@@ -459,8 +461,29 @@ const koreanExerciseInstructions = {
 function exerciseInstructionsForDetail(exercise) {
   const sourceId = exercise.freeDbSourceId || exercise.sourceId;
   if (koreanExerciseInstructions[sourceId]) return koreanExerciseInstructions[sourceId];
+  if (koInstructionsMap[sourceId]?.length) return koInstructionsMap[sourceId];
   if (exercise.instructionsKo?.length) return exercise.instructionsKo;
   return [];
+}
+
+async function loadKoreanInstructions() {
+  if (Object.keys(koInstructionsMap).length) return koInstructionsMap;
+  if (!koInstructionsLoadPromise) {
+    koInstructionsLoadPromise = fetch("/static/data/free-exercise-db/ko_instructions.json?v=1")
+      .then((response) => {
+        if (!response.ok) throw new Error("exercise instructions load failed");
+        return response.json();
+      })
+      .then((payload) => {
+        koInstructionsMap = payload || {};
+        return koInstructionsMap;
+      })
+      .catch((error) => {
+        koInstructionsLoadPromise = null;
+        throw error;
+      });
+  }
+  return koInstructionsLoadPromise;
 }
 function exerciseSearchTerms(exercise) {
   const mapped = mappedExerciseEntry(exercise);
@@ -484,7 +507,6 @@ function exerciseSearchTerms(exercise) {
     ...(exercise.secondaryMuscles || []),
     ...(exercise.primaryMuscles || []).map(translateMuscle),
     ...(exercise.secondaryMuscles || []).map(translateMuscle),
-    ...(exercise.instructions || []),
   ].filter(Boolean);
 }
 
@@ -569,13 +591,12 @@ function replacePrimaryExercises(defaultExercises) {
 
 async function loadFreeExerciseDb() {
   try {
-    const [exerciseResponse, mapResponse, commonMapResponse, muscleResponse, equipmentResponse, instructionsResponse] = await Promise.all([
+    const [exerciseResponse, mapResponse, commonMapResponse, muscleResponse, equipmentResponse] = await Promise.all([
       fetch("/static/data/free-exercise-db/exercises.json"),
       fetch("/static/data/free-exercise-db/ko_exercise_map.json?v=4"),
       fetch("/static/data/free-exercise-db/ko_exercise_common_map.json?v=1"),
       fetch("/static/data/free-exercise-db/ko_muscle_map.json"),
       fetch("/static/data/free-exercise-db/ko_equipment_map.json"),
-      fetch("/static/data/free-exercise-db/ko_instructions.json?v=1"),
     ]);
     if (!exerciseResponse.ok) throw new Error("free exercise db load failed");
     const rawExercises = await exerciseResponse.json();
@@ -588,7 +609,6 @@ async function loadFreeExerciseDb() {
     koExerciseMap = { ...commonItems, ...(koMapPayload.items || {}) };
     koMuscleMap = muscleResponse.ok ? await muscleResponse.json() : {};
     koEquipmentMap = equipmentResponse.ok ? await equipmentResponse.json() : {};
-    koInstructionsMap = instructionsResponse.ok ? await instructionsResponse.json() : {};
     setCounterDefaultExercises = koMapPayload.setCounterDefaults || [];
     const freeExercises = rawExercises.map((item) => normalizeFreeDbExercise(item, koExerciseMap));
     const defaultExercises = mergeSetCounterDefaults(freeExercises);
@@ -2465,6 +2485,7 @@ function exerciseListMeta(exercise, includeLevel = false) {
 }
 
 function openExerciseLibrary() {
+  libraryState.visible = LIBRARY_PAGE_SIZE;
   renderLibraryFilters();
   renderExerciseLibrary();
   els.exerciseLibraryModal.hidden = false;
@@ -2497,14 +2518,57 @@ function renderLibraryFilters() {
   if (!equipmentValues.includes(libraryState.equipment)) libraryState.equipment = "전체";
   renderFilterRow(els.bodyFilterRow, bodyValues, libraryState.body, (value) => {
     libraryState.body = value;
+    libraryState.visible = LIBRARY_PAGE_SIZE;
     renderLibraryFilters();
     renderExerciseLibrary();
   });
   renderFilterRow(els.equipmentFilterRow, equipmentValues, libraryState.equipment, (value) => {
     libraryState.equipment = value;
+    libraryState.visible = LIBRARY_PAGE_SIZE;
     renderLibraryFilters();
     renderExerciseLibrary();
   });
+}
+
+async function renderLibraryExerciseDetail(exercise, panel, toggle) {
+  panel.hidden = false;
+  toggle.setAttribute("aria-expanded", "true");
+  toggle.textContent = "접기";
+  panel.innerHTML = `<p class="library-detail-loading">운동 정보를 불러오는 중...</p>`;
+  try {
+    await loadKoreanInstructions();
+  } catch (error) {
+    // Images and metadata remain useful when translated instructions are unavailable.
+  }
+
+  const displayName = exerciseDisplayName(exercise);
+  const englishName = exerciseEnglishName(exercise);
+  const images = (exercise.images || []).slice(0, 2);
+  const imageMarkup = images.length
+    ? `<div class="library-detail-images">${images.map((image, index) => `<img src="${freeDbImageUrl(image)}" alt="${escapeHtml(displayName)} 동작 ${index + 1}" loading="lazy">`).join("")}</div>`
+    : "";
+  const instructions = exerciseInstructionsForDetail(exercise);
+  const instructionsMarkup = instructions.length
+    ? `<section class="library-detail-instructions"><h4>운동 방법</h4><ol>${instructions.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ol></section>`
+    : "";
+  const primary = translateMuscleList(exercise.primaryMuscles, exercise.area || "-");
+  const secondary = translateMuscleList(exercise.secondaryMuscles, "");
+  panel.innerHTML = `
+    <div class="library-detail-title">
+      <strong>${escapeHtml(displayName)}</strong>
+      ${englishName && englishName !== displayName ? `<small>${escapeHtml(englishName)}</small>` : ""}
+    </div>
+    ${imageMarkup}
+    <dl class="library-detail-meta">
+      <div><dt>주요 근육</dt><dd>${escapeHtml(primary)}</dd></div>
+      <div><dt>기구</dt><dd>${escapeHtml(translateEquipment(exercise.equipment))}</dd></div>
+      ${secondary ? `<div><dt>보조 근육</dt><dd>${escapeHtml(secondary)}</dd></div>` : ""}
+      <div><dt>난이도</dt><dd>${escapeHtml(translateLevel(exercise.level))}</dd></div>
+    </dl>
+    ${instructionsMarkup}
+  `;
+  panel.querySelectorAll("img").forEach(bindImageReveal);
+  window.SetCounterMotion?.animateContentChange(panel, 1);
 }
 
 function renderExerciseLibrary() {
@@ -2523,28 +2587,75 @@ function renderExerciseLibrary() {
   });
   els.exerciseLibraryCount.textContent = `${rows.length}개 운동`;
   els.exerciseLibraryList.replaceChildren();
-  rows.forEach((exercise) => {
-    const item = document.createElement("button");
-    item.type = "button";
+  if (!rows.length) {
+    const empty = document.createElement("div");
+    empty.className = "library-empty-state";
+    empty.innerHTML = `
+      <strong>검색 결과가 없습니다</strong>
+      <span>검색어를 바꾸거나 다른 부위와 도구를 선택해보세요.</span>
+    `;
+    els.exerciseLibraryList.append(empty);
+    return;
+  }
+
+  rows.slice(0, libraryState.visible).forEach((exercise) => {
+    const item = document.createElement("article");
     item.className = "library-exercise-card";
     item.dataset.motionKey = `library-${exerciseKey(exercise)}`;
-    item.append(makeExerciseArt(exercise));
+
+    const addButton = document.createElement("button");
+    addButton.type = "button";
+    addButton.className = "library-exercise-add";
+    addButton.setAttribute("aria-label", `${exerciseDisplayName(exercise)} 추가`);
+    addButton.append(makeExerciseArt(exercise));
     const body = document.createElement("span");
     const name = document.createElement("strong");
     name.textContent = exerciseDisplayName(exercise);
     const area = document.createElement("small");
     area.textContent = exerciseListMeta(exercise, true);
     body.append(name, area);
-    item.append(body);
-    item.addEventListener("click", async () => {
+    addButton.append(body);
+
+    const detailButton = document.createElement("button");
+    detailButton.type = "button";
+    detailButton.className = "library-exercise-detail-button";
+    detailButton.textContent = "상세보기";
+    detailButton.setAttribute("aria-expanded", "false");
+    const detailPanel = document.createElement("div");
+    detailPanel.className = "library-exercise-detail";
+    detailPanel.hidden = true;
+
+    addButton.addEventListener("click", () => {
       const added = addExerciseToMine(exercise);
       item.classList.add("is-added");
-      item.setAttribute("aria-label", `${exercise.name} 추가되었습니다`);
-      showToast(added ? "추가했습니다." : "이미 추가된 운동입니다.");
+      showToast(added ? `추가 완료 · ${exerciseDisplayName(exercise)}` : "이미 추가된 운동입니다.");
       window.setTimeout(() => item.classList.remove("is-added"), 420);
     });
+    detailButton.addEventListener("click", () => {
+      if (!detailPanel.hidden) {
+        detailPanel.hidden = true;
+        detailButton.setAttribute("aria-expanded", "false");
+        detailButton.textContent = "상세보기";
+        return;
+      }
+      renderLibraryExerciseDetail(exercise, detailPanel, detailButton);
+    });
+
+    item.append(addButton, detailButton, detailPanel);
     els.exerciseLibraryList.append(item);
   });
+
+  if (rows.length > libraryState.visible) {
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "library-load-more";
+    more.textContent = `더 보기 (${rows.length - libraryState.visible}개 남음)`;
+    more.addEventListener("click", () => {
+      libraryState.visible += LIBRARY_PAGE_SIZE;
+      renderExerciseLibrary();
+    });
+    els.exerciseLibraryList.append(more);
+  }
   window.SetCounterMotion?.animateListEnter(els.exerciseLibraryList.children, { scope: "library", limit: 10, y: 10 });
 }
 
@@ -4075,7 +4186,11 @@ function bindEvents() {
   });
   els.openExerciseLibraryButton.addEventListener("click", openExerciseLibrary);
   els.closeExerciseLibraryButton.addEventListener("click", closeExerciseLibrary);
-  els.exerciseLibrarySearch.addEventListener("input", renderExerciseLibrary);
+  els.exerciseLibrarySearch.addEventListener("input", () => {
+    libraryState.visible = LIBRARY_PAGE_SIZE;
+    window.clearTimeout(renderExerciseLibrary.searchTimer);
+    renderExerciseLibrary.searchTimer = window.setTimeout(renderExerciseLibrary, 90);
+  });
   els.exerciseLibraryModal.addEventListener("click", (event) => {
     if (event.target === els.exerciseLibraryModal) closeExerciseLibrary();
   });
@@ -4259,6 +4374,9 @@ async function init() {
   els.counterTitle.textContent = exerciseDisplayName(state.selectedExercise);
   renderExerciseDetail(state.selectedExercise);
   renderExerciseCards();
+  loadKoreanInstructions()
+    .then(() => renderExerciseDetail(state.selectedExercise))
+    .catch(() => {});
   bindEvents();
   bindAuthEvents();
   syncWeightControls();
