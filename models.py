@@ -84,6 +84,41 @@ class AuthAccount(db.Model):
     last_login_at = db.Column(db.DateTime(timezone=True))
 
     health_user = db.relationship("HealthUser", back_populates="account", uselist=False)
+    identities = db.relationship(
+        "AuthIdentity",
+        back_populates="account",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class AuthIdentity(db.Model):
+    """A verified login method attached to one canonical SetCounter account."""
+
+    __tablename__ = "auth_identities"
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_user_id", name="uq_auth_identity_provider_user"),
+        UniqueConstraint("account_id", "provider", name="uq_auth_identity_account_provider"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    account_id = db.Column(
+        db.Integer,
+        db.ForeignKey("auth_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    provider = db.Column(db.String(32), nullable=False)
+    provider_user_id = db.Column(db.String(255), nullable=False)
+    provider_email = db.Column(db.String(320))
+    email_verified = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
+    )
+    last_login_at = db.Column(db.DateTime(timezone=True))
+
+    account = db.relationship("AuthAccount", back_populates="identities")
 
 
 class AuthRateLimit(db.Model):

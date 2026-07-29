@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.exc import IntegrityError
 
 TEST_DB = Path(tempfile.gettempdir()) / "setcounter-auth-tests.sqlite3"
 if TEST_DB.exists():
@@ -16,10 +17,19 @@ os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB.as_posix()}"
 os.environ["SETCOUNTER_ALLOW_LOCAL_SQLITE"] = "1"
 os.environ["SECRET_KEY"] = secrets.token_urlsafe(48)
 
-from app import REQUIRED_SCHEMA, app, db, level_for_experience, stats_from_logs, weekly_challenge_penalty
+from app import (
+    REQUIRED_SCHEMA,
+    account_for_auth_identity,
+    app,
+    db,
+    level_for_experience,
+    stats_from_logs,
+    weekly_challenge_penalty,
+)
 from migrate_auth_data import migrate
 from models import (
     AuthAccount,
+    AuthIdentity,
     AuthRateLimit,
     HealthBoardComment,
     HealthBoardLike,
@@ -110,6 +120,60 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertEqual(connection.execute(text("SELECT COUNT(*) FROM health_workouts")).scalar_one(), 1)
             self.assertEqual(connection.execute(text("SELECT COUNT(*) FROM health_sets")).scalar_one(), 1)
 
+    def test_migration_backfills_one_local_identity_per_existing_account(self):
+        legacy_path = Path(tempfile.gettempdir()) / "setcounter-auth-identity-legacy.sqlite3"
+        if legacy_path.exists():
+            legacy_path.unlink()
+        engine = create_engine(f"sqlite:///{legacy_path.as_posix()}", future=True)
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    CREATE TABLE auth_accounts (
+                        id INTEGER PRIMARY KEY,
+                        email VARCHAR(320) UNIQUE NOT NULL,
+                        password_hash VARCHAR(512) NOT NULL,
+                        email_verified BOOLEAN NOT NULL DEFAULT 0,
+                        status VARCHAR(32) NOT NULL DEFAULT 'active',
+                        provider VARCHAR(32) NOT NULL DEFAULT 'local',
+                        provider_user_id VARCHAR(255),
+                        created_at DATETIME NOT NULL,
+                        updated_at DATETIME NOT NULL,
+                        last_login_at DATETIME
+                    )
+                    """
+                )
+            )
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO auth_accounts (
+                        id, email, password_hash, email_verified, status,
+                        provider, created_at, updated_at
+                    ) VALUES (
+                        7, 'legacy@example.test', 'legacy-hash', 0, 'active',
+                        'local', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    )
+                    """
+                )
+            )
+        migrate(engine)
+        migrate(engine)
+        with engine.connect() as connection:
+            identities = connection.execute(
+                text(
+                    """
+                    SELECT account_id, provider, provider_user_id, provider_email
+                    FROM auth_identities
+                    """
+                )
+            ).mappings().all()
+            self.assertEqual(len(identities), 1)
+            self.assertEqual(identities[0]["account_id"], 7)
+            self.assertEqual(identities[0]["provider"], "local")
+            self.assertEqual(identities[0]["provider_user_id"], "legacy@example.test")
+            self.assertEqual(identities[0]["provider_email"], "legacy@example.test")
+
     def test_register_links_existing_anonymous_user_without_moving_records(self):
         key = "anonymous-register-key-0001"
         self.create_workout(key)
@@ -125,6 +189,72 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertIsNotNone(user.weekly_target_updated_at)
             self.assertGreater(user.weekly_penalty_carryover, 0)
             self.assertEqual(db.session.query(HealthWorkout).filter_by(user_id=before_id).count(), 1)
+            identity = db.session.query(AuthIdentity).filter_by(account_id=user.account_id).one()
+            account = db.session.get(AuthAccount, user.account_id)
+            self.assertEqual(identity.provider, "local")
+            self.assertEqual(identity.provider_user_id, account.email)
+
+    def test_one_account_can_link_multiple_unique_login_identities(self):
+        key = "anonymous-multi-identity-0001"
+        response = self.register(key)
+        self.assertEqual(response.status_code, 201, response.get_json())
+        with app.app_context():
+            user = self.user_for_key(key)
+            db.session.add_all(
+                [
+                    AuthIdentity(
+                        account_id=user.account_id,
+                        provider="google",
+                        provider_user_id="google-user-1001",
+                        provider_email="athlete@gmail.test",
+                        email_verified=True,
+                    ),
+                    AuthIdentity(
+                        account_id=user.account_id,
+                        provider="kakao",
+                        provider_user_id="kakao-user-2001",
+                    ),
+                    AuthIdentity(
+                        account_id=user.account_id,
+                        provider="naver",
+                        provider_user_id="naver-user-3001",
+                    ),
+                ]
+            )
+            db.session.commit()
+            self.assertEqual(db.session.query(AuthIdentity).filter_by(account_id=user.account_id).count(), 4)
+            self.assertEqual(account_for_auth_identity("google", "google-user-1001").id, user.account_id)
+            self.assertIsNone(account_for_auth_identity("google", "athlete@gmail.test"))
+
+    def test_provider_identity_cannot_be_linked_to_two_accounts(self):
+        first_key = "anonymous-provider-owner-0001"
+        second_key = "anonymous-provider-owner-0002"
+        first = self.register(first_key)
+        self.assertEqual(first.status_code, 201, first.get_json())
+        self.client.post("/api/auth/logout", headers=self.csrf_headers(self.client))
+        second = self.register(second_key)
+        self.assertEqual(second.status_code, 201, second.get_json())
+        with app.app_context():
+            first_user = self.user_for_key(first_key)
+            second_user = self.user_for_key(second_key)
+            db.session.add(
+                AuthIdentity(
+                    account_id=first_user.account_id,
+                    provider="google",
+                    provider_user_id="shared-provider-user",
+                )
+            )
+            db.session.commit()
+            db.session.add(
+                AuthIdentity(
+                    account_id=second_user.account_id,
+                    provider="google",
+                    provider_user_id="shared-provider-user",
+                )
+            )
+            with self.assertRaises(IntegrityError):
+                db.session.commit()
+            db.session.rollback()
 
     def test_weekly_goal_allows_four_rest_days_after_three_workout_days(self):
         result = weekly_challenge_penalty(

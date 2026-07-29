@@ -15,6 +15,7 @@ from models import db
 
 COUNT_TABLES = (
     "health_users",
+    "auth_accounts",
     "health_workouts",
     "health_sets",
     "health_excuses",
@@ -23,6 +24,76 @@ COUNT_TABLES = (
     "health_board_comments",
     "health_board_reports",
 )
+
+
+def backfill_auth_identities(connection):
+    tables = set(inspect(connection).get_table_names())
+    if not {"auth_accounts", "auth_identities"}.issubset(tables):
+        return 0
+
+    accounts = connection.execute(
+        text(
+            """
+            SELECT id, email, email_verified, provider, provider_user_id, last_login_at
+            FROM auth_accounts
+            ORDER BY id
+            """
+        )
+    ).mappings()
+    inserted = 0
+    for account in accounts:
+        provider = str(account["provider"] or "local").strip().lower()
+        provider_user_id = str(account["provider_user_id"] or "").strip()
+        if not provider_user_id:
+            provider_user_id = account["email"] if provider == "local" else f"legacy-account:{account['id']}"
+
+        existing_for_account = connection.execute(
+            text(
+                """
+                SELECT id FROM auth_identities
+                WHERE account_id = :account_id AND provider = :provider
+                """
+            ),
+            {"account_id": account["id"], "provider": provider},
+        ).scalar_one_or_none()
+        if existing_for_account is not None:
+            continue
+
+        conflicting_account = connection.execute(
+            text(
+                """
+                SELECT account_id FROM auth_identities
+                WHERE provider = :provider AND provider_user_id = :provider_user_id
+                """
+            ),
+            {"provider": provider, "provider_user_id": provider_user_id},
+        ).scalar_one_or_none()
+        if conflicting_account is not None and conflicting_account != account["id"]:
+            raise RuntimeError("provider identity is already linked to another account")
+
+        connection.execute(
+            text(
+                """
+                INSERT INTO auth_identities (
+                    account_id, provider, provider_user_id, provider_email,
+                    email_verified, created_at, updated_at, last_login_at
+                ) VALUES (
+                    :account_id, :provider, :provider_user_id, :provider_email,
+                    :email_verified, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, :last_login_at
+                )
+                """
+            ),
+            {
+                "account_id": account["id"],
+                "provider": provider,
+                "provider_user_id": provider_user_id,
+                "provider_email": account["email"],
+                "email_verified": bool(account["email_verified"]),
+                "last_login_at": account["last_login_at"],
+            },
+        )
+        inserted += 1
+    return inserted
 
 
 def normalize_database_url(value):
@@ -97,6 +168,11 @@ def migrate(engine):
 
         # Add every model table that is absent without modifying existing tables or rows.
         db.metadata.create_all(bind=connection, checkfirst=True)
+        identity_count_before = connection.execute(text("SELECT COUNT(*) FROM auth_identities")).scalar_one()
+        identities_added = backfill_auth_identities(connection)
+        identity_count_after = connection.execute(text("SELECT COUNT(*) FROM auth_identities")).scalar_one()
+        if identity_count_after != identity_count_before + identities_added:
+            raise RuntimeError("auth identity backfill count mismatch")
         connection.execute(
             text("CREATE INDEX IF NOT EXISTS ix_auth_rate_limits_updated_at ON auth_rate_limits(updated_at)")
         )
@@ -133,6 +209,7 @@ def migrate(engine):
             raise RuntimeError("auth migration changed existing user-owned data counts")
         print("After counts:", after_counts)
         print("After sample users:", after_samples)
+        print("Auth identities added:", identities_added)
         print("Auth schema migration completed without changing user-owned data.")
 
 

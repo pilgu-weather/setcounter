@@ -19,6 +19,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from models import (
     AuthAccount,
+    AuthIdentity,
     AuthRateLimit,
     HealthBoardComment,
     HealthBoardLike,
@@ -100,6 +101,17 @@ REQUIRED_SCHEMA = {
         "status",
         "provider",
         "provider_user_id",
+        "created_at",
+        "updated_at",
+        "last_login_at",
+    },
+    "auth_identities": {
+        "id",
+        "account_id",
+        "provider",
+        "provider_user_id",
+        "provider_email",
+        "email_verified",
         "created_at",
         "updated_at",
         "last_login_at",
@@ -378,6 +390,30 @@ def normalize_email(value):
     return email
 
 
+def normalize_auth_provider(value):
+    provider = str(value or "").strip().lower()
+    if provider not in {"local", "google", "kakao", "naver"}:
+        raise ValueError("unsupported auth provider")
+    return provider
+
+
+def account_for_auth_identity(provider, provider_user_id):
+    """Resolve a provider identity without ever trusting an email match."""
+    provider = normalize_auth_provider(provider)
+    provider_user_id = str(provider_user_id or "").strip()
+    if not provider_user_id or len(provider_user_id) > 255:
+        return None
+    identity = db.session.scalar(
+        select(AuthIdentity)
+        .options(joinedload(AuthIdentity.account))
+        .where(
+            AuthIdentity.provider == provider,
+            AuthIdentity.provider_user_id == provider_user_id,
+        )
+    )
+    return identity.account if identity is not None else None
+
+
 def mask_email(email):
     local, _, domain = email.partition("@")
     visible = local[:1] if local else ""
@@ -423,6 +459,7 @@ def delete_account_data(account):
         db.session.execute(delete(HealthSet).where(HealthSet.workout_id.in_(workout_ids)))
     db.session.execute(delete(HealthWorkout).where(HealthWorkout.user_id == user_id))
     db.session.execute(delete(HealthExcuse).where(HealthExcuse.user_id == user_id))
+    db.session.execute(delete(AuthIdentity).where(AuthIdentity.account_id == account.id))
 
     rate_limit_hashes = [
         auth_rate_limit_subject(scope, account.email)
@@ -1727,9 +1764,17 @@ def auth_register():
 
     penalty_carryover = attendance_penalty_snapshot(anonymous_user)
     account = AuthAccount(email=email, password_hash=generate_password_hash(password))
+    local_identity = AuthIdentity(
+        account=account,
+        provider="local",
+        provider_user_id=email,
+        provider_email=email,
+        email_verified=False,
+    )
     try:
         # One commit keeps account creation and the existing anonymous profile link atomic.
         db.session.add(account)
+        db.session.add(local_identity)
         anonymous_user.account = account
         anonymous_user.is_anonymous = False
         anonymous_user.last_seen_at = utc_now()
