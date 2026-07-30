@@ -7394,7 +7394,15 @@ body:has([data-screen="level-up"].is-active) .app-shell {
   margin-top: 2px;
 }
 
-[data-screen="menu"] .account-actions button { height: 48px; min-height: 48px; border-radius: 12px; }
+[data-screen="menu"] .account-actions button {
+  height: 48px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+}
 [data-screen="menu"] #authenticatedAccountActions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 [data-screen="menu"] #logoutButton { color: var(--sc-text-secondary); }
 [data-screen="menu"] .account-delete-button {
