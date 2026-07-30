@@ -1604,7 +1604,21 @@ function renderStats(stats) {
   window.SetCounterMotion?.animateCounter(els.levelValue, stats.level, (value) => String(Math.round(value)));
   window.SetCounterMotion?.animateCounter(els.totalVolumeValue, stats.totalVolume, (value) => `${formatNumber(Math.round(value))}kg`);
   window.SetCounterMotion?.animateProgress(els.levelProgressBar, (stats.progressPercent || 0) / 100);
-  els.levelCopy.textContent = `경험치 ${stats.experience || 0} · 다음 ${stats.experiencePercent || 0}% · 한계돌파 ${Math.round((stats.nextBreakthroughRate || 1) * 100)}%`;
+  const level = Math.max(Math.round(Number(stats.level) || 1), 1);
+  if (level >= 99) {
+    els.levelCopy.innerHTML = `<span>MAX LEVEL</span><strong>한계돌파의 정점에 도달했습니다</strong>`;
+    els.levelCopy.setAttribute("aria-label", "최고 레벨에 도달했습니다");
+  } else {
+    const progress = Math.min(Math.max((Number(stats.experiencePercent) || 0) / 100, 0), 1);
+    const breakthroughRate = Math.max(Number(stats.nextBreakthroughRate) || 1, 0.01);
+    const breakthroughsRemaining = Math.max(Math.ceil((1 - progress - 0.000001) / breakthroughRate), 1);
+    const nextLevel = level + 1;
+    els.levelCopy.innerHTML = `<span>NEXT LEVEL ${nextLevel}</span><strong>한계돌파 ${breakthroughsRemaining}회 남음</strong>`;
+    els.levelCopy.setAttribute(
+      "aria-label",
+      `한계돌파 ${breakthroughsRemaining}회 더 달성하면 레벨 ${nextLevel}`,
+    );
+  }
   renderProfile();
   renderHomeDashboard();
 }

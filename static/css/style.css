@@ -4724,9 +4724,26 @@ select:focus {
 }
 
 [data-screen="home"] .level-copy {
-  color: var(--sc-text-tertiary);
-  font-size: 11px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 0;
   font-variant-numeric: tabular-nums;
+}
+
+[data-screen="home"] .level-copy span {
+  color: #6fa8ff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+[data-screen="home"] .level-copy strong {
+  color: var(--sc-text-primary);
+  font-size: 13px;
+  font-weight: 750;
+  text-align: right;
 }
 
 [data-screen="home"] .home-log-section {
