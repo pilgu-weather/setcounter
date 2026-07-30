@@ -389,6 +389,40 @@
       .to(element, { autoAlpha: 0, duration: 0.24, ease: "power1.in" }, 2.05);
   }
 
+  function animateSeasonMoment(element) {
+    if (!element) return;
+    const panel = element.querySelector(".season-moment-panel");
+    const frames = element.querySelectorAll(".season-moment-frame");
+    const bars = element.querySelectorAll(".season-moment-bars i");
+    const sweep = element.querySelector(".season-moment-sweep");
+    const copy = element.querySelectorAll(".season-moment-kicker, h2, p, button");
+    if (!canAnimate() || !panel) {
+      element.classList.add("is-visible");
+      return;
+    }
+    gsap.killTweensOf([element, panel, frames, bars, sweep, copy]);
+    gsap.timeline({ defaults: { overwrite: "auto" } })
+      .fromTo(element, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.2, ease: "power1.out" }, 0)
+      .fromTo(frames, { autoAlpha: 0, scale: 0.62, rotation: -8 }, { autoAlpha: 1, scale: 1, rotation: 0, duration: 0.72, stagger: 0.07, ease: "expo.out" }, 0.04)
+      .fromTo(panel, { autoAlpha: 0, y: 30, scale: 0.82 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.58, ease: "back.out(1.65)" }, 0.08)
+      .fromTo(bars, { autoAlpha: 0, scaleY: 0.1 }, { autoAlpha: 1, scaleY: 1, duration: 0.34, stagger: 0.035, ease: "back.out(2.2)" }, 0.3)
+      .fromTo(copy, { autoAlpha: 0, y: 11 }, { autoAlpha: 1, y: 0, duration: 0.3, stagger: 0.055, ease: "power2.out" }, 0.34)
+      .fromTo(sweep, { xPercent: -180, autoAlpha: 0 }, { xPercent: 180, autoAlpha: 0.9, duration: 0.7, ease: "power2.inOut" }, 0.5)
+      .to(frames, { scale: 1.025, duration: 0.18, yoyo: true, repeat: 1, ease: "power1.inOut" }, 0.76);
+  }
+
+  function closeSeasonMoment(element, onComplete) {
+    if (!element) return;
+    const targets = [element.querySelector(".season-moment-panel"), ...element.querySelectorAll(".season-moment-frame")].filter(Boolean);
+    if (!canAnimate()) {
+      element.classList.remove("is-visible");
+      onComplete?.();
+      return;
+    }
+    gsap.to(targets, { autoAlpha: 0, y: 10, scale: 0.96, duration: 0.18, ease: "power2.in" });
+    gsap.to(element, { autoAlpha: 0, duration: 0.2, delay: 0.06, ease: "power1.in", onComplete });
+  }
+
   function cleanupScreenAnimations(screen) {
     if (!screen || !gsap) return;
     gsap.killTweensOf([screen, ...screen.querySelectorAll("[data-motion-key]")]);
@@ -440,6 +474,8 @@
     animateWorkoutSuccess,
     animateToast,
     animateRestComplete,
+    animateSeasonMoment,
+    closeSeasonMoment,
     animateBottomNavIndicator,
     cleanupScreenAnimations,
     reduced: () => reducedQuery.matches,

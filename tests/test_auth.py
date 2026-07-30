@@ -25,9 +25,11 @@ from app import (
     db,
     level_for_experience,
     stats_from_logs,
+    volume_stats,
     weekly_challenge_penalty,
 )
 from migrate_auth_data import migrate
+from migrate_level_events import migrate as migrate_level_events
 from models import (
     AuthAccount,
     AuthIdentity,
@@ -38,6 +40,7 @@ from models import (
     HealthBoardReport,
     HealthExcuse,
     HealthExercise,
+    HealthLevelEvent,
     HealthPushSubscription,
     HealthPushConfig,
     HealthSet,
@@ -174,6 +177,53 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertEqual(identities[0]["provider"], "local")
             self.assertEqual(identities[0]["provider_user_id"], "legacy@example.test")
             self.assertEqual(identities[0]["provider_email"], "legacy@example.test")
+
+    def test_preserved_level_down_history_does_not_change_current_progress(self):
+        with app.app_context():
+            user = HealthUser(user_key="preserved-level-event-user", is_anonymous=True)
+            db.session.add(user)
+            db.session.commit()
+            before = volume_stats(user.id)
+            db.session.add(
+                HealthLevelEvent(
+                    user_id=user.id,
+                    event_type="level_down",
+                    event_date=date(2026, 7, 26),
+                    level_before=10,
+                    level_after=4,
+                    experience_delta=-6,
+                    reason="운동 목표 미달",
+                    source_key="test-preserved-level-down",
+                    affects_current=False,
+                )
+            )
+            db.session.commit()
+            after = volume_stats(user.id)
+
+            self.assertEqual(after["level"], before["level"])
+            self.assertEqual(after["experience"], before["experience"])
+            self.assertEqual(after["levelDowns"], 6)
+            self.assertEqual(after["levelHistory"][0]["levelBefore"], 10)
+            self.assertEqual(after["levelHistory"][0]["levelAfter"], 4)
+            self.assertTrue(after["levelHistory"][0]["preserved"])
+
+    def test_level_event_migration_is_idempotent(self):
+        migration_path = Path(tempfile.gettempdir()) / "setcounter-level-events.sqlite3"
+        if migration_path.exists():
+            migration_path.unlink()
+        engine = create_engine(f"sqlite:///{migration_path.as_posix()}", future=True)
+        db.metadata.create_all(engine)
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO health_users (id, user_key, created_at, legacy_claimable, is_anonymous, weekly_penalty_carryover) "
+                    "VALUES (8, 'level-event-migration-user', CURRENT_TIMESTAMP, 0, 1, 0)"
+                )
+            )
+        migrate_level_events(engine, 8)
+        migrate_level_events(engine, 8)
+        with engine.connect() as connection:
+            self.assertEqual(connection.execute(text("SELECT COUNT(*) FROM health_level_events")).scalar_one(), 1)
 
     def test_register_links_existing_anonymous_user_without_moving_records(self):
         key = "anonymous-register-key-0001"

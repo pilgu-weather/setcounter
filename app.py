@@ -27,6 +27,7 @@ from models import (
     HealthBoardReport,
     HealthExercise,
     HealthExcuse,
+    HealthLevelEvent,
     HealthPushConfig,
     HealthPushSubscription,
     HealthReminderDispatch,
@@ -156,6 +157,19 @@ REQUIRED_SCHEMA = {
         "user_id",
         "excuse_date",
         "excuse_text",
+        "created_at",
+    },
+    "health_level_events": {
+        "id",
+        "user_id",
+        "event_type",
+        "event_date",
+        "level_before",
+        "level_after",
+        "experience_delta",
+        "reason",
+        "source_key",
+        "affects_current",
         "created_at",
     },
     "health_board_posts": {"id", "user_id", "level", "nickname", "content", "created_at"},
@@ -1299,7 +1313,7 @@ def stats_from_logs(
                     level = level_for_experience(xp)
                     experience_downs += 1
                     if level < before_level:
-                        level_downs += 1
+                        level_downs += before_level - level
                     level_history.append(
                         {
                             "type": "level_down" if level < before_level else "experience_down",
@@ -1331,7 +1345,7 @@ def stats_from_logs(
         before_level = level
         level = level_for_experience(total_xp)
         if level < before_level:
-            level_downs += 1
+            level_downs += before_level - level
         penalty_dates = challenge["failedDates"] or [log["date"] for log in logs if log.get("suspicionScore", 0) > 0]
         if not penalty_dates and carryover_penalty and logs:
             penalty_dates = [logs[0]["date"]]
@@ -1411,13 +1425,43 @@ def volume_stats(user_id):
     logs = [workout_to_log(workout) for workout in workouts]
     excuses = db.session.scalars(select(HealthExcuse).where(HealthExcuse.user_id == user_id)).all()
     user = db.session.get(HealthUser, user_id)
-    return stats_from_logs(
+    stats = stats_from_logs(
         logs,
         {item.excuse_date.isoformat() for item in excuses},
         weekly_target_for_user(user),
         weekly_target_start_date(user),
         weekly_penalty_carryover_for_user(user),
     )
+    preserved_events = db.session.scalars(
+        select(HealthLevelEvent)
+        .where(
+            HealthLevelEvent.user_id == user_id,
+            HealthLevelEvent.affects_current.is_(False),
+        )
+        .order_by(HealthLevelEvent.event_date.asc(), HealthLevelEvent.created_at.asc())
+    ).all()
+    if preserved_events:
+        history = list(stats["levelHistory"])
+        for event in preserved_events:
+            history.append(
+                {
+                    "type": event.event_type,
+                    "date": event.event_date.isoformat(),
+                    "createdAt": event.created_at.isoformat() if event.created_at else None,
+                    "exercise": event.reason,
+                    "levelBefore": event.level_before,
+                    "levelAfter": event.level_after,
+                    "experienceDelta": round(event.experience_delta, 2),
+                    "volume": None,
+                    "previousVolume": None,
+                    "preserved": True,
+                }
+            )
+            if event.event_type == "level_down":
+                stats["levelDowns"] += max(event.level_before - event.level_after, 0)
+        history.sort(key=lambda item: (item["date"], item.get("createdAt") or ""), reverse=True)
+        stats["levelHistory"] = history[:50]
+    return stats
 
 
 def claim_legacy_records(user):

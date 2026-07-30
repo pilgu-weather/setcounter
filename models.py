@@ -47,6 +47,12 @@ class HealthUser(db.Model):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    level_events = db.relationship(
+        "HealthLevelEvent",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     board_posts = db.relationship(
         "HealthBoardPost",
         back_populates="user",
@@ -90,6 +96,34 @@ class AuthAccount(db.Model):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+
+
+class HealthLevelEvent(db.Model):
+    """Audited level history that must not alter recalculated progression."""
+
+    __tablename__ = "health_level_events"
+    __table_args__ = (
+        UniqueConstraint("user_id", "source_key", name="uq_health_level_event_user_source"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("health_users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    event_type = db.Column(db.String(32), nullable=False)
+    event_date = db.Column(db.Date, nullable=False, index=True)
+    level_before = db.Column(db.Integer, nullable=False)
+    level_after = db.Column(db.Integer, nullable=False)
+    experience_delta = db.Column(db.Float, nullable=False, default=0)
+    reason = db.Column(db.String(160), nullable=False)
+    source_key = db.Column(db.String(160), nullable=False)
+    affects_current = db.Column(db.Boolean, nullable=False, default=False, server_default="0")
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+
+    user = db.relationship("HealthUser", back_populates="level_events")
 
 
 class AuthIdentity(db.Model):

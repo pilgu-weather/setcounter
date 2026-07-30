@@ -84,6 +84,8 @@ const MY_EXERCISES_STORAGE = "setCounterMyExercises";
 const HIDDEN_EXERCISES_STORAGE = "setCounterHiddenExercises";
 const EXERCISE_DETAIL_COLLAPSED_STORAGE = "setCounterExerciseDetailCollapsed";
 const REST_TIMER_DURATION_STORAGE = "setCounterRestTimerSeconds";
+const SEASON_MOMENT_STORAGE_PREFIX = "setCounterSeasonMoment";
+const XP_DISPLAY_SCALE = 100;
 const USER_KEY_PATTERN = /^[A-Za-z0-9._:-]{16,128}$/;
 const LOCAL_RECOVERY_USER_KEY = "1e0bb65e-47d7-4f5b-ace1-03f0809b952e";
 const bodyFilters = ["전체", "가슴", "등", "어깨", "팔", "하체", "코어", "전완그립", "전신컨디셔닝"];
@@ -817,6 +819,11 @@ const els = {
   levelUpResultRank: document.querySelector("#levelUpResultRank"),
   levelUpResultNumber: document.querySelector("#levelUpResultNumber"),
   levelUpContinueButton: document.querySelector("#levelUpContinueButton"),
+  seasonMoment: document.querySelector("#seasonMoment"),
+  seasonMomentKicker: document.querySelector("#seasonMomentKicker"),
+  seasonMomentTitle: document.querySelector("#seasonMomentTitle"),
+  seasonMomentCopy: document.querySelector("#seasonMomentCopy"),
+  seasonMomentButton: document.querySelector("#seasonMomentButton"),
   accountPanel: document.querySelector("#accountPanel"),
   accountPanelTitle: document.querySelector("#accountPanelTitle"),
   accountPanelCopy: document.querySelector("#accountPanelCopy"),
@@ -1389,6 +1396,10 @@ function cleanNumber(value) {
   return Number.isInteger(number) ? String(number) : number.toFixed(1);
 }
 
+function displayExperience(value) {
+  return formatNumber(Math.round((Number(value) || 0) * XP_DISPLAY_SCALE));
+}
+
 function weightLabel(value) {
   const number = Number.parseFloat(value) || 0;
   return number === 0 ? "맨몸" : `${cleanNumber(number)}kg`;
@@ -1704,8 +1715,8 @@ function renderLevelHistory() {
   els.levelHistoryXpBar.style.transform = `scaleX(${level >= 99 ? 1 : percent / 100})`;
   els.levelHistoryXpTrack.setAttribute("aria-valuenow", String(level >= 99 ? 100 : percent));
   els.levelHistoryXpDetail.textContent = level >= 99
-    ? `최고 레벨 달성 · 누적 경험치 ${cleanNumber(stats.experience || 0)}`
-    : `누적 경험치 ${cleanNumber(stats.experience || 0)} · 신기록 ${stats.levelUps || 0}회 · 레벨다운 ${stats.levelDowns || 0}회`;
+    ? `최고 레벨 달성 · 누적 ${displayExperience(stats.experience)} XP`
+    : `누적 ${displayExperience(stats.experience)} XP · 신기록 ${stats.levelUps || 0}회 · 레벨다운 ${stats.levelDowns || 0}회`;
   els.levelHistoryCount.textContent = `${history.length}건`;
   els.levelHistoryList.replaceChildren();
   if (!history.length) {
@@ -1719,16 +1730,17 @@ function renderLevelHistory() {
     const up = event.type === "level_up";
     const down = event.type === "level_down";
     const experienceDelta = Math.abs(Number(event.experienceDelta) || 0);
+    const displayedExperienceDelta = displayExperience(experienceDelta);
     const resultMarkup = up
       ? `<small>LV.${event.levelBefore}</small><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg><strong>LV.${event.levelAfter}</strong>`
       : down
         ? `<small>LV.${event.levelBefore}</small><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg><strong>LV.${event.levelAfter}</strong>`
-        : `<strong>-${cleanNumber(experienceDelta)} XP</strong>`;
+        : `<strong>-${displayedExperienceDelta} XP</strong>`;
     const item = document.createElement("article");
     item.className = `level-history-item ${up ? "is-up" : "is-down"}`;
     item.innerHTML = `
       <span class="level-history-direction" aria-hidden="true"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${up ? "m18 15-6-6-6 6" : "m6 9 6 6 6-6"}"/></svg></span>
-      <span class="level-history-copy"><small>${escapeHtml(formatLevelHistoryDate(event.date))}</small><strong>${escapeHtml(event.exercise || (up ? "레벨업" : down ? "레벨다운" : "경험치 차감"))}</strong><em>${up ? "신기록 달성" : down ? `경험치 ${cleanNumber(experienceDelta)} 차감 · 레벨 하락` : "레벨 유지 · 경험치 차감"}</em></span>
+      <span class="level-history-copy"><small>${escapeHtml(formatLevelHistoryDate(event.date))}</small><strong>${escapeHtml(event.exercise || (up ? "레벨업" : down ? "레벨다운" : "경험치 차감"))}</strong><em>${up ? `신기록 달성 · +${displayedExperienceDelta} XP` : down ? `${displayedExperienceDelta} XP 차감 · 레벨 하락` : `${displayedExperienceDelta} XP 차감 · 레벨 유지`}</em></span>
       <span class="level-history-level">${resultMarkup}</span>
     `;
     els.levelHistoryList.append(item);
@@ -2241,6 +2253,55 @@ function announceLevelChange(previousLevel, nextLevel) {
 
 function reducedMotionPreferred() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function seasonMomentForDate(date) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const day = date.getDate();
+  if (month === 11 && day === 31) {
+    return { type: "year-end", kicker: "YEAR COMPLETE", title: `${year}년, 완료.`, copy: "올해 기록도 여기까지 잘 쌓았습니다." };
+  }
+  if (month === 0 && day === 1) {
+    return { type: "year-start", kicker: "NEW YEAR", title: "새해 첫 세트.", copy: "다시 하나씩 쌓아가면 됩니다." };
+  }
+  if (day === new Date(year, month + 1, 0).getDate()) {
+    return { type: "month-end", kicker: "MONTH COMPLETE", title: `${month + 1}월, 완료.`, copy: "이번 달 기록도 잘 쌓았습니다." };
+  }
+  if (day === 1) {
+    return { type: "month-start", kicker: "NEW MONTH", title: `${month + 1}월 시작.`, copy: "이번 달도 한 세트씩 갑니다." };
+  }
+  return null;
+}
+
+function closeSeasonMoment() {
+  if (!els.seasonMoment || els.seasonMoment.hidden) return;
+  const finish = () => {
+    els.seasonMoment.hidden = true;
+    document.body.classList.remove("season-moment-open");
+  };
+  if (window.SetCounterMotion?.closeSeasonMoment) {
+    window.SetCounterMotion.closeSeasonMoment(els.seasonMoment, finish);
+  } else {
+    finish();
+  }
+}
+
+function maybeOpenSeasonMoment(now = new Date()) {
+  if (!els.seasonMoment) return;
+  const moment = seasonMomentForDate(now);
+  if (!moment) return;
+  const storageKey = `${SEASON_MOMENT_STORAGE_PREFIX}:${moment.type}:${toDateKey(now)}`;
+  if (window.localStorage.getItem(storageKey)) return;
+  window.localStorage.setItem(storageKey, "shown");
+  els.seasonMoment.dataset.moment = moment.type;
+  els.seasonMomentKicker.textContent = moment.kicker;
+  els.seasonMomentTitle.textContent = moment.title;
+  els.seasonMomentCopy.textContent = moment.copy;
+  els.seasonMoment.hidden = false;
+  document.body.classList.add("season-moment-open");
+  window.SetCounterMotion?.animateSeasonMoment(els.seasonMoment);
+  window.setTimeout(() => els.seasonMomentButton.focus(), 260);
 }
 
 function initMotion() {
@@ -4196,7 +4257,7 @@ function bindEvents() {
   });
   els.levelProgressBar.parentElement.addEventListener("click", () => {
     const stats = state.stats || {};
-    showToast(`현재 경험치 ${stats.experiencePercent || 0}% · 누적 경험치 ${stats.experience || 0}`);
+    showToast(`현재 경험치 ${stats.experiencePercent || 0}% · 누적 ${displayExperience(stats.experience)} XP`);
   });
   els.openExerciseLibraryButton.addEventListener("click", openExerciseLibrary);
   els.closeExerciseLibraryButton.addEventListener("click", closeExerciseLibrary);
@@ -4259,6 +4320,10 @@ function bindEvents() {
   els.undoSetButton.addEventListener("click", undoSet);
   els.confirmWorkoutButton.addEventListener("click", () => saveWorkout().catch((error) => showToast(error.message)));
   els.levelUpContinueButton.addEventListener("click", closeLevelUpScreen);
+  els.seasonMomentButton?.addEventListener("click", closeSeasonMoment);
+  els.seasonMoment?.addEventListener("click", (event) => {
+    if (event.target === els.seasonMoment) closeSeasonMoment();
+  });
   els.resetSessionButton.addEventListener("click", () => resetSession(false));
   els.workoutDateInput.addEventListener("change", () => {
     if (els.workoutDateInput.value) chooseDate(els.workoutDateInput.value).catch((error) => showToast(error.message));
@@ -4320,7 +4385,8 @@ function bindEvents() {
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
-    if (!els.boardReportModal.hidden) closeBoardReportModal();
+    if (els.seasonMoment && !els.seasonMoment.hidden) closeSeasonMoment();
+    else if (!els.boardReportModal.hidden) closeBoardReportModal();
     else if (!els.levelHistoryModal.hidden) closeLevelHistory();
     else if (!els.profileModal.hidden) closeNicknameModal();
     else if (!els.complaintModal.hidden) closeComplaintModal();
@@ -4399,6 +4465,7 @@ async function init() {
   syncCounter();
   setActiveScreen("record");
   await loadAuthStatus();
+  window.setTimeout(() => maybeOpenSeasonMoment(), 520);
   await loadBootstrap();
   routeInitialEntry();
 }

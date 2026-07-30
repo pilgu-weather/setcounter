@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=87">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=88">
   </head>
   <body>
     <main class="app-shell" id="home">
@@ -498,6 +498,18 @@
         <p>다음 세트를 시작하세요</p>
       </section>
     </div>
+    <div class="season-moment" id="seasonMoment" role="dialog" aria-modal="true" aria-labelledby="seasonMomentTitle" aria-describedby="seasonMomentCopy" hidden>
+      <span class="season-moment-frame season-moment-frame-outer" aria-hidden="true"></span>
+      <span class="season-moment-frame season-moment-frame-inner" aria-hidden="true"></span>
+      <section class="season-moment-panel">
+        <span class="season-moment-sweep" aria-hidden="true"></span>
+        <div class="season-moment-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <p class="season-moment-kicker" id="seasonMomentKicker">MONTH COMPLETE</p>
+        <h2 id="seasonMomentTitle">이번 달도 완료.</h2>
+        <p id="seasonMomentCopy">기록은 그대로 쌓였습니다.</p>
+        <button class="season-moment-button" id="seasonMomentButton" type="button">확인</button>
+      </section>
+    </div>
     <div class="profile-modal level-history-modal" id="levelHistoryModal" role="dialog" aria-modal="true" aria-labelledby="levelHistoryTitle" hidden>
       <section class="profile-dialog level-history-dialog">
         <header class="menu-dialog-head">
@@ -778,7 +790,7 @@
       </section>
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
-    <script src="{{ url_for('static', filename='js/motion.js') }}?v=4"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=114"></script>
+    <script src="{{ url_for('static', filename='js/motion.js') }}?v=5"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=115"></script>
   </body>
 </html>

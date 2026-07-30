@@ -2912,6 +2912,135 @@ textarea:focus {
 
 .rest-complete-alert.is-visible { opacity: 1; }
 
+.season-moment {
+  position: fixed;
+  z-index: 220;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 24px;
+  background: rgba(3, 6, 11, 0.84);
+  backdrop-filter: blur(14px);
+}
+
+.season-moment[hidden] { display: none; }
+
+.season-moment-frame {
+  position: absolute;
+  width: min(350px, calc(100vw - 34px));
+  aspect-ratio: 1;
+  border: 1px solid rgba(74, 137, 238, 0.28);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.season-moment-frame-inner {
+  width: min(270px, calc(100vw - 96px));
+  border-color: rgba(112, 166, 255, 0.18);
+}
+
+.season-moment-panel {
+  position: relative;
+  width: min(330px, calc(100vw - 40px));
+  overflow: hidden;
+  padding: 30px 24px 22px;
+  border: 1px solid rgba(89, 151, 255, 0.4);
+  border-radius: 16px;
+  background: rgba(13, 18, 27, 0.97);
+  box-shadow: 0 28px 84px rgba(0, 0, 0, 0.68), 0 0 44px rgba(46, 124, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.season-moment-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 14% auto;
+  height: 2px;
+  background: #5f9cff;
+  box-shadow: 0 0 20px rgba(68, 137, 255, 0.9);
+}
+
+.season-moment-sweep {
+  position: absolute;
+  inset: -20% auto -20% 48%;
+  width: 22%;
+  transform: skewX(-14deg);
+  background: rgba(112, 167, 255, 0.09);
+  pointer-events: none;
+}
+
+.season-moment-bars {
+  height: 32px;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 15px;
+}
+
+.season-moment-bars i {
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: #4f8df5;
+  box-shadow: 0 0 10px rgba(66, 135, 250, 0.52);
+  transform-origin: center bottom;
+}
+
+.season-moment-bars i:nth-child(2),
+.season-moment-bars i:nth-child(6) { height: 22px; }
+.season-moment-bars i:nth-child(3),
+.season-moment-bars i:nth-child(5) { height: 27px; }
+.season-moment-bars i:nth-child(4) { height: 32px; background: #f5f7fb; }
+
+.season-moment-kicker {
+  margin: 0 0 7px;
+  color: #6ea6ff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.season-moment-panel h2 {
+  margin: 0;
+  color: #f5f7fb;
+  font-size: 29px;
+  font-weight: 950;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.season-moment-panel > p:not(.season-moment-kicker) {
+  margin: 10px 0 22px;
+  color: #aeb8c8;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.season-moment-button {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid rgba(104, 159, 247, 0.42);
+  border-radius: 12px;
+  background: #1a2638;
+  color: #f5f7fb;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 900;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 24px rgba(0, 0, 0, 0.24);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.season-moment-button:active { transform: scale(0.98); background: #22324a; }
+.season-moment-button:focus-visible { outline: 2px solid #74a9ff; outline-offset: 3px; }
+body.season-moment-open { overflow: hidden; overscroll-behavior: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .season-moment * { animation: none !important; transition: none !important; }
+}
+
 body:has(.exercise-library-modal:not([hidden])),
 body:has(.exercise-step-modal:not([hidden])) {
   overflow: hidden;
