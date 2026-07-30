@@ -1756,9 +1756,30 @@ function renderLevelHistory() {
   });
 }
 
+function renderLevelHistoryLoading() {
+  if (!els.levelHistoryAthlete || !els.levelHistoryList) return;
+  const stats = state.stats || {};
+  const level = stats.level || state.profile?.level || 1;
+  const nickname = displayNickname(state.profile?.nickname);
+  els.levelHistoryAthlete.innerHTML = `
+    ${levelBadgeMarkup(level)}
+    <span><small>LEVEL ${level}</small><strong>${escapeHtml(nickname)}</strong></span>
+  `;
+  els.levelHistoryXpText.textContent = "";
+  els.levelHistoryXpBar.style.transform = "scaleX(0)";
+  els.levelHistoryXpTrack.setAttribute("aria-valuenow", "0");
+  els.levelHistoryXpDetail.textContent = "레벨 기록 불러오는 중...";
+  els.levelHistoryCount.textContent = "";
+  els.levelHistoryList.replaceChildren();
+  const loading = document.createElement("div");
+  loading.className = "level-history-empty";
+  loading.innerHTML = "<strong>기록을 확인하고 있습니다.</strong>";
+  els.levelHistoryList.append(loading);
+}
+
 async function openLevelHistory() {
   rememberMenuOverlayTrigger();
-  renderLevelHistory();
+  renderLevelHistoryLoading();
   els.levelHistoryModal.hidden = false;
   syncMenuOverlayLock();
   window.SetCounterMotion?.openOverlay(els.levelHistoryModal, { sheet: true, onComplete: () => els.closeLevelHistoryButton.focus() });
@@ -1766,6 +1787,8 @@ async function openLevelHistory() {
     await loadStatsOnly();
     renderLevelHistory();
   } catch (error) {
+    els.levelHistoryXpDetail.textContent = "레벨 기록을 불러오지 못했습니다.";
+    els.levelHistoryList.innerHTML = '<div class="level-history-empty"><strong>잠시 후 다시 열어주세요.</strong></div>';
     showToast(error.message);
   }
 }
@@ -2269,16 +2292,16 @@ function seasonMomentForDate(date) {
   const month = date.getMonth();
   const day = date.getDate();
   if (month === 11 && day === 31) {
-    return { type: "year-end", kicker: "YEAR COMPLETE", title: `${year}년, 완료.`, copy: "올해 기록도 여기까지 잘 쌓았습니다." };
+    return { type: "year-end", kicker: "YEAR COMPLETE", title: "올해도 수고하셨습니다.", copy: "마지막 기록까지 잘 마무리했습니다." };
   }
   if (month === 0 && day === 1) {
-    return { type: "year-start", kicker: "NEW YEAR", title: "새해 첫 세트.", copy: "다시 하나씩 쌓아가면 됩니다." };
+    return { type: "year-start", kicker: "NEW YEAR", title: "새해가 시작됐습니다.", copy: "올해의 첫 기록을 깨봅시다." };
   }
   if (day === new Date(year, month + 1, 0).getDate()) {
-    return { type: "month-end", kicker: "MONTH COMPLETE", title: `${month + 1}월, 완료.`, copy: "이번 달 기록도 잘 쌓았습니다." };
+    return { type: "month-end", kicker: "MONTH COMPLETE", title: "이번 달도 수고하셨습니다.", copy: "기록은 다음 달에도 이어집니다." };
   }
   if (day === 1) {
-    return { type: "month-start", kicker: "NEW MONTH", title: `${month + 1}월 시작.`, copy: "이번 달도 한 세트씩 갑니다." };
+    return { type: "month-start", kicker: "NEW MONTH", title: "새로운 달이 시작됐습니다.", copy: "이번 달도 기록을 깨봅시다." };
   }
   return null;
 }
