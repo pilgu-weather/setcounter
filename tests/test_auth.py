@@ -21,6 +21,7 @@ from app import (
     REQUIRED_SCHEMA,
     account_for_auth_identity,
     app,
+    breakthrough_rate_for_level,
     db,
     level_for_experience,
     stats_from_logs,
@@ -822,7 +823,7 @@ class AuthSystemTestCase(unittest.TestCase):
             attendance_penalty_carryover=6,
         )
         self.assertEqual(before["level"], 4)
-        self.assertAlmostEqual(before["experience"], 3.9, places=2)
+        self.assertAlmostEqual(before["experience"], 3.7, places=2)
 
         logs.append(
             {
@@ -844,7 +845,7 @@ class AuthSystemTestCase(unittest.TestCase):
         )
         self.assertEqual(after["level"], 5)
         self.assertLessEqual(after["level"] - before["level"], 1)
-        self.assertAlmostEqual(after["experience"], 4.8, places=2)
+        self.assertAlmostEqual(after["experience"], 4.4, places=2)
 
     def test_experience_loss_keeps_level_when_xp_remains_above_level_floor(self):
         workout_date = date.today().isoformat()
@@ -864,7 +865,7 @@ class AuthSystemTestCase(unittest.TestCase):
         before = stats_from_logs(logs, set())
         self.assertEqual(before_last_gain["level"], 10)
         self.assertEqual(before["level"], 10)
-        self.assertAlmostEqual(before["experience"], 9.9, places=2)
+        self.assertAlmostEqual(before["experience"], 9.7, places=2)
 
         logs.append(
             {
@@ -882,7 +883,36 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertAlmostEqual(after["experience"], 9, places=2)
         self.assertEqual(after["levelDowns"], 0)
         self.assertEqual(after["levelHistory"][0]["type"], "experience_down")
-        self.assertAlmostEqual(after["levelHistory"][0]["experienceDelta"], -0.9, places=2)
+        self.assertAlmostEqual(after["levelHistory"][0]["experienceDelta"], -0.7, places=2)
+
+    def test_breakthrough_experience_schedule_matches_confirmed_balance(self):
+        expected_rates = {
+            1: 1.0,
+            9: 1.0,
+            10: 0.7,
+            14: 0.7,
+            15: 0.6,
+            19: 0.6,
+            20: 0.5,
+            29: 0.5,
+            30: 0.4,
+            39: 0.4,
+            40: 0.3,
+            49: 0.3,
+            50: 0.25,
+            59: 0.25,
+            60: 0.2,
+            69: 0.2,
+            70: 0.15,
+            79: 0.15,
+            80: 0.1,
+            89: 0.1,
+            90: 0.05,
+            99: 0.05,
+        }
+        for level, expected_rate in expected_rates.items():
+            with self.subTest(level=level):
+                self.assertEqual(breakthrough_rate_for_level(level), expected_rate)
 
     def test_board_and_push_records_keep_user_ownership(self):
         author_key = "board-author-key-0001"

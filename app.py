@@ -1226,21 +1226,21 @@ def breakthrough_rate_for_level(level):
     if level >= 80:
         return 0.1
     if level >= 70:
-        return 0.16
+        return 0.15
     if level >= 60:
-        return 0.25
+        return 0.2
     if level >= 50:
-        return 0.35
+        return 0.25
     if level >= 40:
-        return 0.5
+        return 0.3
     if level >= 30:
-        return 0.65
+        return 0.4
     if level >= 20:
-        return 0.8
+        return 0.5
     if level >= 15:
-        return 0.85
+        return 0.6
     if level >= 10:
-        return 0.9
+        return 0.7
     return 1
 
 
