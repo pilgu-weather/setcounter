@@ -1707,6 +1707,15 @@ function renderLevelHistory() {
   const nickname = displayNickname(state.profile?.nickname);
   const percent = Math.min(Math.max(Number(stats.experiencePercent) || 0, 0), 100);
   const history = Array.isArray(stats.levelHistory) ? stats.levelHistory : [];
+  const historyLevelDowns = history.reduce((total, event) => {
+    if (event.type !== "level_down") return total;
+    return total + Math.max((Number(event.levelBefore) || 0) - (Number(event.levelAfter) || 0), 1);
+  }, 0);
+  const levelDowns = Math.max(
+    Number(stats.levelDowns) || 0,
+    Number(stats.recordedLevelDowns) || 0,
+    historyLevelDowns,
+  );
   els.levelHistoryAthlete.innerHTML = `
     ${levelBadgeMarkup(level)}
     <span><small>LEVEL ${level}</small><strong>${escapeHtml(nickname)}</strong></span>
@@ -1716,7 +1725,7 @@ function renderLevelHistory() {
   els.levelHistoryXpTrack.setAttribute("aria-valuenow", String(level >= 99 ? 100 : percent));
   els.levelHistoryXpDetail.textContent = level >= 99
     ? `최고 레벨 달성 · 누적 ${displayExperience(stats.experience)} XP`
-    : `누적 ${displayExperience(stats.experience)} XP · 신기록 ${stats.levelUps || 0}회 · 레벨다운 ${stats.levelDowns || 0}회`;
+    : `누적 ${displayExperience(stats.experience)} XP · 신기록 ${stats.levelUps || 0}회 · 레벨다운 ${levelDowns}회`;
   els.levelHistoryCount.textContent = `${history.length}건`;
   els.levelHistoryList.replaceChildren();
   if (!history.length) {

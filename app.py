@@ -1440,6 +1440,7 @@ def volume_stats(user_id):
         )
         .order_by(HealthLevelEvent.event_date.asc(), HealthLevelEvent.created_at.asc())
     ).all()
+    recorded_level_downs = 0
     if preserved_events:
         history = list(stats["levelHistory"])
         for event in preserved_events:
@@ -1458,9 +1459,11 @@ def volume_stats(user_id):
                 }
             )
             if event.event_type == "level_down":
-                stats["levelDowns"] += max(event.level_before - event.level_after, 0)
+                recorded_level_downs += max(event.level_before - event.level_after, 0)
+        stats["levelDowns"] += recorded_level_downs
         history.sort(key=lambda item: (item["date"], item.get("createdAt") or ""), reverse=True)
         stats["levelHistory"] = history[:50]
+    stats["recordedLevelDowns"] = recorded_level_downs
     return stats
 
 

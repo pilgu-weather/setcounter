@@ -203,6 +203,7 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertEqual(after["level"], before["level"])
             self.assertEqual(after["experience"], before["experience"])
             self.assertEqual(after["levelDowns"], 6)
+            self.assertEqual(after["recordedLevelDowns"], 6)
             self.assertEqual(after["levelHistory"][0]["levelBefore"], 10)
             self.assertEqual(after["levelHistory"][0]["levelAfter"], 4)
             self.assertTrue(after["levelHistory"][0]["preserved"])
