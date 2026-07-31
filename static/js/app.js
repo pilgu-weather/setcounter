@@ -3047,7 +3047,8 @@ function syncExerciseEditUi() {
 }
 
 function syncExercisePickerUi() {
-  els.exerciseGrid.hidden = !state.exercisePickerExpanded;
+  els.exerciseGrid.hidden = false;
+  els.exerciseGrid.classList.toggle("is-expanded", state.exercisePickerExpanded);
   els.toggleExerciseGridButton.setAttribute("aria-expanded", String(state.exercisePickerExpanded));
   els.toggleExerciseGridButton.setAttribute("aria-label", state.exercisePickerExpanded ? "운동 종목 접기" : "운동 종목 펼치기");
   els.toggleExerciseGridButton.classList.toggle("is-expanded", state.exercisePickerExpanded);
@@ -3056,9 +3057,11 @@ function syncExercisePickerUi() {
 function toggleExercisePicker() {
   state.exercisePickerExpanded = !state.exercisePickerExpanded;
   syncExercisePickerUi();
-  if (state.exercisePickerExpanded) {
-    window.SetCounterMotion?.animateListEnter(els.exerciseGrid.children, { scope: "exercise-grid", limit: 12, y: 8 });
-  }
+  window.SetCounterMotion?.animateListEnter(els.exerciseGrid.children, {
+    scope: "exercise-grid",
+    limit: state.exercisePickerExpanded ? 12 : 6,
+    y: state.exercisePickerExpanded ? 8 : 0,
+  });
 }
 
 function toggleExerciseEditMode(force) {
