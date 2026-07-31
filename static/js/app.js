@@ -84,7 +84,7 @@ const MY_EXERCISES_STORAGE = "setCounterMyExercises";
 const HIDDEN_EXERCISES_STORAGE = "setCounterHiddenExercises";
 const EXERCISE_DETAIL_COLLAPSED_STORAGE = "setCounterExerciseDetailCollapsed";
 const REST_TIMER_DURATION_STORAGE = "setCounterRestTimerSeconds";
-const SEASON_MOMENT_STORAGE_PREFIX = "setCounterSeasonMomentV2";
+const SEASON_MOMENT_STORAGE_PREFIX = "setCounterSeasonMomentV3";
 const XP_DISPLAY_SCALE = 100;
 const USER_KEY_PATTERN = /^[A-Za-z0-9._:-]{16,128}$/;
 const LOCAL_RECOVERY_USER_KEY = "1e0bb65e-47d7-4f5b-ace1-03f0809b952e";
@@ -2369,20 +2369,22 @@ function reducedMotionPreferred() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function seasonMomentForDate(date) {
+function seasonMomentForDate(date, timing = "any") {
   const year = date.getFullYear();
   const month = date.getMonth();
   const day = date.getDate();
-  if (month === 11 && day === 31) {
+  const allowsEnd = timing === "any" || timing === "end";
+  const allowsStart = timing === "any" || timing === "start";
+  if (allowsEnd && month === 11 && day === 31) {
     return { type: "year-end", kicker: "YEAR COMPLETE", title: "올해도 수고하셨습니다.", copy: "마지막 기록까지 잘 마무리했습니다." };
   }
-  if (month === 0 && day === 1) {
+  if (allowsStart && month === 0 && day === 1) {
     return { type: "year-start", kicker: "NEW YEAR", title: "새해가 시작됐습니다.", copy: "올해의 첫 기록을 깨봅시다." };
   }
-  if (day === new Date(year, month + 1, 0).getDate()) {
+  if (allowsEnd && day === new Date(year, month + 1, 0).getDate()) {
     return { type: "month-end", kicker: "MONTH COMPLETE", title: "이번 달도 수고하셨습니다.", copy: "기록은 다음 달에도 이어집니다." };
   }
-  if (day === 1) {
+  if (allowsStart && day === 1) {
     return { type: "month-start", kicker: "NEW MONTH", title: "새로운 달이 시작됐습니다.", copy: "이번 달도 기록을 깨봅시다." };
   }
   return null;
@@ -2404,9 +2406,9 @@ function closeSeasonMoment() {
   }
 }
 
-function maybeOpenSeasonMoment(now = new Date(), onContinue = null) {
+function maybeOpenSeasonMoment(now = new Date(), onContinue = null, timing = "any") {
   if (!els.seasonMoment) return false;
-  const moment = seasonMomentForDate(now);
+  const moment = seasonMomentForDate(now, timing);
   if (!moment) return false;
   const storageKey = `${SEASON_MOMENT_STORAGE_PREFIX}:${moment.type}:${toDateKey(now)}`;
   if (window.localStorage.getItem(storageKey)) return false;
@@ -4123,6 +4125,12 @@ async function saveWorkout() {
   const completedRecommendation = state.selectedDate === todayKey &&
     exerciseKey(completedExercise) === state.recommendedExerciseKey;
   const activeRoutine = state.activeRoutine;
+  const completedRoutineIndex = activeRoutine
+    ? activeRoutine.exercises.findIndex((exercise) => exerciseKey(exercise) === exerciseKey(completedExercise))
+    : -1;
+  const routineMomentTiming = completedRoutineIndex === 0
+    ? "start"
+    : (completedRoutineIndex === activeRoutine?.exercises.length - 1 && completedExercise.routinePhase === "cooldown" ? "end" : null);
   const log = {
     date: state.selectedDate,
     exercise: state.selectedExercise.name,
@@ -4144,7 +4152,7 @@ async function saveWorkout() {
   window.SetCounterMotion?.animateWorkoutSuccess(els.confirmWorkoutButton, [els.lastRecord]);
   const continueWorkoutFlow = () => {
     if (activeRoutine) {
-      const completedIndex = activeRoutine.exercises.findIndex((exercise) => exerciseKey(exercise) === exerciseKey(completedExercise));
+      const completedIndex = completedRoutineIndex;
       const nextExercise = activeRoutine.exercises[completedIndex + 1];
       if (nextExercise) {
         state.activeRoutine.index = completedIndex + 1;
@@ -4160,7 +4168,10 @@ async function saveWorkout() {
     }
   };
   const continueAfterSaveMoment = () => {
-    if (!maybeOpenSeasonMoment(new Date(), continueWorkoutFlow)) continueWorkoutFlow();
+    const recordDate = dateFromKey(state.selectedDate);
+    if (!routineMomentTiming || !maybeOpenSeasonMoment(recordDate, continueWorkoutFlow, routineMomentTiming)) {
+      continueWorkoutFlow();
+    }
   };
   const authoritativePreviousLevel = Number(savedLog.levelBefore) || previousLevel;
   const authoritativeNextLevel = Number(savedLog.levelAfter) || data.stats.level;

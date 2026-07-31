@@ -3427,6 +3427,12 @@ body:has(.exercise-step-modal:not([hidden])) {
   font-size: 22px;
 }
 
+#nextRecommendationModal .complaint-actions > button {
+  height: 52px;
+  min-height: 52px;
+  margin: 0;
+}
+
 .ghost-button {
   min-height: 46px;
   border: 1px solid var(--line);
