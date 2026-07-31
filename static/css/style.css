@@ -3452,6 +3452,7 @@ body:has(.exercise-step-modal:not([hidden])) {
 }
 
 .next-recommendation-dialog {
+  position: relative;
   text-align: center;
 }
 
@@ -3478,14 +3479,17 @@ body:has(.exercise-step-modal:not([hidden])) {
 
 .routine-skip-button {
   display: block;
-  min-width: 48px;
-  min-height: 36px;
-  margin: 8px 0 -6px auto;
-  padding: 4px 6px;
+  position: absolute;
+  right: 6px;
+  bottom: -34px;
+  min-width: 40px;
+  min-height: 26px;
+  margin: 0;
+  padding: 2px 4px;
   border: 0;
   background: transparent;
   color: var(--sc-text-tertiary, #707887);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.12em;
   transition: color 160ms ease, opacity 160ms ease, transform 160ms ease;
