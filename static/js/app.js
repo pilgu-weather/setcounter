@@ -177,6 +177,9 @@ function loadMyExercises() {
     primaryMuscles: exercise.primaryMuscles || [],
     secondaryMuscles: exercise.secondaryMuscles || [],
     instructions: exercise.instructions || [],
+    instructionsKo: exercise.instructionsKo || [],
+    isWorkoutPlan: Boolean(exercise.isWorkoutPlan),
+    planId: exercise.planId || null,
   }));
   const merged = uniqueExercises([...primaryExercises, ...custom]).filter((exercise) => !hidden.has(exercise.name));
   return merged.length ? merged : [primaryExercises[0]];
@@ -587,8 +590,10 @@ function replacePrimaryExercises(defaultExercises) {
     if (!exercise.source && primaryNames.has(exercise.name)) return false;
     return true;
   });
-  exercises = uniqueExercises([...visibleDefaults, ...kept]);
-  state.selectedExercise = exercises[0];
+  const savedPlans = kept.filter((exercise) => exercise.isWorkoutPlan);
+  const otherKept = kept.filter((exercise) => !exercise.isWorkoutPlan);
+  exercises = uniqueExercises([...savedPlans, ...visibleDefaults, ...otherKept]);
+  state.selectedExercise = exercises.find((exercise) => !exercise.isWorkoutPlan) || exercises[0];
 }
 
 async function loadFreeExerciseDb() {
@@ -1385,6 +1390,7 @@ function weightStepForExercise(exercise = state.selectedExercise) {
 
 function isBodyweightExercise(exercise = state.selectedExercise) {
   if (!exercise) return false;
+  if (exercise.isPlanSupportStep) return true;
   const rawEquipment = String(exercise.equipment || "").trim().toLowerCase();
   const translatedEquipment = String(translateEquipment(exercise.equipment) || "").trim();
   const inferredEquipment = equipmentForExercise(exerciseDisplayName(exercise), exercise.area || "");
@@ -1917,6 +1923,78 @@ function exercisesForPlan(plan) {
   }).filter(Boolean);
 }
 
+function workoutPlanExercise(plan) {
+  return {
+    source: "setcounter-plan",
+    sourceId: plan.id,
+    name: plan.title,
+    displayName: plan.title,
+    area: "묶음 운동",
+    equipment: "루틴",
+    image: plan.image,
+    isWorkoutPlan: true,
+    planId: plan.id,
+  };
+}
+
+function parsePlanStepDefaults(meta = "") {
+  const duration = String(meta).match(/^(?:(\d+):)?(\d{2})$/);
+  if (duration) {
+    return {
+      sets: 1,
+      defaultReps: (Number(duration[1]) || 0) * 60 + Number(duration[2]),
+    };
+  }
+  const sets = Number(String(meta).match(/(\d+)세트/)?.[1]) || 1;
+  const reps = Number(String(meta).match(/(\d+)(?:-\d+)?회/)?.[1]) || 10;
+  return { sets, defaultReps: reps };
+}
+
+function planSupportExercise(plan, step, phase, index) {
+  const base = exerciseBySourceId(step.sourceId) || {};
+  const defaults = parsePlanStepDefaults(step.meta);
+  return {
+    ...base,
+    source: "setcounter-plan-step",
+    sourceId: `${plan.id}:${phase}:${index}:${step.sourceId}`,
+    freeDbSourceId: base.freeDbSourceId || step.sourceId,
+    name: step.name,
+    displayName: step.name,
+    area: step.muscles?.[0] || base.area || "전신",
+    equipment: base.equipment || "body only",
+    image: base.image || plan.image,
+    images: base.images || [],
+    instructionsKo: base.instructionsKo?.length ? base.instructionsKo : (step.description ? [step.description] : []),
+    isPlanSupportStep: true,
+    planPrescription: {
+      sets: defaults.sets,
+      reps: step.meta,
+      defaultReps: defaults.defaultReps,
+      rest: phase === "warmup" ? 20 : 15,
+    },
+    routinePhase: phase,
+    routinePhaseLabel: phase === "warmup" ? "준비 운동" : "쿨다운",
+  };
+}
+
+function routineExercisesForPlan(plan) {
+  const support = planSupportPrescriptions[plan.id] || { warmup: [], cooldown: [] };
+  const warmup = support.warmup.map((step, index) => planSupportExercise(plan, step, "warmup", index));
+  const main = exercisesForPlan(plan).map((exercise) => ({
+    ...exercise,
+    routinePhase: "main",
+    routinePhaseLabel: "본 운동",
+  }));
+  const cooldown = support.cooldown.map((step, index) => planSupportExercise(plan, step, "cooldown", index));
+  return [...warmup, ...main, ...cooldown];
+}
+
+function routineProgressText(routine, index) {
+  const exercise = routine?.exercises?.[index];
+  if (!exercise) return "";
+  return `${exercise.routinePhaseLabel || "루틴"} · ${index + 1}/${routine.exercises.length}`;
+}
+
 function planStepImage(exercise, fallbackImage) {
   const firstImage = exercise?.images?.[0];
   if (firstImage) return freeDbImageUrl(firstImage);
@@ -1930,17 +2008,17 @@ function planImageUrl(image) {
 }
 
 function startWorkoutPlan(plan, startIndex = 0) {
-  const routineExercises = exercisesForPlan(plan);
+  const routineExercises = routineExercisesForPlan(plan);
   if (!routineExercises.length) return;
-  exercises = uniqueExercises([...exercises, ...routineExercises]);
+  exercises = uniqueExercises([workoutPlanExercise(plan), ...exercises]);
   saveMyExerciseSettings();
-  renderExerciseCards();
   const safeStartIndex = Math.max(0, Math.min(startIndex, routineExercises.length - 1));
   state.activeRoutine = { id: plan.id, title: plan.title, exercises: routineExercises, index: safeStartIndex };
   state.recommendedExerciseKey = exerciseKey(routineExercises[safeStartIndex]);
+  renderExerciseCards();
   openRecordScreen();
   selectExercise(routineExercises[safeStartIndex])
-    .then(() => showToast(`${plan.title} ${safeStartIndex + 1}/${routineExercises.length} 시작`))
+    .then(() => showToast(`${plan.title} · ${routineProgressText(state.activeRoutine, safeStartIndex)} 시작`))
     .catch((error) => showToast(error.message));
 }
 
@@ -2924,21 +3002,27 @@ async function deleteSelectedExercises() {
 function renderExerciseCards() {
   els.exerciseGrid.replaceChildren();
   exercises.forEach((exercise) => {
+    const plan = exercise.isWorkoutPlan
+      ? workoutPlans.find((item) => item.id === exercise.planId)
+      : null;
+    const isActivePlan = Boolean(plan && state.activeRoutine?.id === plan.id);
     const card = document.createElement("button");
     card.type = "button";
-    card.className = "exercise-card";
+    card.className = `exercise-card${plan ? " is-workout-plan" : ""}`;
     card.dataset.motionKey = `exercise-${exerciseKey(exercise)}`;
-    card.setAttribute("aria-pressed", exerciseKey(exercise) === exerciseKey(state.selectedExercise));
-    if (exerciseKey(exercise) === state.recommendedExerciseKey) {
+    card.setAttribute("aria-pressed", isActivePlan || (!plan && exerciseKey(exercise) === exerciseKey(state.selectedExercise)));
+    if (plan || exerciseKey(exercise) === state.recommendedExerciseKey) {
       const badge = document.createElement("span");
       badge.className = "recommend-badge";
-      badge.textContent = "오늘의 추천";
+      badge.textContent = plan ? (isActivePlan ? "진행 중" : "루틴") : "오늘의 추천";
       card.append(badge);
     }
     const name = document.createElement("strong");
     name.textContent = exerciseDisplayName(exercise);
     const area = document.createElement("small");
-    area.textContent = exerciseListMeta(exercise);
+    area.textContent = plan
+      ? `${routineExercisesForPlan(plan).length}단계 · ${plan.duration}`
+      : exerciseListMeta(exercise);
     if (state.editingExercises) {
       const checkbox = document.createElement("span");
       checkbox.className = "exercise-check";
@@ -2957,6 +3041,10 @@ function renderExerciseCards() {
         }
         syncExerciseEditUi();
         renderExerciseCards();
+        return;
+      }
+      if (plan) {
+        startWorkoutPlan(plan);
         return;
       }
       selectExercise(exercise);
@@ -3112,7 +3200,7 @@ function lastDateForExercise(exercise) {
 }
 
 function lastDateForGroup(group) {
-  const names = new Set(exercises.filter((exercise) => exerciseTrainingGroup(exercise) === group).map((exercise) => exercise.name));
+  const names = new Set(exercises.filter((exercise) => !exercise.isWorkoutPlan && exerciseTrainingGroup(exercise) === group).map((exercise) => exercise.name));
   const dates = state.logs
     .filter((log) => names.has(log.exercise))
     .map((log) => log.date)
@@ -3121,23 +3209,24 @@ function lastDateForGroup(group) {
 }
 
 function chooseRecommendedExercise(options = {}) {
-  if (!exercises.length) return null;
+  const recordableExercises = exercises.filter((exercise) => !exercise.isWorkoutPlan);
+  if (!recordableExercises.length) return null;
   const completedExercise = options.completedExercise || null;
   const todayLogs = logsForDate(todayKey);
   let targetGroups = [];
   if (completedExercise) {
     targetGroups = compatibleTrainingGroups(exerciseTrainingGroup(completedExercise));
   } else if (todayLogs.length) {
-    const lastTodayExercise = exercises.find((exercise) => exercise.name === todayLogs.at(-1).exercise) || { name: todayLogs.at(-1).exercise };
+    const lastTodayExercise = recordableExercises.find((exercise) => exercise.name === todayLogs.at(-1).exercise) || { name: todayLogs.at(-1).exercise };
     targetGroups = compatibleTrainingGroups(exerciseTrainingGroup(lastTodayExercise));
   } else {
-    const groups = Array.from(new Set(exercises.map(exerciseTrainingGroup)));
+    const groups = Array.from(new Set(recordableExercises.map(exerciseTrainingGroup)));
     const oldestGroup = groups
       .map((group) => ({ group, lastDate: lastDateForGroup(group) }))
       .sort((a, b) => a.lastDate.localeCompare(b.lastDate))[0]?.group;
     targetGroups = compatibleTrainingGroups(oldestGroup);
   }
-  const candidates = exercises.filter((exercise) =>
+  const candidates = recordableExercises.filter((exercise) =>
     targetGroups.includes(exerciseTrainingGroup(exercise)) &&
     (!completedExercise || exerciseKey(exercise) !== exerciseKey(completedExercise))
   );
@@ -3145,7 +3234,7 @@ function chooseRecommendedExercise(options = {}) {
   const pool = candidates;
   return [...pool]
     .map((exercise) => ({ exercise, lastDate: lastDateForExercise(exercise) }))
-    .sort((a, b) => a.lastDate.localeCompare(b.lastDate) || exerciseDisplayName(a.exercise).localeCompare(exerciseDisplayName(b.exercise)))[0]?.exercise || exercises[0];
+    .sort((a, b) => a.lastDate.localeCompare(b.lastDate) || exerciseDisplayName(a.exercise).localeCompare(exerciseDisplayName(b.exercise)))[0]?.exercise || recordableExercises[0];
 }
 
 function applyTodayRecommendation() {
@@ -3189,7 +3278,9 @@ function openNextRecommendation(exercise, routineProgress = "") {
   if (!exercise || !els.nextRecommendationModal) return;
   state.recommendedExerciseKey = exerciseKey(exercise);
   state.pendingNextRecommendation = exercise;
-  els.nextRecommendationTitle.textContent = routineProgress ? "다음 루틴 종목" : "다음 추천 운동";
+  els.nextRecommendationTitle.textContent = routineProgress
+    ? `다음 · ${exercise.routinePhaseLabel || "루틴"}`
+    : "다음 추천 운동";
   els.nextRecommendationName.textContent = exerciseDisplayName(exercise);
   els.nextRecommendationReason.textContent = routineProgress || recommendationReason(exercise);
   renderExerciseCards();
@@ -4058,7 +4149,7 @@ async function saveWorkout() {
       if (nextExercise) {
         state.activeRoutine.index = completedIndex + 1;
         state.recommendedExerciseKey = exerciseKey(nextExercise);
-        openNextRecommendation(nextExercise, `${activeRoutine.title} ${completedIndex + 2}/${activeRoutine.exercises.length}`);
+        openNextRecommendation(nextExercise, `${activeRoutine.title} · ${routineProgressText(activeRoutine, completedIndex + 1)}`);
       } else {
         state.activeRoutine = null;
         showToast(`${activeRoutine.title} 완료. 좋은 운동이었어요.`);
