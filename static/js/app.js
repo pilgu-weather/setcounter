@@ -664,6 +664,7 @@ const state = {
   boardExpandedPosts: new Set(),
   boardPendingLikes: new Set(),
   boardPendingComments: new Set(),
+  boardPendingBlocks: new Set(),
   boardPosting: false,
   boardReportSubmitting: false,
   boardReportTarget: null,
@@ -808,8 +809,12 @@ const els = {
   closeFaqButton: document.querySelector("#closeFaqButton"),
   openPrivacyButton: document.querySelector("#openPrivacyButton"),
   openTermsButton: document.querySelector("#openTermsButton"),
+  openBlockedUsersButton: document.querySelector("#openBlockedUsersButton"),
   privacyModal: document.querySelector("#privacyModal"),
   closePrivacyButton: document.querySelector("#closePrivacyButton"),
+  blockedUsersModal: document.querySelector("#blockedUsersModal"),
+  closeBlockedUsersButton: document.querySelector("#closeBlockedUsersButton"),
+  blockedUsersList: document.querySelector("#blockedUsersList"),
   versionButton: document.querySelector("#versionButton"),
   levelUpStage: document.querySelector("#levelUpStage"),
   levelUpKicker: document.querySelector(".level-up-kicker"),
@@ -1127,7 +1132,7 @@ function rememberMenuOverlayTrigger() {
 }
 
 function syncMenuOverlayLock() {
-  const overlays = [els.profileModal, els.levelHistoryModal, els.complaintModal, els.registerModal, els.loginModal, els.deleteAccountModal, els.authConflictModal, els.authAlertModal, els.faqModal, els.privacyModal];
+  const overlays = [els.profileModal, els.levelHistoryModal, els.complaintModal, els.registerModal, els.loginModal, els.deleteAccountModal, els.authConflictModal, els.authAlertModal, els.faqModal, els.privacyModal, els.blockedUsersModal];
   document.body.classList.toggle("has-modal-open", overlays.some((overlay) => overlay && !overlay.hidden));
 }
 
@@ -1240,6 +1245,7 @@ async function resetToAnonymousUser() {
   state.boardExpandedPosts.clear();
   state.boardPendingLikes.clear();
   state.boardPendingComments.clear();
+  state.boardPendingBlocks.clear();
   state.boardReportTarget = null;
   await loadAuthStatus();
   await loadBootstrap();
@@ -3701,6 +3707,7 @@ function boardActionIcon(name) {
     heart: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
     message: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/>',
     flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1Z"/><path d="M4 22v-7"/>',
+    block: '<circle cx="9" cy="7" r="4"/><path d="M3 21v-2a6 6 0 0 1 9.1-5.1"/><path d="m17 17 5 5"/><path d="m22 17-5 5"/>',
     chevron: '<path d="m9 18 6-6-6-6"/>',
   };
   return `<svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths[name] || ""}</svg>`;
@@ -3916,7 +3923,18 @@ function renderBoard() {
     report.className = "board-action-button report";
     report.innerHTML = `${boardActionIcon("flag")}<span>신고</span>`;
     report.addEventListener("click", () => reportBoardContent(post.id, null, report));
-    actions.append(like, commentToggle, report);
+    actions.append(like, commentToggle);
+    if (post.userId && post.userId !== state.profile?.id) {
+      const block = document.createElement("button");
+      block.type = "button";
+      block.className = "board-action-button block";
+      block.innerHTML = `${boardActionIcon("block")}<span>차단</span>`;
+      block.setAttribute("aria-label", `${post.nickname || "사용자"} 차단`);
+      block.disabled = state.boardPendingBlocks.has(String(post.userId));
+      block.addEventListener("click", () => blockBoardUser(post.userId, post.nickname, block));
+      actions.append(block);
+    }
+    actions.append(report);
 
     const comments = document.createElement("div");
     comments.className = "board-comments";
@@ -3939,7 +3957,19 @@ function renderBoard() {
       commentReport.innerHTML = boardActionIcon("flag");
       commentReport.setAttribute("aria-label", "댓글 신고");
       commentReport.addEventListener("click", () => reportBoardContent(post.id, comment.id, commentReport));
-      commentItem.append(commentAuthor, commentBody, commentReport);
+      const commentActions = document.createElement("div");
+      commentActions.className = "board-comment-actions";
+      if (comment.userId && comment.userId !== state.profile?.id) {
+        const commentBlock = document.createElement("button");
+        commentBlock.type = "button";
+        commentBlock.className = "board-comment-block";
+        commentBlock.innerHTML = boardActionIcon("block");
+        commentBlock.setAttribute("aria-label", `${comment.nickname || "사용자"} 차단`);
+        commentBlock.addEventListener("click", () => blockBoardUser(comment.userId, comment.nickname, commentBlock));
+        commentActions.append(commentBlock);
+      }
+      commentActions.append(commentReport);
+      commentItem.append(commentAuthor, commentBody, commentActions);
       comments.append(commentItem);
     });
 
@@ -3994,6 +4024,71 @@ async function toggleBoardLike(postId) {
       });
     }
   }
+}
+
+async function blockBoardUser(userId, nickname, trigger) {
+  const userKey = String(userId);
+  if (state.boardPendingBlocks.has(userKey)) return;
+  const accepted = window.confirm(`${nickname || "이 사용자"}님의 게시글과 댓글을 숨길까요?\n차단은 신고와 별도로 적용됩니다.`);
+  if (!accepted) return;
+  state.boardPendingBlocks.add(userKey);
+  trigger.disabled = true;
+  try {
+    const result = await api(`/api/board/users/${userId}/block`, { method: "POST" });
+    state.boardPosts = result.posts || [];
+    renderBoard();
+    showToast("사용자를 차단했습니다.");
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    state.boardPendingBlocks.delete(userKey);
+  }
+}
+
+async function openBlockedUsers() {
+  els.blockedUsersList.innerHTML = '<p class="blocked-users-empty">불러오는 중...</p>';
+  openSupportModal(els.blockedUsersModal, els.closeBlockedUsersButton);
+  try {
+    const blockedUsers = await api("/api/board/blocks");
+    renderBlockedUsers(blockedUsers);
+  } catch (error) {
+    els.blockedUsersList.innerHTML = '<p class="blocked-users-empty">차단 목록을 불러오지 못했습니다.</p>';
+  }
+}
+
+function renderBlockedUsers(blockedUsers) {
+  els.blockedUsersList.replaceChildren();
+  if (!blockedUsers.length) {
+    const empty = document.createElement("p");
+    empty.className = "blocked-users-empty";
+    empty.textContent = "차단한 사용자가 없습니다.";
+    els.blockedUsersList.append(empty);
+    return;
+  }
+  blockedUsers.forEach((blockedUser) => {
+    const row = document.createElement("div");
+    row.className = "blocked-user-row";
+    const nickname = document.createElement("strong");
+    nickname.textContent = blockedUser.nickname;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "차단 해제";
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        await api(`/api/board/users/${blockedUser.userId}/block`, { method: "DELETE" });
+        row.remove();
+        if (!els.blockedUsersList.children.length) renderBlockedUsers([]);
+        await refreshBoardPosts();
+        showToast("차단을 해제했습니다.");
+      } catch (error) {
+        button.disabled = false;
+        showToast(error.message);
+      }
+    });
+    row.append(nickname, button);
+    els.blockedUsersList.append(row);
+  });
 }
 
 async function submitBoardComment(event, postId) {
@@ -4681,6 +4776,7 @@ function bindEvents() {
     else if (!els.deleteAccountModal.hidden) closeDeleteAccountModal();
     else if (!els.faqModal.hidden) closeSupportModal(els.faqModal);
     else if (!els.privacyModal.hidden) closeSupportModal(els.privacyModal);
+    else if (!els.blockedUsersModal.hidden) closeSupportModal(els.blockedUsersModal);
   });
   els.openFeedbackButton.addEventListener("click", () => openComplaintModal("feedback"));
   els.openFaqButton.addEventListener("click", () => openSupportModal(els.faqModal, els.closeFaqButton));
@@ -4690,9 +4786,14 @@ function bindEvents() {
   });
   els.openPrivacyButton.addEventListener("click", () => openSupportModal(els.privacyModal, els.closePrivacyButton));
   els.openTermsButton.addEventListener("click", () => window.open("/terms", "_blank", "noopener"));
+  els.openBlockedUsersButton.addEventListener("click", () => openBlockedUsers());
   els.closePrivacyButton.addEventListener("click", () => closeSupportModal(els.privacyModal));
   els.privacyModal.addEventListener("click", (event) => {
     if (event.target === els.privacyModal) closeSupportModal(els.privacyModal);
+  });
+  els.closeBlockedUsersButton.addEventListener("click", () => closeSupportModal(els.blockedUsersModal));
+  els.blockedUsersModal.addEventListener("click", (event) => {
+    if (event.target === els.blockedUsersModal) closeSupportModal(els.blockedUsersModal);
   });
   els.versionButton.addEventListener("click", () => showToast("Set Counter v1.0.0"));
   els.closeNextRecommendationButton.addEventListener("click", deferNextRecommendation);

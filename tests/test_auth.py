@@ -35,6 +35,7 @@ from models import (
     AuthIdentity,
     AuthRateLimit,
     HealthBoardComment,
+    HealthBoardBlock,
     HealthBoardLike,
     HealthBoardPost,
     HealthBoardReport,
@@ -1075,6 +1076,74 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertFalse(response.get_json()["notificationDelivered"])
         with app.app_context():
             self.assertEqual(db.session.query(HealthBoardReport).count(), 1)
+
+    def test_board_block_hides_posts_and_comments_and_can_be_reversed(self):
+        author_key = "block-author-key-0001"
+        reader_key = "block-reader-key-0001"
+        third_key = "block-third-key-0001"
+        for key, nickname in ((author_key, "작성자"), (reader_key, "독자"), (third_key, "댓글러")):
+            response = self.client.post(
+                "/api/profile",
+                headers=self.csrf_headers(self.client, key),
+                json={"nickname": nickname},
+            )
+            self.assertEqual(response.status_code, 200, response.get_json())
+
+        post = self.client.post(
+            "/api/board/posts",
+            headers=self.csrf_headers(self.client, author_key),
+            json={"content": "차단 검증 게시글"},
+        )
+        post_id = post.get_json()["id"]
+        comment = self.client.post(
+            f"/api/board/posts/{post_id}/comments",
+            headers=self.csrf_headers(self.client, third_key),
+            json={"content": "차단 검증 댓글"},
+        )
+        self.assertEqual(comment.status_code, 200, comment.get_json())
+
+        with app.app_context():
+            author_id = db.session.query(HealthUser).filter_by(user_key=author_key).one().id
+            third_id = db.session.query(HealthUser).filter_by(user_key=third_key).one().id
+
+        blocked_author = self.client.post(
+            f"/api/board/users/{author_id}/block",
+            headers=self.csrf_headers(self.client, reader_key),
+        )
+        self.assertEqual(blocked_author.status_code, 200, blocked_author.get_json())
+        self.assertEqual(blocked_author.get_json()["posts"], [])
+
+        unblocked = self.client.delete(
+            f"/api/board/users/{author_id}/block",
+            headers=self.csrf_headers(self.client, reader_key),
+        )
+        self.assertEqual(unblocked.status_code, 200, unblocked.get_json())
+        blocked_commenter = self.client.post(
+            f"/api/board/users/{third_id}/block",
+            headers=self.csrf_headers(self.client, reader_key),
+        )
+        self.assertEqual(blocked_commenter.status_code, 200, blocked_commenter.get_json())
+        rows = blocked_commenter.get_json()["posts"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["comments"], [])
+
+        blocks = self.client.get("/api/board/blocks", headers=self.headers(reader_key))
+        self.assertEqual(blocks.status_code, 200, blocks.get_json())
+        self.assertEqual(blocks.get_json()[0]["nickname"], "댓글러")
+        with app.app_context():
+            self.assertEqual(db.session.query(HealthBoardBlock).count(), 1)
+
+    def test_board_user_cannot_block_self(self):
+        user_key = "block-self-key-0001"
+        self.client.get("/api/bootstrap", headers=self.headers(user_key))
+        with app.app_context():
+            user_id = db.session.query(HealthUser).filter_by(user_key=user_key).one().id
+        response = self.client.post(
+            f"/api/board/users/{user_id}/block",
+            headers=self.csrf_headers(self.client, user_key),
+        )
+        self.assertEqual(response.status_code, 400, response.get_json())
+        self.assertEqual(response.get_json()["error"], "cannot_block_self")
 
     def test_storage_status_reports_the_active_database_backend(self):
         response = self.client.get("/api/storage")

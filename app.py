@@ -21,6 +21,7 @@ from models import (
     AuthAccount,
     AuthIdentity,
     AuthRateLimit,
+    HealthBoardBlock,
     HealthBoardComment,
     HealthBoardLike,
     HealthBoardPost,
@@ -176,6 +177,7 @@ REQUIRED_SCHEMA = {
     "health_board_likes": {"id", "post_id", "user_id", "created_at"},
     "health_board_comments": {"id", "post_id", "user_id", "level", "nickname", "content", "created_at"},
     "health_board_reports": {"id", "reporter_user_id", "post_id", "comment_id", "reason", "created_at"},
+    "health_board_blocks": {"id", "blocker_user_id", "blocked_user_id", "created_at"},
     "health_push_config": {"id", "private_key", "public_key", "created_at"},
     "health_push_subscriptions": {
         "id",
@@ -464,6 +466,14 @@ def delete_account_data(account):
     if comment_ids:
         report_conditions.append(HealthBoardReport.comment_id.in_(comment_ids))
     db.session.execute(delete(HealthBoardReport).where(or_(*report_conditions)))
+    db.session.execute(
+        delete(HealthBoardBlock).where(
+            or_(
+                HealthBoardBlock.blocker_user_id == user_id,
+                HealthBoardBlock.blocked_user_id == user_id,
+            )
+        )
+    )
     db.session.execute(delete(HealthPushSubscription).where(HealthPushSubscription.user_id == user_id))
 
     like_conditions = [HealthBoardLike.user_id == user_id]
@@ -713,6 +723,7 @@ def profile_to_dict(user, stats=None):
     now = utc_now()
     can_change = not user.nickname or available_at is None or now >= available_at
     return {
+        "id": user.id,
         "nickname": user.nickname,
         "nicknameRequired": not bool(user.nickname),
         "canChangeNickname": can_change,
@@ -997,6 +1008,7 @@ def board_comment_to_dict(comment):
     return {
         "id": comment.id,
         "postId": comment.post_id,
+        "userId": comment.user_id,
         "level": comment.level,
         "nickname": comment.nickname,
         "author": f"{comment.level} {comment.nickname}",
@@ -1012,6 +1024,7 @@ def board_post_to_dict(post, current_user_id=None, like_counts=None, comments_by
     comments = comments_by_post.get(post.id, [])
     return {
         "id": post.id,
+        "userId": post.user_id,
         "level": post.level,
         "nickname": post.nickname,
         "author": f"{post.level} {post.nickname}",
@@ -1025,8 +1038,16 @@ def board_post_to_dict(post, current_user_id=None, like_counts=None, comments_by
 
 
 def load_board_post_dicts(user_id, sort="latest"):
+    blocked_user_ids = set(
+        db.session.scalars(
+            select(HealthBoardBlock.blocked_user_id).where(HealthBoardBlock.blocker_user_id == user_id)
+        ).all()
+    )
     posts = db.session.scalars(
-        select(HealthBoardPost).order_by(HealthBoardPost.created_at.desc()).limit(MAX_BOARD_POSTS_PER_PAGE)
+        select(HealthBoardPost)
+        .where(HealthBoardPost.user_id.notin_(blocked_user_ids) if blocked_user_ids else True)
+        .order_by(HealthBoardPost.created_at.desc())
+        .limit(MAX_BOARD_POSTS_PER_PAGE)
     ).all()
     post_ids = [post.id for post in posts]
     like_counts = {}
@@ -1051,6 +1072,7 @@ def load_board_post_dicts(user_id, sort="latest"):
         comments = db.session.scalars(
             select(HealthBoardComment)
             .where(HealthBoardComment.post_id.in_(post_ids))
+            .where(HealthBoardComment.user_id.notin_(blocked_user_ids) if blocked_user_ids else True)
             .order_by(HealthBoardComment.created_at.asc())
         ).all()
         for comment in comments:
@@ -1521,7 +1543,11 @@ def main():
 
 @app.route("/privacy")
 def privacy_policy():
-    return render_template("legal.html", page="privacy")
+    return render_template(
+        "legal.html",
+        page="privacy",
+        support_email=os.environ.get("PUBLIC_SUPPORT_EMAIL", "").strip(),
+    )
 
 
 @app.route("/terms")
@@ -2116,6 +2142,61 @@ def report_board_content():
         notification_delivered = False
         app.logger.warning("Board report was saved, but Discord notification delivery failed")
     return jsonify({"ok": True, "notificationDelivered": notification_delivered})
+
+
+@app.route("/api/board/users/<int:blocked_user_id>/block", methods=["POST"])
+def block_board_user(blocked_user_id):
+    user = request_user()
+    if blocked_user_id == user.id:
+        return jsonify({"error": "cannot_block_self"}), 400
+    if db.session.get(HealthUser, blocked_user_id) is None:
+        return jsonify({"error": "board_user_not_found"}), 404
+    existing = db.session.scalar(
+        select(HealthBoardBlock).where(
+            HealthBoardBlock.blocker_user_id == user.id,
+            HealthBoardBlock.blocked_user_id == blocked_user_id,
+        )
+    )
+    if existing is None:
+        db.session.add(HealthBoardBlock(blocker_user_id=user.id, blocked_user_id=blocked_user_id))
+        db.session.commit()
+    return jsonify({"ok": True, "posts": load_board_post_dicts(user.id)})
+
+
+@app.route("/api/board/blocks", methods=["GET"])
+def list_board_blocks():
+    user = request_user()
+    rows = db.session.execute(
+        select(HealthBoardBlock, HealthUser.nickname)
+        .join(HealthUser, HealthUser.id == HealthBoardBlock.blocked_user_id)
+        .where(HealthBoardBlock.blocker_user_id == user.id)
+        .order_by(HealthBoardBlock.created_at.desc())
+    ).all()
+    return jsonify(
+        [
+            {
+                "userId": block.blocked_user_id,
+                "nickname": nickname or "닉네임",
+                "createdAt": block.created_at.isoformat().replace("+00:00", "Z"),
+            }
+            for block, nickname in rows
+        ]
+    )
+
+
+@app.route("/api/board/users/<int:blocked_user_id>/block", methods=["DELETE"])
+def unblock_board_user(blocked_user_id):
+    user = request_user()
+    existing = db.session.scalar(
+        select(HealthBoardBlock).where(
+            HealthBoardBlock.blocker_user_id == user.id,
+            HealthBoardBlock.blocked_user_id == blocked_user_id,
+        )
+    )
+    if existing is not None:
+        db.session.delete(existing)
+        db.session.commit()
+    return jsonify({"ok": True})
 
 
 @app.route("/api/storage", methods=["GET"])

@@ -6278,8 +6278,12 @@ body:has([data-screen="calendar"].is-active) .bottom-nav button:active {
 }
 
 [data-screen="board"] .board-action-button.report {
-  margin-left: auto;
   color: #9a747b;
+}
+
+[data-screen="board"] .board-action-button.block {
+  margin-left: auto;
+  color: #8993a3;
 }
 
 [data-screen="board"] .board-action-button.report:hover,
@@ -6304,7 +6308,7 @@ body:has([data-screen="calendar"].is-active) .bottom-nav button:active {
 [data-screen="board"] .board-comment {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(78px, auto) minmax(0, 1fr) 48px;
+  grid-template-columns: minmax(78px, auto) minmax(0, 1fr) 96px;
   gap: 9px;
   align-items: start;
   border: 0;
@@ -6349,7 +6353,18 @@ body:has([data-screen="calendar"].is-active) .bottom-nav button:active {
   font-weight: 700;
 }
 
-[data-screen="board"] .board-comment .board-comment-report {
+[data-screen="board"] .board-comment-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 48px);
+  justify-content: end;
+}
+
+[data-screen="board"] .board-comment-actions .board-comment-report:last-child {
+  grid-column: 2;
+}
+
+[data-screen="board"] .board-comment .board-comment-report,
+[data-screen="board"] .board-comment .board-comment-block {
   width: 48px;
   min-height: 48px;
   display: grid;
@@ -6359,6 +6374,10 @@ body:has([data-screen="calendar"].is-active) .bottom-nav button:active {
   background: transparent;
   color: #8b6970;
   padding: 0;
+}
+
+[data-screen="board"] .board-comment .board-comment-block {
+  color: #7f8998;
 }
 
 [data-screen="board"] .board-comment-report .lucide {
@@ -7489,6 +7508,52 @@ body:has([data-screen="level-up"].is-active) .app-shell {
 }
 [data-screen="menu"] #authenticatedAccountActions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 [data-screen="menu"] #logoutButton { color: var(--sc-text-secondary); }
+
+.blocked-users-copy {
+  margin: 0;
+  color: var(--sc-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.blocked-users-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.blocked-user-row {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 6px 0;
+}
+
+.blocked-user-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--sc-text-primary);
+}
+
+.blocked-user-row button {
+  min-width: 96px;
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--sc-text-secondary);
+  font-weight: 800;
+}
+
+.blocked-users-empty {
+  margin: 0;
+  padding: 28px 8px;
+  color: var(--sc-text-muted);
+  text-align: center;
+}
 [data-screen="menu"] .account-delete-button {
   border: 1px solid rgba(240, 91, 100, 0.2);
   background: rgba(240, 91, 100, 0.06);

@@ -71,6 +71,18 @@ class HealthUser(db.Model):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    board_blocks_created = db.relationship(
+        "HealthBoardBlock",
+        foreign_keys="HealthBoardBlock.blocker_user_id",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    board_blocks_received = db.relationship(
+        "HealthBoardBlock",
+        foreign_keys="HealthBoardBlock.blocked_user_id",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 class AuthAccount(db.Model):
@@ -362,6 +374,28 @@ class HealthBoardReport(db.Model):
     )
     reason = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, index=True)
+
+
+class HealthBoardBlock(db.Model):
+    __tablename__ = "health_board_blocks"
+    __table_args__ = (
+        UniqueConstraint("blocker_user_id", "blocked_user_id", name="uq_health_board_block_users"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    blocker_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("health_users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    blocked_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("health_users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
 
 
 class HealthPushConfig(db.Model):
