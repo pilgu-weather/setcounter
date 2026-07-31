@@ -3427,10 +3427,39 @@ body:has(.exercise-step-modal:not([hidden])) {
   font-size: 22px;
 }
 
-#nextRecommendationModal .complaint-actions > button {
+#nextRecommendationModal .complaint-actions > button,
+#routineResumeModal .complaint-actions > button {
   height: 52px;
   min-height: 52px;
   margin: 0;
+}
+
+.routine-skip-button {
+  display: block;
+  min-width: 48px;
+  min-height: 36px;
+  margin: 8px 0 -6px auto;
+  padding: 4px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--sc-text-tertiary, #707887);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  transition: color 160ms ease, opacity 160ms ease, transform 160ms ease;
+}
+
+.routine-skip-button:hover,
+.routine-skip-button:focus-visible {
+  color: var(--sc-text-secondary, #a6adba);
+}
+
+.routine-skip-button:active {
+  transform: scale(0.96);
+}
+
+.routine-skip-button[hidden] {
+  display: none;
 }
 
 .ghost-button {

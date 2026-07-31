@@ -85,6 +85,7 @@ const HIDDEN_EXERCISES_STORAGE = "setCounterHiddenExercises";
 const EXERCISE_DETAIL_COLLAPSED_STORAGE = "setCounterExerciseDetailCollapsed";
 const REST_TIMER_DURATION_STORAGE = "setCounterRestTimerSeconds";
 const SEASON_MOMENT_STORAGE_PREFIX = "setCounterSeasonMomentV3";
+const ROUTINE_PROGRESS_STORAGE_PREFIX = "setCounterRoutineProgressV1";
 const XP_DISPLAY_SCALE = 100;
 const USER_KEY_PATTERN = /^[A-Za-z0-9._:-]{16,128}$/;
 const LOCAL_RECOVERY_USER_KEY = "1e0bb65e-47d7-4f5b-ace1-03f0809b952e";
@@ -674,6 +675,8 @@ const state = {
   lastRecord: null,
   logs: [],
   pendingNextRecommendation: null,
+  pendingRoutinePlan: null,
+  pendingRoutineProgress: null,
   initialEntryRouted: false,
   recommendationInitialized: false,
   recommendedExerciseKey: null,
@@ -891,6 +894,12 @@ const els = {
   nextRecommendationReason: document.querySelector("#nextRecommendationReason"),
   closeNextRecommendationButton: document.querySelector("#closeNextRecommendationButton"),
   startNextRecommendationButton: document.querySelector("#startNextRecommendationButton"),
+  skipNextRoutineButton: document.querySelector("#skipNextRoutineButton"),
+  routineResumeModal: document.querySelector("#routineResumeModal"),
+  routineResumeName: document.querySelector("#routineResumeName"),
+  routineResumeCopy: document.querySelector("#routineResumeCopy"),
+  restartRoutineButton: document.querySelector("#restartRoutineButton"),
+  resumeRoutineButton: document.querySelector("#resumeRoutineButton"),
   counterTitle: document.querySelector("#counterTitle"),
   selectedDateBanner: document.querySelector("#selectedDateBanner"),
   selectedDateLabel: document.querySelector("#selectedDateLabel"),
@@ -1995,6 +2004,83 @@ function routineProgressText(routine, index) {
   return `${exercise.routinePhaseLabel || "루틴"} · ${index + 1}/${routine.exercises.length}`;
 }
 
+function routineProgressStorageKey() {
+  return `${ROUTINE_PROGRESS_STORAGE_PREFIX}:${healthUserKey}`;
+}
+
+function savedRoutineProgress(planId) {
+  const progress = loadStoredJson(routineProgressStorageKey(), {})[planId];
+  const nextIndex = Number(progress?.nextIndex);
+  return Number.isInteger(nextIndex) && nextIndex > 0
+    ? { ...progress, nextIndex }
+    : null;
+}
+
+function saveRoutineProgress(routine, nextIndex) {
+  if (!routine || !Number.isInteger(nextIndex) || nextIndex <= 0 || nextIndex >= routine.exercises.length) return;
+  const key = routineProgressStorageKey();
+  const progress = loadStoredJson(key, {});
+  progress[routine.id] = { nextIndex, updatedAt: new Date().toISOString() };
+  window.localStorage.setItem(key, JSON.stringify(progress));
+}
+
+function clearRoutineProgress(planId) {
+  const key = routineProgressStorageKey();
+  const progress = loadStoredJson(key, {});
+  if (!progress[planId]) return;
+  delete progress[planId];
+  if (Object.keys(progress).length) window.localStorage.setItem(key, JSON.stringify(progress));
+  else window.localStorage.removeItem(key);
+}
+
+function openRoutineResumePrompt(plan, progress) {
+  const routineExercises = routineExercisesForPlan(plan);
+  const nextIndex = Math.min(Math.max(progress.nextIndex, 1), routineExercises.length - 1);
+  const nextExercise = routineExercises[nextIndex];
+  state.pendingRoutinePlan = plan;
+  state.pendingRoutineProgress = { ...progress, nextIndex };
+  els.routineResumeName.textContent = plan.title;
+  els.routineResumeCopy.textContent = `${routineProgressText({ exercises: routineExercises }, nextIndex)} · ${exerciseDisplayName(nextExercise)}부터 이어 할 수 있습니다. 지난 진행을 이어 하시겠습니까?`;
+  els.routineResumeModal.hidden = false;
+  window.SetCounterMotion?.openOverlay(els.routineResumeModal);
+}
+
+function closeRoutineResumePrompt(onComplete = null) {
+  if (!els.routineResumeModal || els.routineResumeModal.hidden) return;
+  window.SetCounterMotion?.closeOverlay(els.routineResumeModal, { onComplete: () => {
+    els.routineResumeModal.hidden = true;
+    state.pendingRoutinePlan = null;
+    state.pendingRoutineProgress = null;
+    if (onComplete) onComplete();
+  } });
+}
+
+function restartSavedRoutine() {
+  const plan = state.pendingRoutinePlan;
+  if (!plan) return;
+  closeRoutineResumePrompt(() => {
+    clearRoutineProgress(plan.id);
+    startWorkoutPlan(plan);
+  });
+}
+
+function resumeSavedRoutine() {
+  const plan = state.pendingRoutinePlan;
+  const nextIndex = state.pendingRoutineProgress?.nextIndex;
+  if (!plan || !Number.isInteger(nextIndex)) return;
+  closeRoutineResumePrompt(() => startWorkoutPlan(plan, nextIndex, { preserveProgress: true }));
+}
+
+function requestWorkoutPlanStart(plan) {
+  const progress = savedRoutineProgress(plan.id);
+  if (progress && progress.nextIndex < routineExercisesForPlan(plan).length) {
+    openRoutineResumePrompt(plan, progress);
+    return;
+  }
+  clearRoutineProgress(plan.id);
+  startWorkoutPlan(plan);
+}
+
 function planStepImage(exercise, fallbackImage) {
   const firstImage = exercise?.images?.[0];
   if (firstImage) return freeDbImageUrl(firstImage);
@@ -2007,9 +2093,10 @@ function planImageUrl(image) {
   return value.startsWith("/") || /^https?:/i.test(value) ? value : `/static/assets/${value || "newlogo.webp"}`;
 }
 
-function startWorkoutPlan(plan, startIndex = 0) {
+function startWorkoutPlan(plan, startIndex = 0, options = {}) {
   const routineExercises = routineExercisesForPlan(plan);
   if (!routineExercises.length) return;
+  if (!options.preserveProgress) clearRoutineProgress(plan.id);
   exercises = uniqueExercises([workoutPlanExercise(plan), ...exercises]);
   saveMyExerciseSettings();
   const safeStartIndex = Math.max(0, Math.min(startIndex, routineExercises.length - 1));
@@ -3046,7 +3133,7 @@ function renderExerciseCards() {
         return;
       }
       if (plan) {
-        startWorkoutPlan(plan);
+        requestWorkoutPlanStart(plan);
         return;
       }
       selectExercise(exercise);
@@ -3285,16 +3372,54 @@ function openNextRecommendation(exercise, routineProgress = "") {
     : "다음 추천 운동";
   els.nextRecommendationName.textContent = exerciseDisplayName(exercise);
   els.nextRecommendationReason.textContent = routineProgress || recommendationReason(exercise);
+  els.skipNextRoutineButton.hidden = !(routineProgress && state.activeRoutine);
   renderExerciseCards();
   els.nextRecommendationModal.hidden = false;
   window.SetCounterMotion?.openOverlay(els.nextRecommendationModal);
 }
 
-function closeNextRecommendation() {
+function closeNextRecommendation(options = {}) {
   if (!els.nextRecommendationModal) return;
   window.SetCounterMotion?.closeOverlay(els.nextRecommendationModal, { onComplete: () => {
     els.nextRecommendationModal.hidden = true;
+    els.skipNextRoutineButton.hidden = true;
+    if (options.deferRoutine && state.activeRoutine) {
+      state.activeRoutine = null;
+      state.pendingNextRecommendation = null;
+    }
   } });
+}
+
+function deferNextRecommendation() {
+  if (state.activeRoutine) saveRoutineProgress(state.activeRoutine, state.activeRoutine.index);
+  closeNextRecommendation({ deferRoutine: true });
+}
+
+function skipNextRoutineExercise() {
+  const routine = state.activeRoutine;
+  if (!routine) return;
+  const skippedIndex = routine.index;
+  const skippedExercise = routine.exercises[skippedIndex];
+  const followingIndex = skippedIndex + 1;
+  const followingExercise = routine.exercises[followingIndex];
+  if (!followingExercise) {
+    clearRoutineProgress(routine.id);
+    state.activeRoutine = null;
+    state.pendingNextRecommendation = null;
+    closeNextRecommendation();
+    showToast(`${routine.title} 루틴을 마쳤습니다.`);
+    return;
+  }
+  routine.index = followingIndex;
+  state.pendingNextRecommendation = followingExercise;
+  state.recommendedExerciseKey = exerciseKey(followingExercise);
+  saveRoutineProgress(routine, followingIndex);
+  els.nextRecommendationTitle.textContent = `다음 · ${followingExercise.routinePhaseLabel || "루틴"}`;
+  els.nextRecommendationName.textContent = exerciseDisplayName(followingExercise);
+  els.nextRecommendationReason.textContent = `${routine.title} · ${routineProgressText(routine, followingIndex)}`;
+  renderExerciseCards();
+  window.SetCounterMotion?.animateSwap(els.nextRecommendationName, 1);
+  showToast(`${exerciseDisplayName(skippedExercise)} 건너뜀`);
 }
 
 async function startNextRecommendation() {
@@ -4157,8 +4282,10 @@ async function saveWorkout() {
       if (nextExercise) {
         state.activeRoutine.index = completedIndex + 1;
         state.recommendedExerciseKey = exerciseKey(nextExercise);
+        saveRoutineProgress(activeRoutine, completedIndex + 1);
         openNextRecommendation(nextExercise, `${activeRoutine.title} · ${routineProgressText(activeRoutine, completedIndex + 1)}`);
       } else {
+        clearRoutineProgress(activeRoutine.id);
         state.activeRoutine = null;
         showToast(`${activeRoutine.title} 완료. 좋은 운동이었어요.`);
       }
@@ -4386,7 +4513,7 @@ function bindEvents() {
   });
   els.closePlanDetailButton.addEventListener("click", () => setActiveScreen("home"));
   els.startPlanDetailButton.addEventListener("click", () => {
-    if (state.selectedPlan) startWorkoutPlan(state.selectedPlan);
+    if (state.selectedPlan) requestWorkoutPlanStart(state.selectedPlan);
   });
   els.closePlanExerciseDetailButton.addEventListener("click", closePlanExerciseDetail);
   els.confirmPlanExerciseDetailButton.addEventListener("click", closePlanExerciseDetail);
@@ -4539,6 +4666,8 @@ function bindEvents() {
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     if (els.seasonMoment && !els.seasonMoment.hidden) closeSeasonMoment();
+    else if (!els.nextRecommendationModal.hidden) deferNextRecommendation();
+    else if (!els.routineResumeModal.hidden) closeRoutineResumePrompt();
     else if (!els.boardReportModal.hidden) closeBoardReportModal();
     else if (!els.levelHistoryModal.hidden) closeLevelHistory();
     else if (!els.profileModal.hidden) closeNicknameModal();
@@ -4563,12 +4692,18 @@ function bindEvents() {
     if (event.target === els.privacyModal) closeSupportModal(els.privacyModal);
   });
   els.versionButton.addEventListener("click", () => showToast("Set Counter v1.0.0"));
-  els.closeNextRecommendationButton.addEventListener("click", closeNextRecommendation);
+  els.closeNextRecommendationButton.addEventListener("click", deferNextRecommendation);
   els.startNextRecommendationButton.addEventListener("click", () => {
     startNextRecommendation().catch((error) => showToast(error.message));
   });
+  els.skipNextRoutineButton.addEventListener("click", skipNextRoutineExercise);
   els.nextRecommendationModal.addEventListener("click", (event) => {
-    if (event.target === els.nextRecommendationModal) closeNextRecommendation();
+    if (event.target === els.nextRecommendationModal) deferNextRecommendation();
+  });
+  els.restartRoutineButton.addEventListener("click", restartSavedRoutine);
+  els.resumeRoutineButton.addEventListener("click", resumeSavedRoutine);
+  els.routineResumeModal.addEventListener("click", (event) => {
+    if (event.target === els.routineResumeModal) closeRoutineResumePrompt();
   });
   els.prevMonthButton.addEventListener("click", () => changeMonth(-1));
   els.nextMonthButton.addEventListener("click", () => changeMonth(1));

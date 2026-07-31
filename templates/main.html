@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=90">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=91">
   </head>
   <body>
     <main class="app-shell" id="home">
@@ -777,7 +777,20 @@
         <p id="nextRecommendationReason"></p>
         <div class="complaint-actions">
           <button class="ghost-button" id="closeNextRecommendationButton" type="button">나중에</button>
-          <button class="confirm-button" id="startNextRecommendationButton" type="button">바로 선택</button>
+          <button class="confirm-button" id="startNextRecommendationButton" type="button">지금 하기</button>
+        </div>
+        <button class="routine-skip-button" id="skipNextRoutineButton" type="button" aria-label="이 운동 건너뛰기" hidden>SKIP</button>
+      </section>
+    </div>
+    <div class="profile-modal" id="routineResumeModal" hidden>
+      <section class="profile-dialog next-recommendation-dialog" role="dialog" aria-modal="true" aria-labelledby="routineResumeTitle">
+        <p class="eyebrow">ROUTINE SAVED</p>
+        <h2 id="routineResumeTitle">진행 중인 루틴</h2>
+        <strong class="next-recommendation-name" id="routineResumeName"></strong>
+        <p id="routineResumeCopy"></p>
+        <div class="complaint-actions">
+          <button class="ghost-button" id="restartRoutineButton" type="button">처음부터</button>
+          <button class="confirm-button" id="resumeRoutineButton" type="button">이어 하기</button>
         </div>
       </section>
     </div>
@@ -791,6 +804,6 @@
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=5"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=118"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=119"></script>
   </body>
 </html>
