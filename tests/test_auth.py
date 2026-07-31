@@ -7,7 +7,7 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 
 TEST_DB = Path(tempfile.gettempdir()) / "setcounter-auth-tests.sqlite3"
@@ -778,39 +778,50 @@ class AuthSystemTestCase(unittest.TestCase):
 
         baseline = save(10)
         self.assertEqual(baseline.status_code, 201, baseline.get_json())
-        self.assertFalse(baseline.get_json()["leveledUp"])
+        self.assertTrue(baseline.get_json()["leveledUp"])
+        self.assertTrue(baseline.get_json()["firstWorkoutBonus"])
         self.assertEqual(baseline.get_json()["levelBefore"], 1)
-        self.assertEqual(baseline.get_json()["levelAfter"], 1)
+        self.assertEqual(baseline.get_json()["levelAfter"], 2)
 
         personal_best = save(11)
         self.assertEqual(personal_best.status_code, 201, personal_best.get_json())
         self.assertTrue(personal_best.get_json()["leveledUp"])
-        self.assertEqual(personal_best.get_json()["levelBefore"], 1)
-        self.assertEqual(personal_best.get_json()["levelAfter"], 2)
+        self.assertFalse(personal_best.get_json()["firstWorkoutBonus"])
+        self.assertEqual(personal_best.get_json()["levelBefore"], 2)
+        self.assertEqual(personal_best.get_json()["levelAfter"], 3)
 
         lower_record = save(9)
         self.assertEqual(lower_record.status_code, 201, lower_record.get_json())
         self.assertTrue(lower_record.get_json()["leveledDown"])
         self.assertTrue(lower_record.get_json()["experienceReduced"])
-        self.assertEqual(lower_record.get_json()["levelBefore"], 2)
-        self.assertEqual(lower_record.get_json()["levelAfter"], 1)
-        self.assertEqual(lower_record.get_json()["experienceBefore"], 1)
-        self.assertEqual(lower_record.get_json()["experienceAfter"], 0)
+        self.assertEqual(lower_record.get_json()["levelBefore"], 3)
+        self.assertEqual(lower_record.get_json()["levelAfter"], 2)
+        self.assertEqual(lower_record.get_json()["experienceBefore"], 2)
+        self.assertEqual(lower_record.get_json()["experienceAfter"], 1)
 
         stats = self.client.get("/api/stats", headers=self.headers(key))
         self.assertEqual(stats.status_code, 200, stats.get_json())
         history = stats.get_json()["levelHistory"]
-        self.assertEqual(len(history), 2)
-        self.assertEqual(stats.get_json()["level"], 1)
+        self.assertEqual(len(history), 3)
+        self.assertEqual(stats.get_json()["level"], 2)
         self.assertEqual(stats.get_json()["levelDowns"], 1)
         self.assertEqual(stats.get_json()["experienceDowns"], 1)
         self.assertEqual(history[0]["type"], "level_down")
-        self.assertEqual(history[0]["levelBefore"], 2)
-        self.assertEqual(history[0]["levelAfter"], 1)
+        self.assertEqual(history[0]["levelBefore"], 3)
+        self.assertEqual(history[0]["levelAfter"], 2)
         self.assertEqual(history[0]["experienceDelta"], -1)
         self.assertEqual(history[1]["type"], "level_up")
         self.assertEqual(history[1]["exercise"], "Bench Press")
         self.assertEqual(history[1]["date"], workout_date)
+        self.assertEqual(history[2]["exercise"], "첫 운동 기록")
+        self.assertFalse(history[2]["preserved"])
+        with app.app_context():
+            bonuses = db.session.scalars(
+                select(HealthLevelEvent).where(
+                    HealthLevelEvent.source_key == "first-workout-bonus"
+                )
+            ).all()
+            self.assertEqual(len(bonuses), 1)
 
     def test_high_level_loss_removes_latest_fractional_award_and_recalculates_level(self):
         workout_date = date.today().isoformat()

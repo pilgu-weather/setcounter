@@ -3005,10 +3005,13 @@ textarea:focus {
 .season-moment-panel h2 {
   margin: 0;
   color: #f5f7fb;
-  font-size: 29px;
+  font-size: clamp(24px, 7vw, 29px);
   font-weight: 950;
   line-height: 1.15;
   letter-spacing: 0;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  text-wrap: balance;
 }
 
 .season-moment-panel > p:not(.season-moment-kicker) {

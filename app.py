@@ -1275,12 +1275,13 @@ def stats_from_logs(
     weekly_target=None,
     weekly_target_started_on=None,
     attendance_penalty_carryover=0,
+    starting_experience=0,
 ):
     previous_by_exercise = {}
-    xp = 0.0
-    level = 1
+    xp = max(float(starting_experience or 0), 0)
+    level = level_for_experience(xp)
     ups = level_downs = experience_downs = 0
-    earned_awards = []
+    earned_awards = [xp] if xp > 0 else []
     level_history = []
     for log in logs:
         previous = previous_by_exercise.get(log["exercise"])
@@ -1429,25 +1430,26 @@ def volume_stats(user_id):
     logs = [workout_to_log(workout) for workout in workouts]
     excuses = db.session.scalars(select(HealthExcuse).where(HealthExcuse.user_id == user_id)).all()
     user = db.session.get(HealthUser, user_id)
+    level_events = db.session.scalars(
+        select(HealthLevelEvent)
+        .where(HealthLevelEvent.user_id == user_id)
+        .order_by(HealthLevelEvent.event_date.asc(), HealthLevelEvent.created_at.asc())
+    ).all()
+    active_experience = sum(
+        event.experience_delta for event in level_events if event.affects_current
+    )
     stats = stats_from_logs(
         logs,
         {item.excuse_date.isoformat() for item in excuses},
         weekly_target_for_user(user),
         weekly_target_start_date(user),
         weekly_penalty_carryover_for_user(user),
+        active_experience,
     )
-    preserved_events = db.session.scalars(
-        select(HealthLevelEvent)
-        .where(
-            HealthLevelEvent.user_id == user_id,
-            HealthLevelEvent.affects_current.is_(False),
-        )
-        .order_by(HealthLevelEvent.event_date.asc(), HealthLevelEvent.created_at.asc())
-    ).all()
     recorded_level_downs = 0
-    if preserved_events:
+    if level_events:
         history = list(stats["levelHistory"])
-        for event in preserved_events:
+        for event in level_events:
             history.append(
                 {
                     "type": event.event_type,
@@ -1459,10 +1461,10 @@ def volume_stats(user_id):
                     "experienceDelta": round(event.experience_delta, 2),
                     "volume": None,
                     "previousVolume": None,
-                    "preserved": True,
+                    "preserved": not event.affects_current,
                 }
             )
-            if event.event_type == "level_down":
+            if not event.affects_current and event.event_type == "level_down":
                 recorded_level_downs += max(event.level_before - event.level_after, 0)
         stats["levelDowns"] += recorded_level_downs
         history.sort(key=lambda item: (item["date"], item.get("createdAt") or ""), reverse=True)
@@ -2310,19 +2312,7 @@ def create_log():
             )
         )
     ]
-    excuse_dates = {
-        item.excuse_date.isoformat()
-        for item in db.session.scalars(
-            select(HealthExcuse).where(HealthExcuse.user_id == user.id)
-        ).all()
-    }
-    before_stats = stats_from_logs(
-        existing_logs,
-        excuse_dates,
-        weekly_target_for_user(user),
-        weekly_target_start_date(user),
-        weekly_penalty_carryover_for_user(user),
-    )
+    before_stats = volume_stats(user.id)
     candidate_log = {
         "date": workout_date.isoformat(),
         "exercise": exercise_name,
@@ -2348,6 +2338,29 @@ def create_log():
     )
     db.session.add(workout)
     db.session.flush()
+    first_workout_bonus = False
+    if not existing_logs:
+        existing_bonus = db.session.scalar(
+            select(HealthLevelEvent).where(
+                HealthLevelEvent.user_id == user.id,
+                HealthLevelEvent.source_key == "first-workout-bonus",
+            )
+        )
+        if existing_bonus is None:
+            db.session.add(
+                HealthLevelEvent(
+                    user_id=user.id,
+                    event_type="level_up",
+                    event_date=workout_date,
+                    level_before=1,
+                    level_after=2,
+                    experience_delta=1,
+                    reason="첫 운동 기록",
+                    source_key="first-workout-bonus",
+                    affects_current=True,
+                )
+            )
+            first_workout_bonus = True
     memo = str(payload.get("notes", "")).strip()[:MAX_MEMO_LENGTH]
     for index, (weight, reps) in enumerate(set_data, start=1):
         workout.sets.append(
@@ -2365,6 +2378,7 @@ def create_log():
             "experienceBefore": before_stats["experience"],
             "experienceAfter": after_stats["experience"],
             "experienceReduced": after_stats["experience"] < before_stats["experience"],
+            "firstWorkoutBonus": first_workout_bonus,
         }
     )
     return jsonify(saved_log), 201

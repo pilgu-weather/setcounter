@@ -84,7 +84,7 @@ const MY_EXERCISES_STORAGE = "setCounterMyExercises";
 const HIDDEN_EXERCISES_STORAGE = "setCounterHiddenExercises";
 const EXERCISE_DETAIL_COLLAPSED_STORAGE = "setCounterExerciseDetailCollapsed";
 const REST_TIMER_DURATION_STORAGE = "setCounterRestTimerSeconds";
-const SEASON_MOMENT_STORAGE_PREFIX = "setCounterSeasonMoment";
+const SEASON_MOMENT_STORAGE_PREFIX = "setCounterSeasonMomentV2";
 const XP_DISPLAY_SCALE = 100;
 const USER_KEY_PATTERN = /^[A-Za-z0-9._:-]{16,128}$/;
 const LOCAL_RECOVERY_USER_KEY = "1e0bb65e-47d7-4f5b-ace1-03f0809b952e";
@@ -680,6 +680,7 @@ const state = {
   sosSubmitting: false,
   menuOverlayTrigger: null,
   levelUpContinuation: null,
+  seasonMomentContinuation: null,
   setRows: [],
   stats: null,
   profile: null,
@@ -803,6 +804,9 @@ const els = {
   closePrivacyButton: document.querySelector("#closePrivacyButton"),
   versionButton: document.querySelector("#versionButton"),
   levelUpStage: document.querySelector("#levelUpStage"),
+  levelUpKicker: document.querySelector(".level-up-kicker"),
+  levelUpTitle: document.querySelector("#levelUpTitle"),
+  levelUpCopy: document.querySelector(".level-up-copy"),
   levelUpEmblem: document.querySelector("#levelUpEmblem"),
   levelUpCrest: document.querySelector("#levelUpCrest"),
   levelUpBadgeImage: document.querySelector("#levelUpBadgeImage"),
@@ -2311,6 +2315,9 @@ function closeSeasonMoment() {
   const finish = () => {
     els.seasonMoment.hidden = true;
     document.body.classList.remove("season-moment-open");
+    const continuation = state.seasonMomentContinuation;
+    state.seasonMomentContinuation = null;
+    continuation?.();
   };
   if (window.SetCounterMotion?.closeSeasonMoment) {
     window.SetCounterMotion.closeSeasonMoment(els.seasonMoment, finish);
@@ -2319,13 +2326,14 @@ function closeSeasonMoment() {
   }
 }
 
-function maybeOpenSeasonMoment(now = new Date()) {
-  if (!els.seasonMoment) return;
+function maybeOpenSeasonMoment(now = new Date(), onContinue = null) {
+  if (!els.seasonMoment) return false;
   const moment = seasonMomentForDate(now);
-  if (!moment) return;
+  if (!moment) return false;
   const storageKey = `${SEASON_MOMENT_STORAGE_PREFIX}:${moment.type}:${toDateKey(now)}`;
-  if (window.localStorage.getItem(storageKey)) return;
+  if (window.localStorage.getItem(storageKey)) return false;
   window.localStorage.setItem(storageKey, "shown");
+  state.seasonMomentContinuation = typeof onContinue === "function" ? onContinue : null;
   els.seasonMoment.dataset.moment = moment.type;
   els.seasonMomentKicker.textContent = moment.kicker;
   els.seasonMomentTitle.textContent = moment.title;
@@ -2334,6 +2342,7 @@ function maybeOpenSeasonMoment(now = new Date()) {
   document.body.classList.add("season-moment-open");
   window.SetCounterMotion?.animateSeasonMoment(els.seasonMoment);
   window.setTimeout(() => els.seasonMomentButton.focus(), 260);
+  return true;
 }
 
 function initMotion() {
@@ -2360,12 +2369,18 @@ function finishLevelUp(nextStats, nextProfile) {
   els.levelUpContinueButton.classList.add("is-ready");
 }
 
-function openLevelUpScreen(previousStats, nextStats, nextProfile, onContinue) {
+function openLevelUpScreen(previousStats, nextStats, nextProfile, onContinue, options = {}) {
   const previousLevel = previousStats?.level || Math.max(nextStats.level - 1, 1);
   const nextLevel = nextStats.level;
   const gsapApi = window.gsap;
 
   state.levelUpContinuation = typeof onContinue === "function" ? onContinue : null;
+  const firstWorkoutBonus = Boolean(options.firstWorkoutBonus);
+  els.levelUpKicker.textContent = firstWorkoutBonus ? "FIRST WORKOUT COMPLETE" : "NEW PERSONAL BEST";
+  els.levelUpTitle.textContent = firstWorkoutBonus ? "첫 기록을 완료했습니다" : "한계를 넘어섰습니다";
+  els.levelUpCopy.textContent = firstWorkoutBonus
+    ? "첫 운동 보상으로 레벨 2에 도달했습니다. 다음부터는 새로운 기록을 세울 때 경험치를 얻습니다."
+    : "이전 기록을 뛰어넘어 새로운 레벨에 도달했습니다.";
   els.levelUpPrevious.textContent = previousLevel;
   els.levelUpNext.textContent = nextLevel;
   els.levelUpNumber.textContent = previousLevel;
@@ -4053,6 +4068,9 @@ async function saveWorkout() {
       if (nextExercise) openNextRecommendation(nextExercise);
     }
   };
+  const continueAfterSaveMoment = () => {
+    if (!maybeOpenSeasonMoment(new Date(), continueWorkoutFlow)) continueWorkoutFlow();
+  };
   const authoritativePreviousLevel = Number(savedLog.levelBefore) || previousLevel;
   const authoritativeNextLevel = Number(savedLog.levelAfter) || data.stats.level;
   if (previousStats && authoritativeNextLevel > authoritativePreviousLevel) {
@@ -4060,7 +4078,8 @@ async function saveWorkout() {
       { ...previousStats, level: authoritativePreviousLevel },
       { ...data.stats, level: authoritativeNextLevel },
       data.profile,
-      continueWorkoutFlow,
+      continueAfterSaveMoment,
+      { firstWorkoutBonus: savedLog.firstWorkoutBonus },
     );
     return;
   }
@@ -4069,7 +4088,7 @@ async function saveWorkout() {
   const cheatAlertShown = announceCheatGuard(previousStats, data.stats);
   if (!cheatAlertShown) announceLevelChange(previousLevel, data.stats.level);
   if (!cheatAlertShown) {
-    continueWorkoutFlow();
+    continueAfterSaveMoment();
   }
 }
 
@@ -4497,7 +4516,6 @@ async function init() {
   syncCounter();
   setActiveScreen("record");
   await loadAuthStatus();
-  window.setTimeout(() => maybeOpenSeasonMoment(), 520);
   await loadBootstrap();
   routeInitialEntry();
 }
