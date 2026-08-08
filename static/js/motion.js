@@ -134,6 +134,55 @@
     animateScreenEnter(next, { x: direction * 8, y: direction ? 0 : 12 });
     const activeButton = document.querySelector(`.bottom-nav [data-tab="${next?.dataset.screen || ""}"]`);
     animateBottomNavIndicator(activeButton);
+    if (next?.dataset.screen === "home" && !document.querySelector("#appLaunchSplash")) {
+      animateHomeBrand(next);
+    }
+  }
+
+  function animateHomeBrand(screen = document.querySelector('[data-screen="home"]')) {
+    const title = screen?.querySelector("#homeTitle");
+    const letterGroup = title?.querySelector(".home-brand-letters");
+    const letters = title?.querySelectorAll(".home-brand-word i");
+    if (!title || !letterGroup || !letters?.length) return;
+    if (!canAnimate()) {
+      resetElement(title);
+      letters.forEach((letter) => resetElement(letter));
+      return;
+    }
+    gsap.killTweensOf([title, letterGroup, letters]);
+    gsap.timeline({ defaults: { overwrite: "auto" } })
+      .fromTo(letters, {
+        autoAlpha: 0,
+        y: 13,
+        rotateX: -24,
+        filter: "blur(4px)",
+      }, {
+        autoAlpha: 1,
+        y: 0,
+        rotateX: 0,
+        filter: "blur(0px)",
+        duration: 0.42,
+        stagger: 0.028,
+        ease: "power3.out",
+        clearProps: "transform,opacity,visibility,filter",
+      })
+      .fromTo(letterGroup, {
+        backgroundPosition: "110% 50%",
+      }, {
+        backgroundPosition: "24% 50%",
+        duration: 0.62,
+        ease: "power2.inOut",
+      }, 0.13)
+      .fromTo(title, {
+        textShadow: "0 0 0 rgba(46,124,255,0)",
+      }, {
+        textShadow: "0 0 24px rgba(46,124,255,0.24)",
+        duration: 0.26,
+        yoyo: true,
+        repeat: 1,
+        ease: "power1.inOut",
+        clearProps: "textShadow",
+      }, 0.24);
   }
 
   function animateListEnter(elements, options = {}) {
@@ -457,6 +506,7 @@
     animatePress,
     animateScreenEnter,
     animateScreenExit,
+    animateHomeBrand,
     transitionScreen,
     animateListEnter,
     openOverlay,

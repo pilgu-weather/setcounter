@@ -39,6 +39,7 @@ Set Counter는 처음부터 회원가입을 강요하지 않습니다. 익명으
 
 ## URL
 
+- 고객지원 이메일: `northstarlabshelp@gmail.com`
 - 개인정보 처리방침: `https://setcounter.onrender.com/privacy`
 - 계정 및 데이터 삭제: `https://setcounter.onrender.com/account-deletion`
 - 앱 시작 주소: `https://setcounter.onrender.com/main`

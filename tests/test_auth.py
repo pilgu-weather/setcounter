@@ -3,7 +3,7 @@ import secrets
 import tempfile
 import unittest
 import uuid
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -25,6 +25,7 @@ from app import (
     db,
     level_for_experience,
     stats_from_logs,
+    start_of_week,
     volume_stats,
     weekly_challenge_penalty,
 )
@@ -85,6 +86,59 @@ class AuthSystemTestCase(unittest.TestCase):
         with app.app_context():
             return db.session.query(HealthUser).filter_by(user_key=user_key).one()
 
+    @staticmethod
+    def user_owned_snapshot(user_id):
+        """Return stable IDs and ownership links for every user-owned table."""
+        workouts = db.session.query(HealthWorkout).filter_by(user_id=user_id).order_by(HealthWorkout.id).all()
+        workout_ids = [row.id for row in workouts]
+        return {
+            "workouts": [(row.id, row.user_id, row.workout_date, row.rest_seconds) for row in workouts],
+            "sets": [
+                (row.id, row.workout_id, row.exercise_id, row.set_index, float(row.weight), row.reps)
+                for row in db.session.query(HealthSet)
+                .filter(HealthSet.workout_id.in_(workout_ids or [-1]))
+                .order_by(HealthSet.id)
+            ],
+            "excuses": [
+                (row.id, row.user_id, row.excuse_date, row.excuse_text)
+                for row in db.session.query(HealthExcuse).filter_by(user_id=user_id).order_by(HealthExcuse.id)
+            ],
+            "levelEvents": [
+                (row.id, row.user_id, row.event_type, row.experience_delta, row.source_key)
+                for row in db.session.query(HealthLevelEvent).filter_by(user_id=user_id).order_by(HealthLevelEvent.id)
+            ],
+            "posts": [
+                (row.id, row.user_id, row.level, row.nickname, row.content)
+                for row in db.session.query(HealthBoardPost).filter_by(user_id=user_id).order_by(HealthBoardPost.id)
+            ],
+            "likes": [
+                (row.id, row.post_id, row.user_id)
+                for row in db.session.query(HealthBoardLike).filter_by(user_id=user_id).order_by(HealthBoardLike.id)
+            ],
+            "comments": [
+                (row.id, row.post_id, row.user_id, row.level, row.nickname, row.content)
+                for row in db.session.query(HealthBoardComment).filter_by(user_id=user_id).order_by(HealthBoardComment.id)
+            ],
+            "reports": [
+                (row.id, row.reporter_user_id, row.post_id, row.comment_id, row.reason)
+                for row in db.session.query(HealthBoardReport)
+                .filter_by(reporter_user_id=user_id)
+                .order_by(HealthBoardReport.id)
+            ],
+            "blocks": [
+                (row.id, row.blocker_user_id, row.blocked_user_id)
+                for row in db.session.query(HealthBoardBlock)
+                .filter_by(blocker_user_id=user_id)
+                .order_by(HealthBoardBlock.id)
+            ],
+            "pushSubscriptions": [
+                (row.id, row.user_id, row.endpoint, row.p256dh, row.auth)
+                for row in db.session.query(HealthPushSubscription)
+                .filter_by(user_id=user_id)
+                .order_by(HealthPushSubscription.id)
+            ],
+        }
+
     def register(self, user_key, email=None, password=None):
         email = email or self.email("member")
         password = password or self.password
@@ -96,6 +150,7 @@ class AuthSystemTestCase(unittest.TestCase):
                 "password": password,
                 "passwordConfirm": password,
                 "termsAccepted": True,
+                "privacyAccepted": True,
             },
         )
 
@@ -117,7 +172,7 @@ class AuthSystemTestCase(unittest.TestCase):
         with engine.connect() as connection:
             self.assertTrue(set(REQUIRED_SCHEMA).issubset(inspect(connection).get_table_names()))
             columns = {column["name"] for column in inspect(connection).get_columns("health_users")}
-            self.assertTrue({"account_id", "is_anonymous", "last_seen_at"}.issubset(columns))
+            self.assertTrue({"account_id", "is_anonymous", "last_seen_at", "gender"}.issubset(columns))
             user = connection.execute(text("SELECT id, account_id, is_anonymous FROM health_users WHERE id = 17")).mappings().one()
             self.assertEqual(user["id"], 17)
             self.assertIsNone(user["account_id"])
@@ -178,6 +233,18 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertEqual(identities[0]["provider"], "local")
             self.assertEqual(identities[0]["provider_user_id"], "legacy@example.test")
             self.assertEqual(identities[0]["provider_email"], "legacy@example.test")
+            consent = connection.execute(
+                text(
+                    """
+                    SELECT terms_version, terms_accepted_at, privacy_version, privacy_accepted_at
+                    FROM auth_accounts WHERE id = 7
+                    """
+                )
+            ).mappings().one()
+            self.assertEqual(consent["terms_version"], "2026-07-31")
+            self.assertEqual(consent["privacy_version"], "2026-08-01")
+            self.assertIsNotNone(consent["terms_accepted_at"])
+            self.assertIsNotNone(consent["privacy_accepted_at"])
 
     def test_preserved_level_down_history_does_not_change_current_progress(self):
         with app.app_context():
@@ -246,6 +313,176 @@ class AuthSystemTestCase(unittest.TestCase):
             account = db.session.get(AuthAccount, user.account_id)
             self.assertEqual(identity.provider, "local")
             self.assertEqual(identity.provider_user_id, account.email)
+
+    def test_register_preserves_every_guest_owned_record_and_profile_field(self):
+        key = "anonymous-full-link-key-0001"
+        profile = self.client.post(
+            "/api/profile",
+            headers=self.csrf_headers(self.client, key),
+            json={"nickname": "연동검증"},
+        )
+        self.assertEqual(profile.status_code, 200, profile.get_json())
+        workout = self.client.post(
+            "/api/logs",
+            headers=self.csrf_headers(self.client, key),
+            json={
+                "exercise": "Romanian Deadlift",
+                "date": "2026-08-01",
+                "setWeights": [40, 45],
+                "setReps": [10, 8],
+                "completedSets": 2,
+                "restSeconds": 100,
+            },
+        )
+        self.assertEqual(workout.status_code, 201, workout.get_json())
+        excuse = self.client.post(
+            "/api/excuses",
+            headers=self.csrf_headers(self.client, key),
+            json={"date": "2026-08-02", "reason": "야근"},
+        )
+        self.assertEqual(excuse.status_code, 201, excuse.get_json())
+        own_post = self.client.post(
+            "/api/board/posts",
+            headers=self.csrf_headers(self.client, key),
+            json={"content": "게스트 기록 연동 검증"},
+        )
+        self.assertEqual(own_post.status_code, 201, own_post.get_json())
+
+        with app.app_context():
+            guest = db.session.query(HealthUser).filter_by(user_key=key).one()
+            other = HealthUser(user_key="full-link-other-user-0001", nickname="상대사용자", is_anonymous=True)
+            db.session.add(other)
+            db.session.flush()
+            other_post = HealthBoardPost(
+                user_id=other.id,
+                level=1,
+                nickname="상대사용자",
+                content="상대 게시글",
+            )
+            db.session.add(other_post)
+            db.session.add(
+                HealthLevelEvent(
+                    user_id=guest.id,
+                    event_type="level_up",
+                    event_date=date(2026, 8, 1),
+                    level_before=1,
+                    level_after=2,
+                    experience_delta=100,
+                    reason="첫 운동",
+                    source_key="full-link-level-event",
+                    affects_current=True,
+                )
+            )
+            db.session.commit()
+            guest_id = guest.id
+            other_id = other.id
+            other_post_id = other_post.id
+
+        liked = self.client.post(
+            f"/api/board/posts/{other_post_id}/like",
+            headers=self.csrf_headers(self.client, key),
+        )
+        self.assertEqual(liked.status_code, 200, liked.get_json())
+        commented = self.client.post(
+            f"/api/board/posts/{other_post_id}/comments",
+            headers=self.csrf_headers(self.client, key),
+            json={"content": "게스트 댓글"},
+        )
+        self.assertEqual(commented.status_code, 200, commented.get_json())
+        with patch("app.send_discord_board_report"):
+            reported = self.client.post(
+                "/api/board/reports",
+                headers=self.csrf_headers(self.client, key),
+                json={"postId": other_post_id, "reason": "연동 검증 신고"},
+            )
+        self.assertEqual(reported.status_code, 200, reported.get_json())
+        blocked = self.client.post(
+            f"/api/board/users/{other_id}/block",
+            headers=self.csrf_headers(self.client, key),
+        )
+        self.assertEqual(blocked.status_code, 200, blocked.get_json())
+        subscribed = self.client.post(
+            "/api/push/subscribe",
+            headers=self.csrf_headers(self.client, key),
+            json={
+                "endpoint": "https://push.example/full-link",
+                "keys": {"p256dh": "full-link-public", "auth": "full-link-auth"},
+            },
+        )
+        self.assertEqual(subscribed.status_code, 201, subscribed.get_json())
+
+        before_bootstrap = self.client.get("/api/bootstrap", headers=self.headers(key))
+        self.assertEqual(before_bootstrap.status_code, 200, before_bootstrap.get_json())
+        with app.app_context():
+            guest = db.session.get(HealthUser, guest_id)
+            before_profile = (guest.id, guest.user_key, guest.nickname, guest.nickname_updated_at)
+            before_owned = self.user_owned_snapshot(guest_id)
+            before_counts = {
+                model.__tablename__: db.session.query(model).count()
+                for model in (
+                    HealthUser,
+                    AuthAccount,
+                    AuthIdentity,
+                    HealthWorkout,
+                    HealthSet,
+                    HealthExcuse,
+                    HealthLevelEvent,
+                    HealthBoardPost,
+                    HealthBoardLike,
+                    HealthBoardComment,
+                    HealthBoardReport,
+                    HealthBoardBlock,
+                    HealthPushSubscription,
+                )
+            }
+
+        registered = self.register(key)
+        self.assertEqual(registered.status_code, 201, registered.get_json())
+        self.assertEqual(registered.get_json()["healthUserId"], guest_id)
+        after_bootstrap = self.client.get("/api/bootstrap")
+        self.assertEqual(after_bootstrap.status_code, 200, after_bootstrap.get_json())
+
+        with app.app_context():
+            linked = db.session.get(HealthUser, guest_id)
+            self.assertEqual(
+                (linked.id, linked.user_key, linked.nickname, linked.nickname_updated_at),
+                before_profile,
+            )
+            self.assertFalse(linked.is_anonymous)
+            self.assertIsNotNone(linked.account_id)
+            self.assertEqual(self.user_owned_snapshot(guest_id), before_owned)
+            after_counts = {
+                model.__tablename__: db.session.query(model).count()
+                for model in (
+                    HealthUser,
+                    AuthAccount,
+                    AuthIdentity,
+                    HealthWorkout,
+                    HealthSet,
+                    HealthExcuse,
+                    HealthLevelEvent,
+                    HealthBoardPost,
+                    HealthBoardLike,
+                    HealthBoardComment,
+                    HealthBoardReport,
+                    HealthBoardBlock,
+                    HealthPushSubscription,
+                )
+            }
+            self.assertEqual(after_counts["health_users"], before_counts["health_users"])
+            self.assertEqual(after_counts["auth_accounts"], before_counts["auth_accounts"] + 1)
+            self.assertEqual(after_counts["auth_identities"], before_counts["auth_identities"] + 1)
+            for table in before_counts.keys() - {"auth_accounts", "auth_identities"}:
+                self.assertEqual(after_counts[table], before_counts[table], table)
+
+        before_data = before_bootstrap.get_json()
+        after_data = after_bootstrap.get_json()
+        self.assertEqual(after_data["profile"]["id"], before_data["profile"]["id"])
+        self.assertEqual(after_data["profile"]["nickname"], before_data["profile"]["nickname"])
+        self.assertEqual(after_data["logs"], before_data["logs"])
+        self.assertEqual(after_data["excuses"], before_data["excuses"])
+        self.assertEqual(after_data["stats"]["totalVolume"], before_data["stats"]["totalVolume"])
+        self.assertEqual(after_data["stats"]["totalSets"], before_data["stats"]["totalSets"])
 
     def test_one_account_can_link_multiple_unique_login_identities(self):
         key = "anonymous-multi-identity-0001"
@@ -331,6 +568,33 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(result["penalty"], 1)
         self.assertEqual(result["failedWeeks"][0]["missing"], 1)
 
+    def test_weekly_goal_uses_sos_reason_for_current_week_progress(self):
+        today = date(2026, 7, 16)
+        week_start = start_of_week(today)
+        workout_days = [week_start.isoformat(), (week_start + timedelta(days=1)).isoformat()]
+        sos_day = (week_start + timedelta(days=2)).isoformat()
+        with patch("app.today_kst", return_value=today):
+            result = stats_from_logs(
+                [
+                    {
+                        "date": day,
+                        "exercise": "Squat",
+                        "createdAt": f"{day}T01:00:00+00:00",
+                        "volume": 100,
+                        "totalReps": 10,
+                        "completedSets": 1,
+                    }
+                    for day in workout_days
+                ],
+                {sos_day},
+                {sos_day: "야근"},
+                weekly_target=3,
+                weekly_target_started_on=week_start,
+            )
+        self.assertEqual(result["weeklyWorkoutCompleted"], 2)
+        self.assertEqual(result["weeklyWorkoutRemaining"], 0)
+        self.assertEqual(result["weeklyRecoveryNotes"], [{"date": sos_day, "reason": "야근"}])
+
     def test_weekly_goal_is_login_only_and_can_be_changed(self):
         key = "weekly-goal-key-0001"
         anonymous = self.client.post(
@@ -383,16 +647,54 @@ class AuthSystemTestCase(unittest.TestCase):
         missing = self.client.post(
             "/api/auth/register",
             headers=self.headers(key),
-            json={"email": email, "password": self.password, "passwordConfirm": self.password, "termsAccepted": True},
+            json={"email": email, "password": self.password, "passwordConfirm": self.password, "termsAccepted": True, "privacyAccepted": True},
         )
         self.assertEqual(missing.status_code, 403)
         token = self.client.get("/api/auth/status", headers=self.headers(key)).get_json()["csrfToken"]
         registered = self.client.post(
             "/api/auth/register",
             headers={**self.headers(key), "X-CSRF-Token": token},
-            json={"email": email, "password": self.password, "passwordConfirm": self.password, "termsAccepted": True},
+            json={"email": email, "password": self.password, "passwordConfirm": self.password, "termsAccepted": True, "privacyAccepted": True},
         )
         self.assertEqual(registered.status_code, 201, registered.get_json())
+
+    def test_register_requires_terms_and_privacy_consent_separately(self):
+        key = "registration-consent-key-0001"
+        base_payload = {
+            "email": self.email("consent"),
+            "password": self.password,
+            "passwordConfirm": self.password,
+        }
+        missing_terms = self.client.post(
+            "/api/auth/register",
+            headers=self.csrf_headers(self.client, key),
+            json={**base_payload, "privacyAccepted": True},
+        )
+        self.assertEqual(missing_terms.status_code, 400)
+        self.assertEqual(missing_terms.get_json()["error"], "terms_required")
+
+        missing_privacy = self.client.post(
+            "/api/auth/register",
+            headers=self.csrf_headers(self.client, key),
+            json={**base_payload, "termsAccepted": True},
+        )
+        self.assertEqual(missing_privacy.status_code, 400)
+        self.assertEqual(missing_privacy.get_json()["error"], "privacy_consent_required")
+
+        with app.app_context():
+            self.assertEqual(db.session.query(AuthAccount).filter_by(email=base_payload["email"]).count(), 0)
+
+    def test_registration_records_policy_consent_versions_and_timestamp(self):
+        key = "registration-consent-audit-key-0001"
+        email = self.email("consent-audit")
+        response = self.register(key, email)
+        self.assertEqual(response.status_code, 201, response.get_json())
+        with app.app_context():
+            account = db.session.query(AuthAccount).filter_by(email=email).one()
+            self.assertEqual(account.terms_version, "2026-08-08")
+            self.assertEqual(account.privacy_version, "2026-08-08")
+            self.assertIsNotNone(account.terms_accepted_at)
+            self.assertIsNotNone(account.privacy_accepted_at)
 
     def test_account_linked_key_cannot_access_data_without_session(self):
         key = "anonymous-key-security-0001"
@@ -440,6 +742,116 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(body["accountSummary"]["workoutCount"], 1)
         self.assertEqual(anonymous_client.get("/api/logs", headers=self.headers(anonymous_key)).status_code, 200)
 
+    def test_user_can_explicitly_choose_existing_account_records_after_conflict(self):
+        account_key = "account-preferred-records-key-0001"
+        email = self.email("preferred-records")
+        self.create_workout(account_key, exercise_name="Bench Press")
+        self.assertEqual(self.register(account_key, email).status_code, 201)
+
+        anonymous_client = app.test_client()
+        anonymous_key = "device-preferred-records-key-0001"
+        created = anonymous_client.post(
+            "/api/logs",
+            headers=self.csrf_headers(anonymous_client, anonymous_key),
+            json={"exercise": "Squat", "date": "2026-07-16", "weight": 30, "reps": 8, "completedSets": 2},
+        )
+        self.assertEqual(created.status_code, 201, created.get_json())
+
+        blocked = anonymous_client.post(
+            "/api/auth/login",
+            headers=self.csrf_headers(anonymous_client, anonymous_key),
+            json={"email": email, "password": self.password},
+        )
+        self.assertEqual(blocked.status_code, 409, blocked.get_json())
+
+        login = anonymous_client.post(
+            "/api/auth/login",
+            headers=self.csrf_headers(anonymous_client, anonymous_key),
+            json={"email": email, "password": self.password, "preferAccountRecords": True},
+        )
+        self.assertEqual(login.status_code, 200, login.get_json())
+        account_logs = anonymous_client.get("/api/logs").get_json()
+        self.assertEqual(["Bench Press"], [log["exercise"] for log in account_logs])
+        with app.app_context():
+            guest = db.session.query(HealthUser).filter_by(user_key=anonymous_key).one()
+            self.assertTrue(guest.is_anonymous)
+            self.assertEqual(HealthWorkout.query.filter_by(user_id=guest.id).count(), 1)
+
+    def test_login_conflict_detects_all_ancillary_guest_owned_data(self):
+        account_key = "account-ancillary-conflict-0001"
+        email = self.email("ancillary-conflict")
+        self.create_workout(account_key)
+        self.assertEqual(self.register(account_key, email).status_code, 201)
+
+        anonymous_client = app.test_client()
+        anonymous_key = "device-ancillary-conflict-0001"
+        status = anonymous_client.get("/api/auth/status", headers=self.headers(anonymous_key))
+        self.assertEqual(status.status_code, 200, status.get_json())
+        with app.app_context():
+            guest = db.session.query(HealthUser).filter_by(user_key=anonymous_key).one()
+            target = HealthUser(user_key="ancillary-conflict-target-0001", is_anonymous=True)
+            db.session.add(target)
+            db.session.flush()
+            target_post = HealthBoardPost(
+                user_id=target.id,
+                level=1,
+                nickname="대상사용자",
+                content="충돌 판정 대상 게시글",
+            )
+            db.session.add(target_post)
+            db.session.flush()
+            db.session.add_all(
+                [
+                    HealthLevelEvent(
+                        user_id=guest.id,
+                        event_type="level_up",
+                        event_date=date(2026, 8, 1),
+                        level_before=1,
+                        level_after=2,
+                        experience_delta=100,
+                        reason="게스트 경험치",
+                        source_key="ancillary-conflict-level",
+                        affects_current=True,
+                    ),
+                    HealthBoardReport(
+                        reporter_user_id=guest.id,
+                        post_id=target_post.id,
+                        reason="게스트 신고",
+                    ),
+                    HealthBoardBlock(blocker_user_id=guest.id, blocked_user_id=target.id),
+                    HealthPushSubscription(
+                        user_id=guest.id,
+                        endpoint="https://push.example/ancillary-conflict",
+                        p256dh="ancillary-public",
+                        auth="ancillary-auth",
+                    ),
+                ]
+            )
+            db.session.commit()
+            guest_id = guest.id
+
+        response = anonymous_client.post(
+            "/api/auth/login",
+            headers=self.csrf_headers(anonymous_client, anonymous_key),
+            json={"email": email, "password": self.password},
+        )
+        self.assertEqual(response.status_code, 409, response.get_json())
+        summary = response.get_json()["anonymousSummary"]
+        self.assertEqual(summary["levelEventCount"], 1)
+        self.assertEqual(summary["reportCount"], 1)
+        self.assertEqual(summary["blockCount"], 1)
+        self.assertEqual(summary["pushSubscriptionCount"], 1)
+        self.assertTrue(summary["hasData"])
+        self.assertFalse(anonymous_client.get("/api/auth/status", headers=self.headers(anonymous_key)).get_json()["authenticated"])
+        with app.app_context():
+            guest = db.session.get(HealthUser, guest_id)
+            self.assertTrue(guest.is_anonymous)
+            self.assertIsNone(guest.account_id)
+            self.assertEqual(len(self.user_owned_snapshot(guest_id)["levelEvents"]), 1)
+            self.assertEqual(len(self.user_owned_snapshot(guest_id)["reports"]), 1)
+            self.assertEqual(len(self.user_owned_snapshot(guest_id)["blocks"]), 1)
+            self.assertEqual(len(self.user_owned_snapshot(guest_id)["pushSubscriptions"]), 1)
+
     def test_empty_anonymous_user_can_log_in(self):
         account_key = "account-empty-login-key-0001"
         email = self.email("empty")
@@ -452,6 +864,32 @@ class AuthSystemTestCase(unittest.TestCase):
             json={"email": email, "password": self.password},
         )
         self.assertEqual(response.status_code, 200, response.get_json())
+        self.assertEqual(len(client.get("/api/logs").get_json()), 1)
+
+    def test_guest_profile_only_does_not_block_existing_account_login(self):
+        account_key = "account-profile-login-key-0001"
+        email = self.email("profile-only")
+        self.create_workout(account_key)
+        self.assertEqual(self.register(account_key, email).status_code, 201)
+
+        client = app.test_client()
+        guest_key = "profile-only-guest-key-0001"
+        status = client.get("/api/auth/status", headers=self.headers(guest_key))
+        self.assertEqual(status.status_code, 200, status.get_json())
+        with app.app_context():
+            guest = db.session.query(HealthUser).filter_by(user_key=guest_key).one()
+            guest.nickname = "게스트닉네임"
+            guest.nickname_updated_at = datetime.now(timezone.utc)
+            guest.gender = "male"
+            db.session.commit()
+
+        response = client.post(
+            "/api/auth/login",
+            headers=self.csrf_headers(client, guest_key),
+            json={"email": email, "password": self.password},
+        )
+        self.assertEqual(response.status_code, 200, response.get_json())
+        self.assertTrue(response.get_json()["authenticated"])
         self.assertEqual(len(client.get("/api/logs").get_json()), 1)
 
     def test_logout_clears_session_without_exposing_account_data(self):
@@ -545,7 +983,7 @@ class AuthSystemTestCase(unittest.TestCase):
         response = second_client.post(
             "/api/auth/register",
             headers=self.csrf_headers(second_client, second_key),
-            json={"email": email.upper(), "password": self.password, "passwordConfirm": self.password, "termsAccepted": True},
+            json={"email": email.upper(), "password": self.password, "passwordConfirm": self.password, "termsAccepted": True, "privacyAccepted": True},
         )
         self.assertEqual(response.status_code, 409)
         with app.app_context():
@@ -591,6 +1029,85 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.get_json())
         self.assertEqual(response.get_json()["nickname"], "운동친구")
 
+    def test_nickname_moderation_blocks_abuse_hate_impersonation_and_evasion(self):
+        blocked_nicknames = (
+            "씨_발",
+            "ss1bal",
+            "F_U_C_K",
+            "m0therfucker",
+            "니애미",
+            "일_베",
+            "워마드",
+            "한남충",
+            "짱깨",
+            "ret4rd",
+            "박정희",
+            "이재명",
+            "admin운동",
+        )
+        for index, nickname in enumerate(blocked_nicknames):
+            key = f"nickname-moderation-{index:02d}-key"
+            response = self.client.post(
+                "/api/profile",
+                headers=self.csrf_headers(self.client, key),
+                json={"nickname": nickname},
+            )
+            self.assertEqual(response.status_code, 400, (nickname, response.get_json()))
+            self.assertIn("사용할 수 없는", response.get_json()["error"])
+            with app.app_context():
+                self.assertIsNone(self.user_for_key(key).nickname)
+
+    def test_nickname_moderation_does_not_block_normal_names(self):
+        for index, nickname in enumerate(("운동친구", "클래식맨", "StrongKim", "헬스99")):
+            key = f"nickname-safe-{index:02d}-key"
+            response = self.client.post(
+                "/api/profile",
+                headers=self.csrf_headers(self.client, key),
+                json={"nickname": nickname},
+            )
+            self.assertEqual(response.status_code, 200, (nickname, response.get_json()))
+            self.assertEqual(response.get_json()["nickname"], nickname)
+
+    def test_existing_legacy_nickname_can_be_kept_when_only_gender_changes(self):
+        key = "nickname-legacy-gender-key-0001"
+        self.client.get("/api/profile", headers=self.headers(key))
+        with app.app_context():
+            user = db.session.query(HealthUser).filter_by(user_key=key).one()
+            user.nickname = "운영자"
+            db.session.commit()
+        response = self.client.post(
+            "/api/profile",
+            headers=self.csrf_headers(self.client, key),
+            json={"nickname": "운영자", "gender": "male"},
+        )
+        self.assertEqual(response.status_code, 200, response.get_json())
+        self.assertEqual(response.get_json()["nickname"], "운영자")
+        self.assertEqual(response.get_json()["gender"], "male")
+
+    def test_guest_profile_stores_gender_for_workout_prescriptions(self):
+        key = "profile-gender-key-0001"
+        initial = self.client.get("/api/profile", headers=self.headers(key))
+        self.assertEqual(initial.status_code, 200, initial.get_json())
+        self.assertTrue(initial.get_json()["genderRequired"])
+
+        saved = self.client.post(
+            "/api/profile",
+            headers=self.csrf_headers(self.client, key),
+            json={"nickname": "운동친구", "gender": "female"},
+        )
+        self.assertEqual(saved.status_code, 200, saved.get_json())
+        self.assertEqual(saved.get_json()["gender"], "female")
+        self.assertFalse(saved.get_json()["genderRequired"])
+        with app.app_context():
+            self.assertEqual(self.user_for_key(key).gender, "female")
+
+        invalid = self.client.post(
+            "/api/profile",
+            headers=self.csrf_headers(self.client, key),
+            json={"nickname": "운동친구", "gender": "unknown"},
+        )
+        self.assertEqual(invalid.status_code, 400)
+
     def test_login_rate_limit_blocks_repeated_invalid_passwords(self):
         key = "rate-limit-account-key-0001"
         email = self.email("rate-limit")
@@ -624,6 +1141,10 @@ class AuthSystemTestCase(unittest.TestCase):
             response = app.test_client().get(path)
             self.assertEqual(response.status_code, 200, path)
             self.assertIn(heading, response.get_data(as_text=True))
+
+        privacy_html = app.test_client().get("/privacy").get_data(as_text=True)
+        for disclosure in ("주간 운동 목표", "세트 간 휴식시간", "익명 기록 삭제", "쿠키와 기기 저장소", "동의 거부 권리"):
+            self.assertIn(disclosure, privacy_html)
 
     def test_assetlinks_uses_configured_play_signing_fingerprints(self):
         fingerprints = "AA:BB:CC:DD,11:22:33:44"

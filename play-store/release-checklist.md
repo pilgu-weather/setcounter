@@ -29,11 +29,12 @@
 
 ## Render 연결 후
 
+- [x] 공개 고객지원 이메일 확정: `northstarlabshelp@gmail.com`
 - [ ] `https://setcounter.onrender.com/main` 정상 응답
 - [ ] `/privacy`, `/terms`, `/account-deletion` 비로그인 접근
 - [ ] HTTPS 세션 쿠키 Secure 확인
 - [ ] `DISCORD_COMPLAINT_WEBHOOK_URL` 설정
-- [ ] 실제 `PUBLIC_SUPPORT_EMAIL` 설정
+- [ ] Render `PUBLIC_SUPPORT_EMAIL=northstarlabshelp@gmail.com` 설정
 - [ ] Play App Signing SHA-256을 `ANDROID_SHA256_CERT_FINGERPRINT`에 설정
 - [ ] `/.well-known/assetlinks.json` 응답과 Google DAL 검증
 - [ ] TWA가 주소 표시줄 없이 실행되는지 실제 기기 확인

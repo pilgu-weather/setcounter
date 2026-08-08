@@ -200,6 +200,7 @@ let libraryExercises = builtInLibraryExercises;
 let exercises = loadMyExercises();
 let koExerciseMap = {};
 let koCommonExerciseMap = {};
+let koPronunciationExerciseMap = {};
 let koMuscleMap = {};
 let koEquipmentMap = {};
 let koInstructionsMap = {};
@@ -314,7 +315,10 @@ function freeDbImageUrl(path) {
 
 function mappedExerciseEntry(exercise) {
   if (!exercise) return {};
-  return koExerciseMap[exercise.sourceId] || koExerciseMap[exercise.name] || {};
+  return koExerciseMap[exercise.freeDbSourceId]
+    || koExerciseMap[exercise.sourceId]
+    || koExerciseMap[exercise.name]
+    || {};
 }
 
 function exerciseDisplayName(exercise) {
@@ -323,7 +327,19 @@ function exerciseDisplayName(exercise) {
 }
 
 function storedExerciseDisplayName(name) {
-  const exercise = exercises.find((item) => item.name === name);
+  const normalizedName = String(name || "").trim().toLocaleLowerCase();
+  const exercise = uniqueExercises([...exercises, ...libraryExercises]).find((item) => {
+    const mapped = mappedExerciseEntry(item);
+    return [
+      item.name,
+      item.displayName,
+      item.sourceId,
+      item.freeDbSourceId,
+      exerciseDisplayName(item),
+      exerciseEnglishName(item),
+      ...(mapped.aliases || []),
+    ].some((value) => String(value || "").trim().toLocaleLowerCase() === normalizedName);
+  });
   return exercise ? exerciseDisplayName(exercise) : name;
 }
 
@@ -388,6 +404,11 @@ function sourceLabel(value) {
 function translateMuscleList(values, fallback = "-") {
   const list = (values || []).map(translateMuscle).filter(Boolean);
   return list.length ? list.join(", ") : fallback;
+}
+
+function renderMuscleMap(target, primary = [], secondary = []) {
+  if (!target || !window.SetCounterBodyHighlighter) return;
+  window.SetCounterBodyHighlighter.render(target, { primary, secondary });
 }
 
 const koreanExerciseInstructions = {
@@ -475,7 +496,7 @@ function exerciseInstructionsForDetail(exercise) {
 async function loadKoreanInstructions() {
   if (Object.keys(koInstructionsMap).length) return koInstructionsMap;
   if (!koInstructionsLoadPromise) {
-    koInstructionsLoadPromise = fetch("/static/data/free-exercise-db/ko_instructions.json?v=1")
+    koInstructionsLoadPromise = fetch("/static/data/free-exercise-db/ko_instructions.json?v=2")
       .then((response) => {
         if (!response.ok) throw new Error("exercise instructions load failed");
         return response.json();
@@ -549,8 +570,8 @@ function mergeSetCounterDefaults(freeExercises) {
     return true;
   }).map((preset) => {
     const base = bySourceId.get(preset.sourceId) || {};
-    const apiDisplayName = defaultApiNameOverrides[preset.sourceId]
-      || koCommonExerciseMap[preset.sourceId]?.displayName
+    const apiDisplayName = koExerciseMap[preset.sourceId]?.displayName
+      || defaultApiNameOverrides[preset.sourceId]
       || base.englishName
       || base.freeDbName
       || preset.sourceId;
@@ -599,10 +620,11 @@ function replacePrimaryExercises(defaultExercises) {
 
 async function loadFreeExerciseDb() {
   try {
-    const [exerciseResponse, mapResponse, commonMapResponse, muscleResponse, equipmentResponse] = await Promise.all([
+    const [exerciseResponse, mapResponse, commonMapResponse, pronunciationMapResponse, muscleResponse, equipmentResponse] = await Promise.all([
       fetch("/static/data/free-exercise-db/exercises.json"),
-      fetch("/static/data/free-exercise-db/ko_exercise_map.json?v=4"),
+      fetch("/static/data/free-exercise-db/ko_exercise_map.json?v=5"),
       fetch("/static/data/free-exercise-db/ko_exercise_common_map.json?v=1"),
+      fetch("/static/data/free-exercise-db/ko_exercise_pronunciation_map.json?v=1"),
       fetch("/static/data/free-exercise-db/ko_muscle_map.json"),
       fetch("/static/data/free-exercise-db/ko_equipment_map.json"),
     ]);
@@ -610,11 +632,27 @@ async function loadFreeExerciseDb() {
     const rawExercises = await exerciseResponse.json();
     const koMapPayload = mapResponse.ok ? await mapResponse.json() : { items: {} };
     const commonMapPayload = commonMapResponse.ok ? await commonMapResponse.json() : {};
+    const pronunciationMapPayload = pronunciationMapResponse.ok ? await pronunciationMapResponse.json() : { items: {} };
     const commonItems = Object.fromEntries(
       Object.entries(commonMapPayload).map(([sourceId, displayName]) => [sourceId, { displayName, aliases: [displayName] }]),
     );
     koCommonExerciseMap = commonItems;
-    koExerciseMap = { ...commonItems, ...(koMapPayload.items || {}) };
+    koPronunciationExerciseMap = pronunciationMapPayload.items || {};
+    const legacyItems = { ...commonItems, ...(koMapPayload.items || {}) };
+    koExerciseMap = Object.fromEntries(rawExercises.map((item) => {
+      const legacy = legacyItems[item.sourceId] || {};
+      const pronunciation = koPronunciationExerciseMap[item.sourceId];
+      return [item.sourceId, {
+        ...legacy,
+        displayName: pronunciation || legacy.displayName || item.displayName || item.name,
+        aliases: [...new Set([
+          ...(legacy.aliases || []),
+          legacy.displayName,
+          pronunciation,
+          item.name,
+        ].filter(Boolean))],
+      }];
+    }));
     koMuscleMap = muscleResponse.ok ? await muscleResponse.json() : {};
     koEquipmentMap = equipmentResponse.ok ? await equipmentResponse.json() : {};
     setCounterDefaultExercises = koMapPayload.setCounterDefaults || [];
@@ -675,6 +713,7 @@ const state = {
   excuses: [],
   lastRecord: null,
   logs: [],
+  recommendationLogs: [],
   pendingNextRecommendation: null,
   pendingRoutinePlan: null,
   pendingRoutineProgress: null,
@@ -694,6 +733,7 @@ const state = {
   stats: null,
   profile: null,
   auth: { loaded: false, authenticated: false, anonymous: true, accountLinked: false, emailMasked: null, hasAnonymousData: false, csrfToken: null },
+  authRecoveryPending: false,
   weeklyGoalDraft: null,
 };
 
@@ -777,6 +817,7 @@ const els = {
   planExerciseDetailMeta: document.querySelector("#planExerciseDetailMeta"),
   planExerciseDetailDescription: document.querySelector("#planExerciseDetailDescription"),
   planExerciseDetailMuscles: document.querySelector("#planExerciseDetailMuscles"),
+  planExerciseMuscleMap: document.querySelector("#planExerciseMuscleMap"),
   planExerciseDetailPage: document.querySelector("#planExerciseDetailPage"),
   previousPlanExerciseButton: document.querySelector("#previousPlanExerciseButton"),
   nextPlanExerciseButton: document.querySelector("#nextPlanExerciseButton"),
@@ -788,6 +829,7 @@ const els = {
   profileModalCopy: document.querySelector("#profileModalCopy"),
   closeProfileButton: document.querySelector("#closeProfileButton"),
   nicknameInput: document.querySelector("#nicknameInput"),
+  profileGenderInputs: document.querySelectorAll('input[name="gender"]'),
   nicknameCounter: document.querySelector("#nicknameCounter"),
   nicknameAvailabilityNote: document.querySelector("#nicknameAvailabilityNote"),
   saveNicknameButton: document.querySelector("#saveNicknameButton"),
@@ -869,6 +911,7 @@ const els = {
   registerPasswordInput: document.querySelector("#registerPasswordInput"),
   registerPasswordConfirmInput: document.querySelector("#registerPasswordConfirmInput"),
   registerTermsInput: document.querySelector("#registerTermsInput"),
+  registerPrivacyInput: document.querySelector("#registerPrivacyInput"),
   registerError: document.querySelector("#registerError"),
   registerSubmitButton: document.querySelector("#registerSubmitButton"),
   closeRegisterButton: document.querySelector("#closeRegisterButton"),
@@ -890,6 +933,7 @@ const els = {
   anonymousConflictSummary: document.querySelector("#anonymousConflictSummary"),
   accountConflictSummary: document.querySelector("#accountConflictSummary"),
   closeAuthConflictButton: document.querySelector("#closeAuthConflictButton"),
+  useAccountRecordsButton: document.querySelector("#useAccountRecordsButton"),
   authAlertModal: document.querySelector("#authAlertModal"),
   authAlertMessage: document.querySelector("#authAlertMessage"),
   closeAuthAlertButton: document.querySelector("#closeAuthAlertButton"),
@@ -905,6 +949,7 @@ const els = {
   routineResumeCopy: document.querySelector("#routineResumeCopy"),
   restartRoutineButton: document.querySelector("#restartRoutineButton"),
   resumeRoutineButton: document.querySelector("#resumeRoutineButton"),
+  selectedExerciseLabel: document.querySelector("#selectedExerciseLabel"),
   counterTitle: document.querySelector("#counterTitle"),
   selectedDateBanner: document.querySelector("#selectedDateBanner"),
   selectedDateLabel: document.querySelector("#selectedDateLabel"),
@@ -945,10 +990,6 @@ const els = {
   boardSubmitButton: document.querySelector("#boardSubmitButton"),
   boardAuthor: document.querySelector("#boardAuthor"),
   boardWorkoutSummary: document.querySelector("#boardWorkoutSummary"),
-  boardTodayPostCount: document.querySelector("#boardTodayPostCount"),
-  boardLoadedPostCount: document.querySelector("#boardLoadedPostCount"),
-  boardTodayWorkoutMetric: document.querySelector("#boardTodayWorkoutMetric"),
-  boardTodayWorkoutCount: document.querySelector("#boardTodayWorkoutCount"),
   boardList: document.querySelector("#boardList"),
   boardSortButtons: document.querySelectorAll("[data-board-sort]"),
   boardReportModal: document.querySelector("#boardReportModal"),
@@ -1080,14 +1121,17 @@ function renderWeeklyGoal(resetDraft = false) {
   if (resetDraft || state.weeklyGoalDraft === null) state.weeklyGoalDraft = target;
   const draft = Math.min(Math.max(Number(state.weeklyGoalDraft) || target, 1), 7);
   const completed = Math.max(Number(state.stats?.weeklyWorkoutCompleted) || 0, 0);
-  const remaining = Math.max(target - completed, 0);
-  const ratio = target > 0 ? Math.min(completed / target, 1) : 0;
+  const recoveryNotes = Array.isArray(state.stats?.weeklyRecoveryNotes) ? state.stats.weeklyRecoveryNotes : [];
+  const remaining = Math.max(Number(state.stats?.weeklyWorkoutRemaining) || 0, 0);
+  const covered = Math.min(completed + recoveryNotes.length, target);
+  const ratio = target > 0 ? Math.min(covered / target, 1) : 0;
+  const reasons = recoveryNotes.map((item) => String(item?.reason || "").trim()).filter(Boolean);
   els.weeklyGoalBadge.textContent = `주 ${target}회`;
-  els.weeklyGoalProgress.textContent = `${completed} / ${target}회`;
-  els.weeklyGoalRemaining.textContent = remaining > 0 ? `이번 주 ${remaining}회 남음` : "이번 주 목표 완료";
+  els.weeklyGoalProgress.textContent = `이번 주 ${completed}회 운동${reasons.length ? ` · ${reasons.join(" · ")}` : ""}`;
+  els.weeklyGoalRemaining.textContent = remaining > 0 ? `목표까지 ${remaining}회` : "이번 주 목표 충족";
   els.weeklyGoalBar.style.transform = `scaleX(${ratio})`;
   els.weeklyGoalTrack.setAttribute("aria-valuemax", String(target));
-  els.weeklyGoalTrack.setAttribute("aria-valuenow", String(Math.min(completed, target)));
+  els.weeklyGoalTrack.setAttribute("aria-valuenow", String(covered));
   els.weeklyGoalValue.textContent = `${draft}회`;
   els.weeklyGoalDecrease.disabled = draft <= 1;
   els.weeklyGoalIncrease.disabled = draft >= 7;
@@ -1165,6 +1209,9 @@ function closeAuthAlert() {
 }
 function openAuthModal(kind) {
   const modal = kind === "register" ? els.registerModal : els.loginModal;
+  if (kind === "login") {
+    els.closeLoginButton.textContent = state.authRecoveryPending ? "게스트 입장" : "취소";
+  }
   rememberMenuOverlayTrigger();
   clearAuthForm(kind === "register" ? els.registerForm : els.loginForm, kind === "register" ? els.registerError : els.loginError);
   modal.hidden = false;
@@ -1173,15 +1220,45 @@ function openAuthModal(kind) {
     onComplete: () => (kind === "register" ? els.registerEmailInput : els.loginEmailInput).focus(),
   });
 }
-function closeAuthModal(kind) {
+function closeAuthModal(kind, onClosed = null) {
   const modal = kind === "register" ? els.registerModal : els.loginModal;
   window.SetCounterMotion?.closeOverlay(modal, { onComplete: () => {
     modal.hidden = true;
     syncMenuOverlayLock();
     restoreMenuOverlayFocus();
+    if (onClosed) onClosed();
   } });
 }
-function renderConflictSummary(element, summary) { element.textContent = `운동 ${summary.workoutCount || 0}회 · 세트 ${summary.setCount || 0}개`; }
+
+async function continueAsAnonymousAfterLoginCancel() {
+  try {
+    await resetToAnonymousUser();
+    routeInitialEntry();
+    showToast("새 사용자로 시작합니다. 기존 기록은 로그인하면 다시 불러올 수 있습니다.");
+  } catch (error) {
+    showToast("앱 데이터를 불러오지 못했습니다. 다시 시도해 주세요.");
+  }
+}
+
+function cancelLoginModal() {
+  const continueAsAnonymous = state.authRecoveryPending;
+  state.authRecoveryPending = false;
+  closeAuthModal("login", continueAsAnonymous ? continueAsAnonymousAfterLoginCancel : null);
+}
+function renderConflictSummary(element, summary) {
+  const hasOtherData = Boolean(
+    summary.excuseCount
+    || summary.postCount
+    || summary.commentCount
+    || summary.likeCount
+    || summary.levelEventCount
+    || summary.reportCount
+    || summary.blockCount
+    || summary.pushSubscriptionCount
+    || summary.hasProfileActivity
+  );
+  element.textContent = `운동 ${summary.workoutCount || 0}회 · 세트 ${summary.setCount || 0}개${hasOtherData ? " · 기타 기록 있음" : ""}`;
+}
 async function refreshAuthenticatedApp() { await loadAuthStatus(); await loadBootstrap(); }
 
 async function submitRegister(event) {
@@ -1190,10 +1267,11 @@ async function submitRegister(event) {
   if (!/^\S+@\S+\.\S+$/.test(email)) return showAuthAlert("유효한 이메일을 입력해주세요.", els.registerEmailInput);
   if (password.length < 8) return showAuthAlert("비밀번호는 8자 이상 입력해주세요.", els.registerPasswordInput);
   if (password !== passwordConfirm) return showAuthAlert("비밀번호 확인이 일치하지 않습니다.", els.registerPasswordConfirmInput);
-  if (!els.registerTermsInput.checked) return showAuthAlert("이용약관 및 개인정보 처리방침에 동의해주세요.", els.registerTermsInput);
+  if (!els.registerTermsInput.checked) return showAuthAlert("이용약관에 동의해주세요.", els.registerTermsInput);
+  if (!els.registerPrivacyInput.checked) return showAuthAlert("개인정보 수집·이용 및 처리방침에 동의해주세요.", els.registerPrivacyInput);
   els.registerError.textContent = ""; setAuthSubmitting(els.registerSubmitButton, true, "계정에 기록 연결");
   try {
-    await api("/api/auth/register", { method: "POST", body: JSON.stringify({ email, password, passwordConfirm, termsAccepted: true }) });
+    await api("/api/auth/register", { method: "POST", body: JSON.stringify({ email, password, passwordConfirm, termsAccepted: true, privacyAccepted: true }) });
     clearAuthForm(els.registerForm, els.registerError); closeAuthModal("register"); await refreshAuthenticatedApp(); showToast("기록이 계정에 안전하게 연결되었습니다.");
   } catch (error) {
     showAuthAlert(
@@ -1205,12 +1283,34 @@ async function submitRegister(event) {
 
 async function submitLogin(event) {
   event.preventDefault();
+  await attemptLogin(false);
+}
+
+function closeAuthConflictModal() {
+  window.SetCounterMotion?.closeOverlay(els.authConflictModal, { onComplete: () => {
+    els.authConflictModal.hidden = true;
+    syncMenuOverlayLock();
+  } });
+}
+
+async function attemptLogin(preferAccountRecords) {
   const email = els.loginEmailInput.value.trim(), password = els.loginPasswordInput.value;
   if (!/^\S+@\S+\.\S+$/.test(email) || !password) return (els.loginError.textContent = "이메일과 비밀번호를 입력해주세요.");
-  els.loginError.textContent = ""; setAuthSubmitting(els.loginSubmitButton, true, "로그인");
+  const submitButton = preferAccountRecords ? els.useAccountRecordsButton : els.loginSubmitButton;
+  const submitLabel = preferAccountRecords ? "계정 기록 불러오기" : "로그인";
+  els.loginError.textContent = "";
+  setAuthSubmitting(submitButton, true, submitLabel);
   try {
-    await api("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
-    clearAuthForm(els.loginForm, els.loginError); closeAuthModal("login"); await refreshAuthenticatedApp(); showToast("로그인했습니다.");
+    await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password, preferAccountRecords }),
+    });
+    state.authRecoveryPending = false;
+    clearAuthForm(els.loginForm, els.loginError);
+    if (!els.authConflictModal.hidden) closeAuthConflictModal();
+    closeAuthModal("login");
+    await refreshAuthenticatedApp();
+    showToast(preferAccountRecords ? "계정 기록을 불러왔습니다." : "로그인했습니다.");
   } catch (error) {
     if (error.status === 409 && error.body?.error === "anonymous_data_conflict") {
       renderConflictSummary(els.anonymousConflictSummary, error.body.anonymousSummary || {});
@@ -1221,7 +1321,9 @@ async function submitLogin(event) {
       return;
     }
     els.loginError.textContent = error.status === 429 ? "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요." : "이메일 또는 비밀번호가 올바르지 않습니다.";
-  } finally { setAuthSubmitting(els.loginSubmitButton, false, "로그인"); }
+  } finally {
+    setAuthSubmitting(submitButton, false, submitLabel);
+  }
 }
 
 async function logoutAccount() {
@@ -1237,6 +1339,7 @@ async function resetToAnonymousUser() {
   window.localStorage.removeItem(USER_KEY_STORAGE);
   replaceHealthUserKey();
   state.logs = [];
+  state.recommendationLogs = [];
   state.excuses = [];
   state.boardPosts = [];
   state.profile = null;
@@ -1412,7 +1515,18 @@ function isBodyweightExercise(exercise = state.selectedExercise) {
   return rawEquipment === "body only" || translatedEquipment === "맨몸" || inferredEquipment === "맨몸";
 }
 
+function prescribedWeightForExercise(exercise = state.selectedExercise) {
+  const prescription = exercise?.planPrescription;
+  if (!prescription) return null;
+  if (isBodyweightExercise(exercise)) return 0;
+  const field = state.profile?.gender === "female" ? "femaleWeight" : "maleWeight";
+  const weight = Number(prescription[field]);
+  return Number.isFinite(weight) ? Math.max(weight, 0) : null;
+}
+
 function defaultWeightForExercise(exercise = state.selectedExercise) {
+  const prescribed = prescribedWeightForExercise(exercise);
+  if (prescribed !== null) return prescribed;
   return isBodyweightExercise(exercise) ? 0 : 8;
 }
 
@@ -1694,7 +1808,7 @@ function renderProfile(profile = state.profile) {
   renderMenuSos();
   renderBoard();
   renderLevelHistory();
-  if (state.profile?.nicknameRequired) {
+  if (state.profile?.nicknameRequired || state.profile?.genderRequired) {
     openNicknameModal(true);
   }
 }
@@ -1702,13 +1816,25 @@ function renderProfile(profile = state.profile) {
 function openNicknameModal(required = false) {
   rememberMenuOverlayTrigger();
   els.profileError.textContent = "";
-  els.profileModalTitle.textContent = required ? "닉네임 만들기" : "닉네임 변경";
-  els.profileModalCopy.textContent = required
-    ? "운동 레벨과 커뮤니티에 표시할 닉네임을 먼저 정하세요."
-    : "닉네임 변경은 7일에 한 번만 가능합니다.";
+  const needsNickname = Boolean(state.profile?.nicknameRequired);
+  const needsGender = Boolean(state.profile?.genderRequired);
+  const completingGenderOnly = required && !needsNickname && needsGender;
+  els.profileModalTitle.textContent = completingGenderOnly
+    ? "성별 설정"
+    : required
+      ? "닉네임 만들기"
+      : "닉네임 변경";
+  els.profileModalCopy.textContent = completingGenderOnly
+    ? "로그인은 완료되었습니다. 묶음 운동의 시작 중량을 맞추기 위해 성별을 선택하세요."
+    : required
+      ? "운동 레벨에 표시할 닉네임과 시작 중량에 사용할 성별을 정하세요."
+      : "닉네임 변경은 7일에 한 번만 가능합니다.";
   els.nicknameInput.value = state.profile?.nickname || "";
+  els.profileGenderInputs.forEach((input) => {
+    input.checked = input.value === state.profile?.gender;
+  });
   els.closeProfileButton.hidden = required;
-  els.profileLoginButton.hidden = !required;
+  els.profileLoginButton.hidden = !required || state.auth.authenticated;
   const availableAt = state.profile?.nextNicknameChangeAt ? new Date(state.profile.nextNicknameChangeAt) : null;
   els.nicknameAvailabilityNote.textContent = state.profile?.canChangeNickname === false && availableAt
     ? `${availableAt.toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}부터 다시 변경할 수 있습니다.`
@@ -1827,7 +1953,7 @@ function closeLevelHistory() {
 }
 
 function closeNicknameModal(force = false) {
-  if (force || !state.profile?.nicknameRequired) {
+  if (force || (!state.profile?.nicknameRequired && !state.profile?.genderRequired)) {
     window.SetCounterMotion?.closeOverlay(els.profileModal, { onComplete: () => {
       els.profileModal.hidden = true;
       syncMenuOverlayLock();
@@ -1841,7 +1967,10 @@ function syncNicknameInput() {
   const value = els.nicknameInput.value;
   els.nicknameCounter.textContent = `${value.length} / 12`;
   const valid = /^[가-힣A-Za-z0-9_]{2,12}$/.test(value);
-  els.saveNicknameButton.disabled = !valid || state.profile?.canChangeNickname === false;
+  const nicknameChanged = value.trim() !== String(state.profile?.nickname || "");
+  const nicknameAllowed = !nicknameChanged || state.profile?.canChangeNickname !== false;
+  const genderSelected = Array.from(els.profileGenderInputs).some((input) => input.checked);
+  els.saveNicknameButton.disabled = !valid || !nicknameAllowed || !genderSelected;
 }
 
 function percentChange(current, previous) {
@@ -1864,43 +1993,43 @@ const workoutPlans = [
     id: "upper-push", focus: "가슴 · 어깨 · 삼두", title: "넓고 탄탄한 상체 만들기",
     copy: "가슴의 두께부터 어깨 너비, 삼두 마무리까지 한 번에 채웁니다.", duration: "약 50분", theme: "gold", image: "plan-upper-push.webp",
     exercises: [
-      { sourceId: "Barbell_Bench_Press_-_Medium_Grip", name: "바벨 벤치프레스", fallbackName: "벤치프레스", sets: 3, reps: "6-10", defaultReps: 8, rest: 90 },
-      { sourceId: "Barbell_Incline_Bench_Press_-_Medium_Grip", name: "인클라인 바벨 벤치프레스", sets: 3, reps: "8-12", defaultReps: 10, rest: 75 },
-      { sourceId: "Dumbbell_Shoulder_Press", name: "덤벨 숄더 프레스", fallbackName: "숄더 프레스", sets: 3, reps: "8-12", defaultReps: 10, rest: 75 },
-      { sourceId: "Side_Lateral_Raise", name: "사이드 레터럴 레이즈", fallbackName: "사이드 레터럴 레이즈", sets: 3, reps: "12-15", defaultReps: 12, rest: 45 },
-      { sourceId: "Triceps_Pushdown_-_Rope_Attachment", name: "로프 트라이셉스 푸쉬다운", sets: 3, reps: "10-15", defaultReps: 12, rest: 45 },
+      { sourceId: "Barbell_Bench_Press_-_Medium_Grip", name: "바벨 벤치프레스", fallbackName: "벤치프레스", sets: 3, reps: "6-10", defaultReps: 8, rest: 90, maleWeight: 20, femaleWeight: 15 },
+      { sourceId: "Barbell_Incline_Bench_Press_-_Medium_Grip", name: "인클라인 바벨 벤치프레스", sets: 3, reps: "8-12", defaultReps: 10, rest: 80, maleWeight: 20, femaleWeight: 15 },
+      { sourceId: "Dumbbell_Shoulder_Press", name: "덤벨 숄더 프레스", fallbackName: "숄더 프레스", sets: 3, reps: "8-12", defaultReps: 10, rest: 80, maleWeight: 8, femaleWeight: 4 },
+      { sourceId: "Side_Lateral_Raise", name: "사이드 레터럴 레이즈", fallbackName: "사이드 레터럴 레이즈", sets: 3, reps: "12-15", defaultReps: 12, rest: 50, maleWeight: 4, femaleWeight: 2 },
+      { sourceId: "Triceps_Pushdown_-_Rope_Attachment", name: "로프 트라이셉스 푸쉬다운", sets: 3, reps: "10-15", defaultReps: 12, rest: 50, maleWeight: 15, femaleWeight: 10 },
     ],
   },
   {
     id: "upper-pull", focus: "등 · 후면 어깨 · 이두", title: "등과 팔 라인 채우기",
     copy: "등 너비와 두께를 먼저 만들고 후면 어깨와 팔까지 단단히 마칩니다.", duration: "약 45분", theme: "cyan", image: "plan-upper-pull.webp",
     exercises: [
-      { sourceId: "Wide-Grip_Lat_Pulldown", name: "와이드 그립 랫풀다운", sets: 3, reps: "8-12", defaultReps: 10, rest: 75 },
-      { sourceId: "Bent_Over_Barbell_Row", name: "벤트오버 바벨 로우", sets: 3, reps: "6-10", defaultReps: 8, rest: 90 },
-      { sourceId: "Seated_Cable_Rows", name: "시티드 케이블 로우", sets: 3, reps: "8-12", defaultReps: 10, rest: 75 },
-      { sourceId: "Face_Pull", name: "페이스 풀", sets: 3, reps: "12-15", defaultReps: 12, rest: 45 },
-      { sourceId: "Hammer_Curls", name: "해머 컬", fallbackName: "해머 컬", sets: 3, reps: "10-12", defaultReps: 10, rest: 45 },
+      { sourceId: "Wide-Grip_Lat_Pulldown", name: "와이드 그립 랫풀다운", sets: 3, reps: "8-12", defaultReps: 10, rest: 80, maleWeight: 25, femaleWeight: 15 },
+      { sourceId: "Bent_Over_Barbell_Row", name: "벤트오버 바벨 로우", sets: 3, reps: "6-10", defaultReps: 8, rest: 90, maleWeight: 20, femaleWeight: 15 },
+      { sourceId: "Seated_Cable_Rows", name: "시티드 케이블 로우", sets: 3, reps: "8-12", defaultReps: 10, rest: 80, maleWeight: 25, femaleWeight: 15 },
+      { sourceId: "Face_Pull", name: "페이스 풀", sets: 3, reps: "12-15", defaultReps: 12, rest: 50, maleWeight: 15, femaleWeight: 10 },
+      { sourceId: "Hammer_Curls", name: "해머 컬", fallbackName: "해머 컬", sets: 3, reps: "10-12", defaultReps: 10, rest: 50, maleWeight: 8, femaleWeight: 4 },
     ],
   },
   {
     id: "lower-body", focus: "허벅지 · 둔근 · 햄스트링", title: "하체 힘 꽉 채우기",
     copy: "스쿼트, 힌지, 런지를 중심으로 하체 앞뒤와 둔근을 고르게 단련합니다.", duration: "약 50분", theme: "coral", image: "plan-lower-body.webp",
     exercises: [
-      { sourceId: "Barbell_Full_Squat", name: "바벨 백 스쿼트", sets: 3, reps: "6-10", defaultReps: 8, rest: 90 },
-      { sourceId: "Romanian_Deadlift", name: "루마니안 데드리프트", fallbackName: "덤벨 루마니안 데드리프트", sets: 3, reps: "8-12", defaultReps: 10, rest: 90 },
-      { sourceId: "Barbell_Hip_Thrust", name: "바벨 힙 쓰러스트", fallbackName: "덤벨 힙", sets: 3, reps: "8-12", defaultReps: 10, rest: 75 },
-      { sourceId: "Barbell_Walking_Lunge", name: "바벨 워킹 런지", sets: 3, reps: "좌우 8-10", defaultReps: 8, rest: 75 },
-      { sourceId: "Calf_Raise_On_A_Dumbbell", name: "덤벨 카프 레이즈", sets: 3, reps: "12-15", defaultReps: 12, rest: 45 },
+      { sourceId: "Barbell_Full_Squat", name: "바벨 백 스쿼트", sets: 3, reps: "6-10", defaultReps: 8, rest: 90, maleWeight: 20, femaleWeight: 15 },
+      { sourceId: "Romanian_Deadlift", name: "루마니안 데드리프트", fallbackName: "덤벨 루마니안 데드리프트", sets: 3, reps: "8-12", defaultReps: 10, rest: 90, maleWeight: 20, femaleWeight: 15 },
+      { sourceId: "Barbell_Hip_Thrust", name: "바벨 힙 쓰러스트", fallbackName: "덤벨 힙", sets: 3, reps: "8-12", defaultReps: 10, rest: 80, maleWeight: 20, femaleWeight: 15 },
+      { sourceId: "Barbell_Walking_Lunge", name: "바벨 워킹 런지", sets: 3, reps: "좌우 8-10", defaultReps: 8, rest: 80, maleWeight: 20, femaleWeight: 10 },
+      { sourceId: "Calf_Raise_On_A_Dumbbell", name: "덤벨 카프 레이즈", sets: 3, reps: "12-15", defaultReps: 12, rest: 50, maleWeight: 8, femaleWeight: 4 },
     ],
   },
   {
     id: "quick-full-body", focus: "하체 · 밀기 · 당기기", title: "25분 전신 깨우기",
     copy: "큰 근육을 쓰는 네 동작으로 짧지만 빠짐없는 전신 루틴을 완성합니다.", duration: "약 25분", theme: "violet", image: "plan-quick-full-body.webp",
     exercises: [
-      { sourceId: "Goblet_Squat", name: "고블릿 스쿼트", fallbackName: "고블릿 스쿼트", sets: 2, reps: "10-12", defaultReps: 10, rest: 30 },
-      { sourceId: "Pushups", name: "푸쉬업", fallbackName: "중량가방 푸쉬업", sets: 2, reps: "8-15", defaultReps: 10, rest: 30 },
-      { sourceId: "One-Arm_Dumbbell_Row", name: "원암 덤벨 로우", fallbackName: "덤벨 로우", sets: 2, reps: "좌우 10-12", defaultReps: 10, rest: 30 },
-      { sourceId: "Dumbbell_Shoulder_Press", name: "덤벨 숄더 프레스", fallbackName: "숄더 프레스", sets: 2, reps: "8-12", defaultReps: 10, rest: 30 },
+      { sourceId: "Goblet_Squat", name: "고블릿 스쿼트", fallbackName: "고블릿 스쿼트", sets: 2, reps: "10-12", defaultReps: 10, rest: 30, maleWeight: 8, femaleWeight: 4 },
+      { sourceId: "Pushups", name: "푸쉬업", fallbackName: "중량가방 푸쉬업", sets: 2, reps: "8-15", defaultReps: 10, rest: 30, maleWeight: 0, femaleWeight: 0 },
+      { sourceId: "One-Arm_Dumbbell_Row", name: "원암 덤벨 로우", fallbackName: "덤벨 로우", sets: 2, reps: "좌우 10-12", defaultReps: 10, rest: 30, maleWeight: 10, femaleWeight: 6 },
+      { sourceId: "Dumbbell_Shoulder_Press", name: "덤벨 숄더 프레스", fallbackName: "숄더 프레스", sets: 2, reps: "8-12", defaultReps: 10, rest: 30, maleWeight: 8, femaleWeight: 4 },
     ],
   },
 ];
@@ -1986,6 +2115,8 @@ function planSupportExercise(plan, step, phase, index) {
       reps: step.meta,
       defaultReps: defaults.defaultReps,
       rest: phase === "warmup" ? 20 : 15,
+      maleWeight: 0,
+      femaleWeight: 0,
     },
     routinePhase: phase,
     routinePhaseLabel: phase === "warmup" ? "준비 운동" : "쿨다운",
@@ -2163,7 +2294,15 @@ const planSupportPrescriptions = {
 
 function planSupportSteps(plan) {
   const prescription = planSupportPrescriptions[plan.id] || { warmup: [], cooldown: [] };
-  const resolve = (step) => ({ ...step, image: planStepImage(exerciseBySourceId(step.sourceId), plan.image) });
+  const resolve = (step) => {
+    const exercise = exerciseBySourceId(step.sourceId);
+    return {
+      ...step,
+      image: planStepImage(exercise, plan.image),
+      primaryMuscles: exercise?.primaryMuscles?.length ? exercise.primaryMuscles : (step.muscles || []),
+      secondaryMuscles: exercise?.secondaryMuscles || [],
+    };
+  };
   return { warmup: prescription.warmup.map(resolve), cooldown: prescription.cooldown.map(resolve) };
 }
 
@@ -2192,6 +2331,7 @@ function renderPlanExerciseDetail(direction = 0) {
     chip.textContent = muscle;
     els.planExerciseDetailMuscles.append(chip);
   });
+  renderMuscleMap(els.planExerciseMuscleMap, step.primaryMuscles || step.muscles, step.secondaryMuscles);
   els.planExerciseDetailPage.textContent = `${state.planExerciseDetailIndex + 1}/${steps.length}`;
   els.previousPlanExerciseButton.disabled = state.planExerciseDetailIndex === 0;
   els.nextPlanExerciseButton.disabled = state.planExerciseDetailIndex === steps.length - 1;
@@ -2267,6 +2407,8 @@ function openPlanDetail(plan) {
       muscles: muscleNames.length
         ? muscleNames
         : [exercise.area || "전신"],
+      primaryMuscles: exercise.primaryMuscles || [],
+      secondaryMuscles: exercise.secondaryMuscles || [],
     };
   });
   const detailSteps = [...supportSteps.warmup, ...mainSteps, ...supportSteps.cooldown];
@@ -2380,13 +2522,14 @@ function renderHomeDashboard() {
 async function saveNickname(event) {
   event.preventDefault();
   const nickname = els.nicknameInput.value.trim();
+  const gender = Array.from(els.profileGenderInputs).find((input) => input.checked)?.value;
   els.profileError.textContent = "";
   if (els.saveNicknameButton.disabled) return;
   setAuthSubmitting(els.saveNicknameButton, true, "저장");
   try {
     const profile = await api("/api/profile", {
       method: "POST",
-      body: JSON.stringify({ nickname }),
+      body: JSON.stringify({ nickname, gender }),
     });
     renderProfile(profile);
     closeNicknameModal(true);
@@ -2860,8 +3003,13 @@ async function renderLibraryExerciseDetail(exercise, panel, toggle) {
       ${secondary ? `<div><dt>보조 근육</dt><dd>${escapeHtml(secondary)}</dd></div>` : ""}
       <div><dt>난이도</dt><dd>${escapeHtml(translateLevel(exercise.level))}</dd></div>
     </dl>
+    <section class="library-detail-muscles">
+      <div class="exercise-muscle-map-head"><h4>근육 자극</h4><div class="muscle-map-legend" aria-label="근육 강조 범례"><span class="is-primary">주요</span><span class="is-secondary">보조</span></div></div>
+      <div class="exercise-muscle-map" data-muscle-map></div>
+    </section>
     ${instructionsMarkup}
   `;
+  renderMuscleMap(panel.querySelector("[data-muscle-map]"), exercise.primaryMuscles, exercise.secondaryMuscles);
   panel.querySelectorAll("img").forEach(bindImageReveal);
   window.SetCounterMotion?.animateContentChange(panel, 1);
 }
@@ -3020,6 +3168,10 @@ function renderExerciseDetail(exercise) {
       <div><dt>힘 방향</dt><dd>${escapeHtml(translateForce(exercise.force))}</dd></div>
       <div><dt>동작 유형</dt><dd>${escapeHtml(translateMechanic(exercise.mechanic))}</dd></div>
     </dl>
+    <section class="exercise-detail-muscles">
+      <div class="exercise-muscle-map-head"><h4>근육 자극</h4><div class="muscle-map-legend" aria-label="근육 강조 범례"><span class="is-primary">주요</span><span class="is-secondary">보조</span></div></div>
+      <div class="exercise-muscle-map" data-muscle-map></div>
+    </section>
     ${instructionsMarkup}
   `;
   els.exerciseDetailCard.querySelector("#exerciseDetailToggle")?.addEventListener("click", () => {
@@ -3027,6 +3179,7 @@ function renderExerciseDetail(exercise) {
     renderExerciseDetail(state.selectedExercise);
   });
   els.exerciseDetailCard.querySelectorAll("img").forEach(bindImageReveal);
+  renderMuscleMap(els.exerciseDetailCard.querySelector("[data-muscle-map]"), exercise.primaryMuscles, exercise.secondaryMuscles);
 }
 
 async function removeExerciseFromMine(exercise) {
@@ -3041,7 +3194,7 @@ async function removeExerciseFromMine(exercise) {
   } else {
     renderExerciseCards();
   }
-  showToast(`${exercise.name}을 내 운동종목에서 뺐습니다.`);
+  showToast(`${exerciseDisplayName(exercise)}을 내 운동종목에서 뺐습니다.`);
 }
 
 function syncExerciseEditUi() {
@@ -3160,6 +3313,7 @@ async function selectExercise(exercise) {
   state.selectedExercise = exercise;
   writeWeightInput(defaultWeightForExercise(exercise));
   els.counterTitle.textContent = exerciseDisplayName(exercise);
+  syncSelectedExerciseLabel();
   renderExerciseDetail(exercise);
   document.querySelector(".counter-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
   syncWeightControls();
@@ -3168,9 +3322,11 @@ async function selectExercise(exercise) {
   window.SetCounterMotion?.animateContentChange(els.exerciseDetailCard, 1);
   window.SetCounterMotion?.animateSelection(els.exerciseGrid.querySelector('[aria-pressed="true"]'));
   await loadLatestRecord();
-  if (!state.lastRecord && exercise.planPrescription) {
+  if (exercise.planPrescription) {
+    writeWeightInput(defaultWeightForExercise(exercise));
     els.setsInput.value = String(exercise.planPrescription.sets);
     els.currentRepsInput.value = String(exercise.planPrescription.defaultReps);
+    setRestTimerDuration(exercise.planPrescription.rest);
     syncCounter();
   }
   renderBoard();
@@ -3218,6 +3374,7 @@ async function loadBootstrap(options = {}) {
   const query = new URLSearchParams({ month, before: state.selectedDate });
   const data = await api(`/api/bootstrap?${query.toString()}`);
   state.logs = data.logs;
+  state.recommendationLogs = Object.values(data.latestByExercise || {});
   state.excuses = data.excuses;
   state.boardPosts = data.boardPosts || [];
   state.profile = data.profile;
@@ -3248,6 +3405,30 @@ async function loadStatsOnly() {
 
 function logsForDate(dateKey) {
   return state.logs.filter((log) => log.date === dateKey);
+}
+
+function normalizedExerciseIdentity(value) {
+  const normalized = String(value || "").normalize("NFKC").toLowerCase().replace(/[^0-9a-z가-힣]/g, "");
+  const historicalAliases = {
+    덤벨로우: "원암덤벨로우",
+    원암덤벨로우: "원암덤벨로우",
+  };
+  return historicalAliases[normalized] || normalized;
+}
+
+function exerciseIdentityNames(exercise) {
+  const mapped = mappedExerciseEntry(exercise);
+  return [
+    exercise?.name,
+    exerciseDisplayName(exercise),
+    exerciseEnglishName(exercise),
+    ...(mapped.aliases || []),
+  ].map(normalizedExerciseIdentity).filter(Boolean);
+}
+
+function sameExerciseIdentity(left, right) {
+  const leftNames = new Set(exerciseIdentityNames(left));
+  return exerciseIdentityNames(right).some((name) => leftNames.has(name));
 }
 
 function exerciseTrainingGroup(exercise) {
@@ -3290,17 +3471,9 @@ function compatibleTrainingGroups(group) {
 }
 
 function lastDateForExercise(exercise) {
-  const dates = state.logs
-    .filter((log) => log.exercise === exercise.name)
-    .map((log) => log.date)
-    .sort();
-  return dates.at(-1) || "";
-}
-
-function lastDateForGroup(group) {
-  const names = new Set(exercises.filter((exercise) => !exercise.isWorkoutPlan && exerciseTrainingGroup(exercise) === group).map((exercise) => exercise.name));
-  const dates = state.logs
-    .filter((log) => names.has(log.exercise))
+  const searchNames = exerciseIdentityNames(exercise);
+  const dates = state.recommendationLogs
+    .filter((log) => searchNames.includes(normalizedExerciseIdentity(log.exercise)))
     .map((log) => log.date)
     .sort();
   return dates.at(-1) || "";
@@ -3315,24 +3488,45 @@ function chooseRecommendedExercise(options = {}) {
   if (completedExercise) {
     targetGroups = compatibleTrainingGroups(exerciseTrainingGroup(completedExercise));
   } else if (todayLogs.length) {
-    const lastTodayExercise = recordableExercises.find((exercise) => exercise.name === todayLogs.at(-1).exercise) || { name: todayLogs.at(-1).exercise };
+    const lastTodayExercise = recordableExercises.find((exercise) =>
+      sameExerciseIdentity(exercise, { name: todayLogs.at(-1).exercise })
+    ) || { name: todayLogs.at(-1).exercise };
     targetGroups = compatibleTrainingGroups(exerciseTrainingGroup(lastTodayExercise));
   } else {
-    const groups = Array.from(new Set(recordableExercises.map(exerciseTrainingGroup)));
-    const oldestGroup = groups
-      .map((group) => ({ group, lastDate: lastDateForGroup(group) }))
-      .sort((a, b) => a.lastDate.localeCompare(b.lastDate))[0]?.group;
-    targetGroups = compatibleTrainingGroups(oldestGroup);
+    const recommendationHistory = recordableExercises
+      .map((exercise) => ({ exercise, lastDate: lastDateForExercise(exercise) }));
+    const neverRecorded = recommendationHistory
+      .filter((item) => !item.lastDate)
+      .sort((a, b) => exerciseDisplayName(a.exercise).localeCompare(exerciseDisplayName(b.exercise)));
+    if (neverRecorded.length) return neverRecorded[0].exercise;
+    const previouslyRecorded = recommendationHistory
+      .sort((a, b) => a.lastDate.localeCompare(b.lastDate) || exerciseDisplayName(a.exercise).localeCompare(exerciseDisplayName(b.exercise)));
+    if (previouslyRecorded.length) return previouslyRecorded[0].exercise;
+    return recordableExercises[0];
   }
   const candidates = recordableExercises.filter((exercise) =>
     targetGroups.includes(exerciseTrainingGroup(exercise)) &&
-    (!completedExercise || exerciseKey(exercise) !== exerciseKey(completedExercise))
+    (!completedExercise || !sameExerciseIdentity(exercise, completedExercise)) &&
+    !todayLogs.some((log) => sameExerciseIdentity(exercise, { name: log.exercise }))
   );
   if (!candidates.length) return null;
   const pool = candidates;
   return [...pool]
     .map((exercise) => ({ exercise, lastDate: lastDateForExercise(exercise) }))
     .sort((a, b) => a.lastDate.localeCompare(b.lastDate) || exerciseDisplayName(a.exercise).localeCompare(exerciseDisplayName(b.exercise)))[0]?.exercise || recordableExercises[0];
+}
+
+function syncSelectedExerciseLabel() {
+  if (!els.selectedExerciseLabel || !state.selectedExercise) return;
+  const selectedKey = exerciseKey(state.selectedExercise);
+  const routineExercise = state.activeRoutine?.exercises?.[state.activeRoutine.index];
+  if (routineExercise && selectedKey === exerciseKey(routineExercise)) {
+    els.selectedExerciseLabel.textContent = "진행 중인 루틴";
+    return;
+  }
+  els.selectedExerciseLabel.textContent = selectedKey === state.recommendedExerciseKey
+    ? "오늘의 추천"
+    : "선택한 운동";
 }
 
 function applyTodayRecommendation() {
@@ -3342,6 +3536,7 @@ function applyTodayRecommendation() {
   state.selectedExercise = recommended;
   writeWeightInput(defaultWeightForExercise(recommended));
   els.counterTitle.textContent = exerciseDisplayName(recommended);
+  syncSelectedExerciseLabel();
   renderExerciseDetail(recommended);
   syncWeightControls();
   resetSession(true);
@@ -3733,19 +3928,6 @@ function syncBoardPostCounter() {
   els.boardSubmitButton.textContent = state.boardPosting ? "작성 중..." : "작성하기";
 }
 
-function renderBoardCommunitySummary() {
-  if (!els.boardTodayPostCount) return;
-  const todayPosts = state.boardPosts.filter((post) => {
-    const date = new Date(post.createdAt);
-    return !Number.isNaN(date.getTime()) && toDateKey(date) === todayKey;
-  });
-  const todayLogs = logsForDate(todayKey);
-  els.boardTodayPostCount.textContent = formatNumber(todayPosts.length);
-  els.boardLoadedPostCount.textContent = formatNumber(state.boardPosts.length);
-  els.boardTodayWorkoutCount.textContent = formatNumber(todayLogs.length);
-  els.boardTodayWorkoutMetric.hidden = !todayLogs.length;
-}
-
 function renderBoardWorkoutSummary() {
   if (!els.boardWorkoutSummary) return;
   const logs = logsForDate(state.selectedDate);
@@ -3830,7 +4012,6 @@ async function migrateLocalBoardPosts() {
 function renderBoard() {
   if (!els.boardList) return;
   if (els.boardAuthor) renderBoardAuthorElement(els.boardAuthor, currentBoardAuthor());
-  renderBoardCommunitySummary();
   renderBoardWorkoutSummary();
   syncBoardPostCounter();
   els.boardSortButtons.forEach((button) => {
@@ -4670,6 +4851,7 @@ function bindEvents() {
   });
   els.profileForm.addEventListener("submit", saveNickname);
   els.nicknameInput.addEventListener("input", syncNicknameInput);
+  els.profileGenderInputs.forEach((input) => input.addEventListener("change", syncNicknameInput));
   els.closeProfileButton.addEventListener("click", closeNicknameModal);
   els.profileLoginButton.addEventListener("click", () => {
     closeNicknameModal(true);
@@ -4772,7 +4954,7 @@ function bindEvents() {
     else if (!els.complaintModal.hidden) closeComplaintModal();
     else if (!els.authAlertModal.hidden) closeAuthAlert();
     else if (!els.registerModal.hidden) closeAuthModal("register");
-    else if (!els.loginModal.hidden) closeAuthModal("login");
+    else if (!els.loginModal.hidden) cancelLoginModal();
     else if (!els.deleteAccountModal.hidden) closeDeleteAccountModal();
     else if (!els.faqModal.hidden) closeSupportModal(els.faqModal);
     else if (!els.privacyModal.hidden) closeSupportModal(els.privacyModal);
@@ -4820,35 +5002,104 @@ function bindAuthEvents() {
   els.openRegisterButton.addEventListener("click", () => openAuthModal("register"));
   els.openLoginButton.addEventListener("click", () => openAuthModal("login"));
   els.closeRegisterButton.addEventListener("click", () => closeAuthModal("register"));
-  els.closeLoginButton.addEventListener("click", () => closeAuthModal("login"));
+  els.closeLoginButton.addEventListener("click", cancelLoginModal);
   els.registerForm.addEventListener("submit", submitRegister);
   els.loginForm.addEventListener("submit", submitLogin);
   els.logoutButton.addEventListener("click", logoutAccount);
   els.openDeleteAccountButton.addEventListener("click", openDeleteAccountModal);
   els.closeDeleteAccountButton.addEventListener("click", closeDeleteAccountModal);
   els.deleteAccountForm.addEventListener("submit", submitDeleteAccount);
-  const closeConflict = () => window.SetCounterMotion?.closeOverlay(els.authConflictModal, { onComplete: () => {
-    els.authConflictModal.hidden = true;
-    syncMenuOverlayLock();
-  } });
-  els.closeAuthConflictButton.addEventListener("click", closeConflict);
+  els.closeAuthConflictButton.addEventListener("click", closeAuthConflictModal);
+  els.useAccountRecordsButton.addEventListener("click", () => attemptLogin(true));
   els.closeAuthAlertButton.addEventListener("click", closeAuthAlert);
   els.registerModal.addEventListener("click", (event) => { if (event.target === els.registerModal) closeAuthModal("register"); });
-  els.loginModal.addEventListener("click", (event) => { if (event.target === els.loginModal) closeAuthModal("login"); });
+  els.loginModal.addEventListener("click", (event) => { if (event.target === els.loginModal) cancelLoginModal(); });
   els.deleteAccountModal.addEventListener("click", (event) => { if (event.target === els.deleteAccountModal) closeDeleteAccountModal(); });
-  els.authConflictModal.addEventListener("click", (event) => { if (event.target === els.authConflictModal) closeConflict(); });
+  els.authConflictModal.addEventListener("click", (event) => { if (event.target === els.authConflictModal) closeAuthConflictModal(); });
+}
+
+let appLaunchIntroDone = Promise.resolve();
+
+function startAppLaunch() {
+  const splash = document.querySelector("#appLaunchSplash");
+  if (!splash) return;
+  const letters = splash.querySelectorAll(".app-launch-word i");
+  const progress = splash.querySelector(".app-launch-progress");
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (!window.gsap || reduceMotion) {
+    letters.forEach((letter) => {
+      letter.style.opacity = "1";
+      letter.style.transform = "none";
+    });
+    if (progress) progress.style.opacity = "1";
+    appLaunchIntroDone = new Promise((resolve) => window.setTimeout(resolve, 360));
+    return;
+  }
+
+  appLaunchIntroDone = new Promise((resolve) => {
+    window.gsap.timeline({ defaults: { overwrite: "auto" }, onComplete: resolve })
+      .fromTo(letters, {
+        y: 22,
+        rotateX: -28,
+        opacity: 0,
+        filter: "blur(7px)",
+      }, {
+        y: 0,
+        rotateX: 0,
+        opacity: 1,
+        filter: "blur(0px)",
+        duration: 0.5,
+        stagger: 0.045,
+        ease: "power3.out",
+      })
+      .to(progress, { opacity: 1, duration: 0.2, ease: "power1.out" }, 0.42);
+  });
+}
+
+async function finishAppLaunch() {
+  const splash = document.querySelector("#appLaunchSplash");
+  if (!splash || splash.dataset.finished === "true") return;
+  splash.dataset.finished = "true";
+  await appLaunchIntroDone;
+
+  const removeSplash = () => {
+    splash.remove();
+    document.body.classList.add("is-app-ready");
+    window.SetCounterMotion?.animateHomeBrand(document.querySelector('[data-screen="home"]'));
+  };
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (!window.gsap || reduceMotion) {
+    removeSplash();
+    return;
+  }
+
+  window.gsap.timeline({ onComplete: removeSplash })
+    .to(splash.querySelector(".app-launch-progress"), { opacity: 0, duration: 0.12 }, 0)
+    .to(splash.querySelectorAll(".app-launch-word i"), {
+      y: -12,
+      opacity: 0,
+      filter: "blur(5px)",
+      duration: 0.3,
+      stagger: 0.018,
+      ease: "power2.in",
+    }, 0.04)
+    .to(splash, { opacity: 0, duration: 0.24, ease: "power1.out" }, 0.24);
 }
 
 async function init() {
+  startAppLaunch();
   initMotion();
-  await loadFreeExerciseDb();
+  const koreanInstructionsPromise = loadKoreanInstructions().catch(() => null);
+  await Promise.all([
+    loadFreeExerciseDb(),
+    loadAuthStatus(),
+  ]);
   syncSelectedDateUi();
   els.counterTitle.textContent = exerciseDisplayName(state.selectedExercise);
+  syncSelectedExerciseLabel();
   renderExerciseDetail(state.selectedExercise);
   renderExerciseCards();
-  loadKoreanInstructions()
-    .then(() => renderExerciseDetail(state.selectedExercise))
-    .catch(() => {});
+  koreanInstructionsPromise.then(() => renderExerciseDetail(state.selectedExercise));
   bindEvents();
   bindAuthEvents();
   syncWeightControls();
@@ -4856,9 +5107,24 @@ async function init() {
   normalizedWeight(true);
   syncCounter();
   setActiveScreen("record");
-  await loadAuthStatus();
-  await loadBootstrap();
+  try {
+    await loadBootstrap();
+  } catch (error) {
+    if (error.status === 401) {
+      state.authRecoveryPending = true;
+      setActiveScreen("menu");
+      openAuthModal("login");
+      showToast("기존 기록을 불러오려면 다시 로그인해 주세요.");
+      await finishAppLaunch();
+      return;
+    }
+    throw error;
+  }
   routeInitialEntry();
+  await finishAppLaunch();
 }
 
-init().catch((error) => showToast(error.message));
+init().catch((error) => {
+  finishAppLaunch();
+  showToast(error.message);
+});

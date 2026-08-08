@@ -44,9 +44,13 @@
       ]
     },
     "One-Arm_Dumbbell_Row": {
-      "displayName": "덤벨로우",
+      "displayName": "원암 덤벨 로우",
       "aliases": [
-        "dumbbell row"
+        "dumbbell row",
+        "덤벨로우",
+        "덤벨 로우",
+        "원암 덤벨로우",
+        "원 암 덤벨 로우"
       ]
     },
     "Dumbbell_Shoulder_Press": {
@@ -389,9 +393,15 @@
     },
     {
       "sourceId": "One-Arm_Dumbbell_Row",
-      "name": "덤벨로우",
+      "name": "원암 덤벨 로우",
       "area": "덤벨 등",
-      "fallbackImage": "dumbellow.webp"
+      "fallbackImage": "dumbellow.webp",
+      "aliases": [
+        "덤벨로우",
+        "덤벨 로우",
+        "원암 덤벨로우",
+        "원 암 덤벨 로우"
+      ]
     },
     {
       "sourceId": "Barbell_Bench_Press_-_Medium_Grip",

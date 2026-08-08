@@ -74,7 +74,7 @@
 
 ## 8. 제출 전 남은 필수 작업
 
-1. `PUBLIC_SUPPORT_EMAIL`에 실제 공개 고객지원 이메일 설정
+1. Render `PUBLIC_SUPPORT_EMAIL`에 확정된 공개 고객지원 이메일 `northstarlabshelp@gmail.com` 설정
 2. Render 연결 후 `/main`, `/privacy`, `/terms`, `/account-deletion` HTTPS 응답 확인
 3. Play App Signing 인증서 SHA-256을 Digital Asset Links에 반영하고 검증
 4. 실제 Android 기기에서 TWA 전체 화면, 알림, 로그인 유지, 뒤로가기, 설치와 업데이트 확인

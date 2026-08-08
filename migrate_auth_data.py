@@ -180,6 +180,26 @@ def migrate(engine):
         add_column_if_missing(connection, "health_users", "is_anonymous", "is_anonymous BOOLEAN NOT NULL DEFAULT TRUE")
         timestamp_type = "TIMESTAMPTZ" if backend == "postgresql" else "DATETIME"
         add_column_if_missing(connection, "health_users", "last_seen_at", f"last_seen_at {timestamp_type}")
+        add_column_if_missing(connection, "health_users", "gender", "gender VARCHAR(16)")
+        add_column_if_missing(connection, "auth_accounts", "terms_version", "terms_version VARCHAR(32)")
+        add_column_if_missing(connection, "auth_accounts", "terms_accepted_at", f"terms_accepted_at {timestamp_type}")
+        add_column_if_missing(connection, "auth_accounts", "privacy_version", "privacy_version VARCHAR(32)")
+        add_column_if_missing(connection, "auth_accounts", "privacy_accepted_at", f"privacy_accepted_at {timestamp_type}")
+        connection.execute(
+            text(
+                """
+                UPDATE auth_accounts
+                SET terms_version = COALESCE(terms_version, '2026-07-31'),
+                    terms_accepted_at = COALESCE(terms_accepted_at, created_at),
+                    privacy_version = COALESCE(privacy_version, '2026-08-01'),
+                    privacy_accepted_at = COALESCE(privacy_accepted_at, created_at)
+                WHERE terms_version IS NULL
+                   OR terms_accepted_at IS NULL
+                   OR privacy_version IS NULL
+                   OR privacy_accepted_at IS NULL
+                """
+            )
+        )
         connection.execute(text("UPDATE health_users SET is_anonymous = TRUE WHERE account_id IS NULL"))
         connection.execute(
             text("CREATE UNIQUE INDEX IF NOT EXISTS uq_health_users_account_id ON health_users(account_id)")

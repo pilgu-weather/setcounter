@@ -8,6 +8,7 @@ venv/
 backups/**/migration-user-key.txt
 backups/design-revert-*/
 artifacts/
+outputs/
 qa-*.sqlite3
 *.bak
 /*.png

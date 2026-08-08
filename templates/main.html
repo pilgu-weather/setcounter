@@ -10,15 +10,34 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=93">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=104">
   </head>
   <body>
+    <div class="app-launch-splash" id="appLaunchSplash" role="status" aria-live="polite" aria-label="Set Counter를 불러오는 중">
+      <div class="app-launch-splash-inner">
+        <div class="app-launch-wordmark" aria-hidden="true">
+          <span class="app-launch-word app-launch-word-set">
+            <i>S</i><i>E</i><i>T</i>
+          </span>
+          <span class="app-launch-word app-launch-word-counter">
+            <i>C</i><i>O</i><i>U</i><i>N</i><i>T</i><i>E</i><i>R</i>
+          </span>
+        </div>
+        <div class="app-launch-progress" aria-hidden="true"><i></i></div>
+        <span class="sr-only">앱 데이터를 불러오는 중입니다.</span>
+      </div>
+    </div>
     <main class="app-shell" id="home">
       <section class="app-screen is-active" data-screen="home" aria-labelledby="homeTitle">
         <header class="home-header">
           <div class="hero-top">
             <div class="home-brand">
-              <h1 id="homeTitle">SET COUNTER</h1>
+              <h1 id="homeTitle" aria-label="SET COUNTER">
+                <span class="home-brand-letters" aria-hidden="true">
+                  <span class="home-brand-word"><i>S</i><i>E</i><i>T</i></span>
+                  <span class="home-brand-word"><i>C</i><i>O</i><i>U</i><i>N</i><i>T</i><i>E</i><i>R</i></span>
+                </span>
+              </h1>
             </div>
             <button class="menu-button" id="menuButton" type="button" aria-haspopup="true" aria-expanded="false" aria-label="메뉴"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12h16"/><path d="M4 6h16"/><path d="M4 18h16"/></svg></button>
             <div class="menu-popover" id="menuPopover" hidden>
@@ -151,7 +170,7 @@
           </div>
           <div class="panel-head">
             <div>
-              <p class="eyebrow">선택한 운동</p>
+              <p class="eyebrow" id="selectedExerciseLabel">선택한 운동</p>
               <h2 id="counterTitle">숄더 프레스</h2>
             </div>
           </div>
@@ -274,16 +293,10 @@
           <span></span>
         </header>
         <section class="board-section">
-          <div class="board-community-strip" aria-label="커뮤니티 현황">
-            <span><strong id="boardTodayPostCount">0</strong>오늘 게시글</span>
-            <span><strong id="boardLoadedPostCount">0</strong>불러온 게시글</span>
-            <span id="boardTodayWorkoutMetric" hidden><strong id="boardTodayWorkoutCount">0</strong>오늘 운동</span>
-          </div>
           <div class="section-head board-intro">
             <div>
               <p class="eyebrow">TRAINING FEED</p>
               <h2>운동 기록을 함께 나누세요</h2>
-              <p class="section-copy">레벨과 닉네임이 운동 인증에 함께 표시됩니다.</p>
             </div>
           </div>
           <form class="board-form" id="boardForm">
@@ -297,7 +310,7 @@
             <div class="board-workout-proof" id="boardWorkoutSummary" hidden></div>
             <label class="board-compose-field" for="boardInput">
               <span class="sr-only">게시글 내용</span>
-              <textarea id="boardInput" rows="4" maxlength="180" placeholder="오늘 운동 인증, 기록 자랑, 한 줄 다짐"></textarea>
+              <textarea id="boardInput" rows="4" maxlength="180" placeholder="오늘 운동 인증, 한 줄 다짐"></textarea>
               <span class="board-char-count" id="boardPostCounter">0 / 180</span>
             </label>
             <div class="board-compose-actions">
@@ -346,7 +359,7 @@
             <strong id="weeklyGoalBadge">주 3회</strong>
           </div>
           <div class="weekly-goal-status">
-            <span><strong id="weeklyGoalProgress">0 / 3회</strong><small id="weeklyGoalRemaining">이번 주 3회 남음</small></span>
+            <span><strong id="weeklyGoalProgress">이번 주 0회 운동</strong><small id="weeklyGoalRemaining">목표까지 3회</small></span>
             <div class="weekly-goal-track" role="progressbar" aria-label="이번 주 운동 목표 진행률" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0"><i id="weeklyGoalBar"></i></div>
           </div>
           <form class="weekly-goal-form" id="weeklyGoalForm">
@@ -402,7 +415,7 @@
             <div><p class="menu-section-kicker is-warning">RECOVERY LOG</p><h2 id="sosTitle">쉬는 날도 계획의 일부</h2></div>
             <span class="sos-date" id="sosSelectedDate">오늘</span>
           </div>
-          <p class="sos-copy">오늘 쉬어야 하는 이유를 기록해두세요. 저장된 회복일은 달력과 통계에 반영됩니다.</p>
+          <p class="sos-copy">오늘 쉬어야 하는 이유를 기록해두세요. 저장한 사유는 달력과 통계에 반영됩니다.</p>
           <div class="sos-reason-chips" aria-label="빠른 사유 선택">
             <button type="button" data-sos-reason="감기">감기</button><button type="button" data-sos-reason="몸살">몸살</button><button type="button" data-sos-reason="야근">야근</button><button type="button" data-sos-reason="가족 일정">가족 일정</button><button type="button" data-sos-reason="출장">출장</button><button type="button" data-sos-reason="회복 필요">회복 필요</button>
           </div>
@@ -563,8 +576,16 @@
         <label>
           <span>닉네임</span>
           <input id="nicknameInput" name="nickname" autocomplete="nickname" maxlength="12" placeholder="예: 테스트">
-          <small class="field-meta"><span>한글, 영문, 숫자, _ 조합 2~12자</span><b id="nicknameCounter">0 / 12</b></small>
+          <small class="field-meta"><span>2~12자 · 비속어와 차별 표현은 사용할 수 없음</span><b id="nicknameCounter">0 / 12</b></small>
         </label>
+        <fieldset class="profile-gender-field" id="profileGenderField">
+          <legend>성별</legend>
+          <div class="profile-gender-options">
+            <label><input type="radio" name="gender" value="male"><span>남성</span></label>
+            <label><input type="radio" name="gender" value="female"><span>여성</span></label>
+          </div>
+          <small>묶음 운동의 시작 중량을 맞추는 데 사용합니다. 바벨은 봉 포함, 덤벨은 한 손 기준이며 운동 중 언제든 조절할 수 있습니다.</small>
+        </fieldset>
         <p class="menu-dialog-note" id="nicknameAvailabilityNote">닉네임은 7일에 한 번 변경할 수 있습니다.</p>
         <p class="profile-error" id="profileError" role="alert"></p>
         <button class="confirm-button" id="saveNicknameButton" type="submit">저장</button>
@@ -626,7 +647,9 @@
         <label><span>비밀번호</span><input id="registerPasswordInput" type="password" autocomplete="new-password" minlength="8" aria-describedby="registerPasswordHint" required></label>
         <p class="auth-field-hint" id="registerPasswordHint">비밀번호는 8자 이상 입력해주세요.</p>
         <label><span>비밀번호 확인</span><input id="registerPasswordConfirmInput" type="password" autocomplete="new-password" minlength="8" required></label>
-        <label class="terms-check"><input id="registerTermsInput" type="checkbox" required><span><a href="/terms" target="_blank" rel="noopener">이용약관</a> 및 <a href="/privacy" target="_blank" rel="noopener">개인정보 처리방침</a>에 동의합니다.</span></label>
+        <label class="terms-check"><input id="registerTermsInput" type="checkbox" required><span><strong>[필수]</strong> <a href="/terms" target="_blank" rel="noopener">이용약관</a>에 동의합니다.</span></label>
+        <label class="terms-check"><input id="registerPrivacyInput" type="checkbox" required><span><strong>[필수]</strong> <a href="/privacy" target="_blank" rel="noopener">개인정보 수집·이용 및 처리방침</a>을 확인하고 동의합니다.</span></label>
+        <p class="auth-field-hint">동의를 거부하면 계정 연결은 할 수 없지만 게스트로 이용할 수 있습니다.</p>
         <p class="profile-error" id="registerError" role="alert"></p>
         <div class="complaint-actions"><button class="ghost-button" id="closeRegisterButton" type="button">취소</button><button class="confirm-button" id="registerSubmitButton" type="submit">계정에 기록 연결</button></div>
       </form>
@@ -659,7 +682,10 @@
         <h2 id="authConflictTitle">이 기기에 저장된 기록이 있습니다</h2>
         <p>현재 기기의 익명 기록과 로그인하려는 계정의 기록이 모두 존재합니다. 기록이 사라지지 않도록 자동으로 합치지 않았습니다.</p>
         <div class="auth-conflict-summary"><div><strong>현재 기기 기록</strong><span id="anonymousConflictSummary"></span></div><div><strong>계정 기록</strong><span id="accountConflictSummary"></span></div></div>
-        <button class="confirm-button" id="closeAuthConflictButton" type="button">확인</button>
+        <div class="complaint-actions">
+          <button class="ghost-button" id="closeAuthConflictButton" type="button">현재 기록 유지</button>
+          <button class="confirm-button" id="useAccountRecordsButton" type="button">계정 기록 불러오기</button>
+        </div>
       </section>
     </div>
     <div class="profile-modal support-modal" id="faqModal" role="dialog" aria-modal="true" aria-labelledby="faqTitle" hidden>
@@ -716,6 +742,10 @@
             <summary>기록이 부정행위로 감지되면 어떻게 하나요?</summary>
             <p>갑작스러운 큰 폭의 기록 증가 등 의심 패턴이 감지될 수 있습니다. 잘못 감지됐다면 표시되는 이의제기 창으로 운영자에게 알려주세요.</p>
           </details>
+          <details>
+            <summary>어떤 경우에 이용이 제한되나요?</summary>
+            <p>욕설·괴롭힘·혐오 또는 차별 표현, 음란물, 광고·도배, 사칭, 개인정보 침해, 기록 조작, 서비스 방해나 제재 회피가 확인되면 위반 정도와 반복 여부에 따라 경고, 콘텐츠 삭제, 7일·14일·30일 이용정지 또는 계정 해지 조치가 적용될 수 있습니다. 중대한 위반은 즉시 제한될 수 있으며, 조치에 이의가 있으면 고객지원으로 재검토를 요청할 수 있습니다.</p>
+          </details>
         </div>
       </section>
     </div>
@@ -729,15 +759,19 @@
           <button class="library-close" id="closePrivacyButton" type="button" aria-label="닫기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </header>
         <div class="privacy-content">
-          <p class="policy-date">시행일: 2026년 7월 31일</p>
+          <p class="policy-date">시행일: 2026년 8월 8일</p>
           <h3>수집하는 정보</h3>
-          <p>사용자 식별 키, 닉네임, 계정 이메일과 비밀번호 해시, 운동 기록, SOS 사유, 게시글·댓글·좋아요·신고·차단 관계 및 알림 구독 정보를 처리합니다.</p>
+          <p>사용자 식별 키, 닉네임, 묶음 운동 시작 중량 설정을 위한 성별, 계정 이메일과 비밀번호 해시, 운동 날짜·종목·세트·무게·횟수·휴식시간, SOS 사유, 주간 운동 목표, 레벨·경험치 이력과 통계, 게시글·댓글·좋아요·신고·차단 관계, 운영 조치 내역 및 알림 구독 정보를 처리합니다.</p>
           <h3>이용 목적</h3>
-          <p>운동 기록 저장과 조회, 레벨 계산, 게시판 운영, 운동 알림 제공, 부정 이용 방지 및 사용자 문의 처리를 위해 사용합니다.</p>
+          <p>운동 기록 저장과 조회, 휴식 설정 복원, 주간 목표 확인, 레벨·경험치 계산, 게시판 운영, 신고 처리와 이용 제한, 운동 알림 제공, 부정 이용 방지 및 사용자 문의 처리를 위해 사용합니다.</p>
+          <h3>동의 거부</h3>
+          <p>계정 연결을 위한 개인정보 수집·이용 동의를 거부할 수 있습니다. 동의하지 않으면 이메일 계정 생성과 다른 기기에서의 계정 기록 불러오기는 이용할 수 없지만, 게스트로 운동 기록 기능을 이용할 수 있습니다.</p>
           <h3>보관 및 보호</h3>
-          <p>계정 데이터는 계정 삭제 시까지 보관하며, 삭제 요청이 완료되면 연계 데이터를 함께 삭제합니다. 사용자 식별 키는 브라우저에 저장되므로 브라우저 데이터를 지우면 기존 익명 기록 연결이 어려울 수 있습니다.</p>
+          <p>계정 데이터는 계정 삭제 시까지 보관하며, 삭제 요청이 완료되면 연계 데이터를 함께 삭제합니다. 사용자 식별 키는 브라우저에 저장되므로 브라우저 데이터를 지우면 기존 익명 기록 연결이 어려울 수 있습니다. 익명 기록 삭제는 피드백 보내기로 요청할 수 있습니다.</p>
           <h3>외부 전송</h3>
-          <p>피드백이나 이의제기를 보내면 닉네임, 레벨, 사용자 ID와 작성 내용이 운영자 Discord 채널로 전송됩니다.</p>
+          <p>피드백이나 게시판 신고를 보내면 닉네임, 레벨, 사용자 ID, 신고 대상 정보와 작성 내용이 운영자 Discord 채널로 전송됩니다. 알림을 켜면 Web Push 서비스가 구독 정보를 처리하며, 서버와 데이터베이스 제공자가 암호화된 통신으로 서비스 데이터를 처리할 수 있습니다.</p>
+          <h3>쿠키와 기기 저장소</h3>
+          <p>로그인 상태 유지를 위해 HttpOnly 세션 쿠키를 사용합니다. 기기에는 익명 사용자 식별 키, 화면 설정, 작성 중인 기록과 묶음 운동 진행 상태가 저장될 수 있으며 비밀번호는 저장하지 않습니다.</p>
           <h3>문의</h3>
           <p>개인정보 관련 문의는 메뉴의 ‘피드백 보내기’를 이용해 주세요. 전체 내용과 계정 삭제 방법은 <a href="/privacy" target="_blank" rel="noopener">공개 개인정보 처리방침</a>에서 확인할 수 있습니다.</p>
         </div>
@@ -762,7 +796,6 @@
         </header>
         <div class="exercise-step-scroll">
           <img class="exercise-step-image" id="planExerciseDetailImage" src="" alt="">
-          <div class="exercise-step-tabs" aria-hidden="true"><span class="is-active">동작</span><span>튜토리얼</span></div>
           <div class="exercise-step-meta"><span id="planExerciseDetailMetaLabel">지속시간</span><strong id="planExerciseDetailMeta">00:30</strong></div>
           <section>
             <h3>설명</h3>
@@ -772,7 +805,13 @@
             <h3>집중 영역</h3>
             <div class="exercise-focus-chips" id="planExerciseDetailMuscles"></div>
           </section>
-          <div class="exercise-focus-visual" aria-hidden="true"><span></span><span></span></div>
+          <section class="exercise-muscle-map-section">
+            <div class="exercise-muscle-map-head">
+              <h3>근육 자극</h3>
+              <div class="muscle-map-legend" aria-label="근육 강조 범례"><span class="is-primary">주요</span><span class="is-secondary">보조</span></div>
+            </div>
+            <div class="exercise-muscle-map" id="planExerciseMuscleMap" aria-live="polite"></div>
+          </section>
         </div>
         <footer class="exercise-step-footer">
           <button id="previousPlanExerciseButton" type="button" aria-label="이전 운동"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
@@ -816,7 +855,8 @@
       </section>
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
-    <script src="{{ url_for('static', filename='js/motion.js') }}?v=5"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=120"></script>
+    <script src="{{ url_for('static', filename='js/motion.js') }}?v=6"></script>
+    <script src="{{ url_for('static', filename='js/body-highlighter.js') }}?v=2"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=134"></script>
   </body>
 </html>

@@ -18,6 +18,7 @@ class HealthUser(db.Model):
     user_key = db.Column(db.String(128), nullable=False, unique=True, index=True)
     nickname = db.Column(db.String(24))
     nickname_updated_at = db.Column(db.DateTime(timezone=True))
+    gender = db.Column(db.String(16))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
     legacy_claimable = db.Column(db.Boolean, nullable=False, default=False)
     account_id = db.Column(
@@ -95,6 +96,10 @@ class AuthAccount(db.Model):
     status = db.Column(db.String(32), nullable=False, default="active")
     provider = db.Column(db.String(32), nullable=False, default="local")
     provider_user_id = db.Column(db.String(255), nullable=True)
+    terms_version = db.Column(db.String(32))
+    terms_accepted_at = db.Column(db.DateTime(timezone=True))
+    privacy_version = db.Column(db.String(32))
+    privacy_accepted_at = db.Column(db.DateTime(timezone=True))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at = db.Column(
         db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now

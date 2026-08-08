@@ -37,6 +37,7 @@
 - 세션 쿠키는 HttpOnly, SameSite=Lax이며 운영 HTTPS에서는 Secure를 사용한다.
 - 계정 및 데이터 삭제 URL: `https://setcounter.onrender.com/account-deletion`
 - 개인정보 처리방침 URL: `https://setcounter.onrender.com/privacy`
+- 공개 고객지원 이메일: `northstarlabshelp@gmail.com`
 - 위 URL은 Render 연결과 공개 경로 확인 후 제출한다.
 
 ## 권한
@@ -56,7 +57,7 @@
 
 ## 제출자가 직접 채울 값
 
-- 실제 공개 고객지원 이메일
+- 공개 고객지원 이메일 `northstarlabshelp@gmail.com` 입력
 - 개발자 이름, 주소, 전화번호와 이메일 인증
 - 개인정보 처리방침 및 계정 삭제 URL의 공개 응답 확인
 - 앱 서명 인증서가 반영된 Digital Asset Links 확인

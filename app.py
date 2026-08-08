@@ -6,6 +6,7 @@ import hashlib
 import json
 import hmac
 import secrets
+import unicodedata
 from urllib import request as urlrequest
 from urllib.error import URLError
 from datetime import date, datetime, timedelta, timezone
@@ -44,30 +45,176 @@ USER_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{16,128}$")
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 NICKNAME_PATTERN = re.compile(r"^[0-9A-Za-z가-힣_]{2,12}$")
 NICKNAME_CHANGE_INTERVAL = timedelta(days=7)
-FORBIDDEN_NICKNAME_WORDS = {
+RESERVED_NICKNAME_WORDS = {
     "admin",
     "administrator",
+    "manager",
+    "moderator",
+    "official",
+    "support",
     "setcounter",
     "운영자",
     "관리자",
+    "공식",
+    "대통령",
+    "청와대",
+}
+PRESIDENT_NICKNAME_WORDS = {
+    "이승만", "윤보선", "박정희", "최규하", "전두환", "노태우", "김영삼",
+    "김대중", "노무현", "이명박", "박근혜", "문재인", "윤석열", "이재명",
+    "syngmanrhee", "yunbosun", "parkchunghee", "choikyuha", "chundoohwan",
+    "rohtaewoo", "kimyoungsam", "kimdaejung", "rohmoohyun", "leemyungbak",
+    "parkgeunhye", "moonjaein", "yoonseokyeol", "leejaemyung",
+}
+PROFANE_NICKNAME_WORDS = {
     "씨발",
     "시발",
+    "씨빨",
+    "시빨",
+    "씨벌",
+    "시벌",
+    "씨팔",
+    "시팔",
+    "씹알",
     "ㅅㅂ",
     "병신",
     "븅신",
+    "빙신",
+    "등신",
+    "미친놈",
+    "미친년",
+    "또라이",
     "개새",
+    "개색기",
+    "개세끼",
+    "개쉐끼",
+    "개자식",
     "새끼",
     "좆",
+    "좃",
+    "조까",
+    "좆까",
     "존나",
+    "졸라",
     "꺼져",
     "죽어",
     "자살",
+    "씹년",
+    "창녀",
+    "걸레년",
+    "fuck",
+    "fucker",
+    "motherfucker",
+    "bitch",
+    "biatch",
+    "bastard",
+    "asshole",
+    "cunt",
+    "dickhead",
+    "pussy",
+    "whore",
+    "slut",
+    "ssibal",
+    "shibal",
+    "sibal",
+    "cibal",
+    "sibbal",
+    "gaesaekki",
+    "gaesekki",
+    "byeongsin",
+    "byungsin",
+    "jonna",
+    "jot",
+}
+FAMILY_ABUSE_NICKNAME_WORDS = {
     "느금",
+    "느금마",
+    "느개비",
+    "느그엄마",
+    "느그아빠",
+    "니엄마",
+    "니아빠",
+    "니애미",
+    "니애비",
     "애미",
     "애비",
+    "negeumi",
+    "negeummi",
+    "niemi",
+    "niaebi",
+}
+EXTREMIST_SLANG_NICKNAME_WORDS = {
+    "일베",
+    "일간베스트",
+    "이기야",
+    "노알라",
+    "운지",
+    "노무노무",
+    "통구이",
+    "전라디언",
+    "좌좀",
+    "우좀",
+    "수꼴",
+    "대깨문",
+    "대깨윤",
+    "워마드",
+    "메갈",
+    "메갈리아",
+    "한남충",
+    "한녀",
+    "김치녀",
+    "된장녀",
+    "맘충",
+    "재기해",
+    "보슬아치",
+    "보빨러",
+    "페미년",
+}
+DISCRIMINATORY_NICKNAME_WORDS = {
+    "짱깨",
+    "짱꼴라",
+    "쪽바리",
+    "쪽발이",
+    "조센징",
+    "왜놈",
+    "깜둥이",
+    "똥남아",
+    "외노자",
+    "애자",
+    "정박아",
+    "벙어리",
+    "귀머거리",
+    "절름발이",
+    "틀딱",
+    "급식충",
+    "똥꼬충",
+    "호모새끼",
+    "게이새끼",
+    "레즈년",
+    "nigger",
+    "nigga",
+    "chink",
+    "gook",
+    "retard",
+    "faggot",
+}
+SEXUAL_NICKNAME_WORDS = {
     "보지",
     "자지",
 }
+FORBIDDEN_NICKNAME_WORDS = (
+    RESERVED_NICKNAME_WORDS
+    | PRESIDENT_NICKNAME_WORDS
+    | PROFANE_NICKNAME_WORDS
+    | FAMILY_ABUSE_NICKNAME_WORDS
+    | EXTREMIST_SLANG_NICKNAME_WORDS
+    | DISCRIMINATORY_NICKNAME_WORDS
+    | SEXUAL_NICKNAME_WORDS
+)
+NICKNAME_LEET_TRANSLATION = str.maketrans({
+    "0": "o", "1": "i", "2": "z", "3": "e", "4": "a",
+    "5": "s", "6": "g", "7": "t", "8": "b", "9": "g",
+})
 MAX_EXERCISE_NAME_LENGTH = 120
 MAX_MEMO_LENGTH = 500
 MAX_SETS_PER_WORKOUT = 30
@@ -84,6 +231,8 @@ AUTH_REGISTER_RATE_LIMIT = 5
 CHEAT_WARNING_LIMIT = 2
 CHEAT_PENALTY_THRESHOLD = 3
 DEFAULT_WEEKLY_WORKOUT_TARGET = 3
+TERMS_VERSION = "2026-08-08"
+PRIVACY_VERSION = "2026-08-08"
 COMPLAINT_EMAIL = ""
 REQUIRED_SCHEMA = {
     "auth_rate_limits": {
@@ -103,6 +252,10 @@ REQUIRED_SCHEMA = {
         "status",
         "provider",
         "provider_user_id",
+        "terms_version",
+        "terms_accepted_at",
+        "privacy_version",
+        "privacy_accepted_at",
         "created_at",
         "updated_at",
         "last_login_at",
@@ -123,6 +276,7 @@ REQUIRED_SCHEMA = {
         "user_key",
         "nickname",
         "nickname_updated_at",
+        "gender",
         "created_at",
         "legacy_claimable",
         "account_id",
@@ -238,6 +392,8 @@ def upgrade_schema():
             connection.execute(text("ALTER TABLE health_users ADD COLUMN nickname VARCHAR(24)"))
         if "nickname_updated_at" not in user_columns:
             connection.execute(text("ALTER TABLE health_users ADD COLUMN nickname_updated_at TIMESTAMPTZ"))
+        if "gender" not in user_columns:
+            connection.execute(text("ALTER TABLE health_users ADD COLUMN gender VARCHAR(16)"))
         if "suspicion_score" not in workout_columns:
             connection.execute(
                 text("ALTER TABLE health_workouts ADD COLUMN suspicion_score INTEGER NOT NULL DEFAULT 0")
@@ -657,8 +813,39 @@ def get_user_data_summary(user):
     like_count = db.session.scalar(
         select(func.count()).select_from(HealthBoardLike).where(HealthBoardLike.user_id == user.id)
     ) or 0
+    level_event_count = db.session.scalar(
+        select(func.count()).select_from(HealthLevelEvent).where(HealthLevelEvent.user_id == user.id)
+    ) or 0
+    report_count = db.session.scalar(
+        select(func.count())
+        .select_from(HealthBoardReport)
+        .where(HealthBoardReport.reporter_user_id == user.id)
+    ) or 0
+    block_count = db.session.scalar(
+        select(func.count())
+        .select_from(HealthBoardBlock)
+        .where(HealthBoardBlock.blocker_user_id == user.id)
+    ) or 0
+    push_subscription_count = db.session.scalar(
+        select(func.count())
+        .select_from(HealthPushSubscription)
+        .where(HealthPushSubscription.user_id == user.id)
+    ) or 0
     has_profile_activity = bool(user.nickname and user.nickname_updated_at)
-    has_data = any((workout_count, set_count, excuse_count, post_count, comment_count, like_count, has_profile_activity))
+    has_data = any(
+        (
+            workout_count,
+            set_count,
+            excuse_count,
+            post_count,
+            comment_count,
+            like_count,
+            level_event_count,
+            report_count,
+            block_count,
+            push_subscription_count,
+        )
+    )
     return {
         "workoutCount": workout_count,
         "setCount": set_count,
@@ -666,6 +853,10 @@ def get_user_data_summary(user):
         "postCount": post_count,
         "commentCount": comment_count,
         "likeCount": like_count,
+        "levelEventCount": level_event_count,
+        "reportCount": report_count,
+        "blockCount": block_count,
+        "pushSubscriptionCount": push_subscription_count,
         "hasProfileActivity": has_profile_activity,
         "hasData": has_data,
     }
@@ -687,10 +878,23 @@ def validate_nickname(value):
         raise ValueError("닉네임에는 공백을 넣을 수 없습니다")
     if not NICKNAME_PATTERN.fullmatch(nickname):
         raise ValueError("닉네임은 한글, 영문, 숫자, _ 조합 2~12자로 입력하세요")
-    lowered = nickname.lower()
+    moderation_text = unicodedata.normalize("NFKC", nickname).casefold()
+    compact_moderation_text = re.sub(r"[^0-9a-z가-힣]", "", moderation_text)
+    leet_moderation_text = compact_moderation_text.translate(NICKNAME_LEET_TRANSLATION)
+    collapsed_moderation_text = re.sub(r"(.)\1+", r"\1", leet_moderation_text)
+    moderation_forms = {
+        compact_moderation_text,
+        leet_moderation_text,
+        collapsed_moderation_text,
+    }
     for word in FORBIDDEN_NICKNAME_WORDS:
-        if word in lowered:
-            raise ValueError("사용할 수 없는 단어가 포함되어 있습니다")
+        normalized_word = re.sub(
+            r"[^0-9a-z가-힣]",
+            "",
+            unicodedata.normalize("NFKC", word).casefold(),
+        ).translate(NICKNAME_LEET_TRANSLATION)
+        if normalized_word and any(normalized_word in form for form in moderation_forms):
+            raise ValueError("비속어, 차별 표현 또는 사용할 수 없는 이름이 포함되어 있습니다")
     return nickname
 
 
@@ -726,6 +930,8 @@ def profile_to_dict(user, stats=None):
         "id": user.id,
         "nickname": user.nickname,
         "nicknameRequired": not bool(user.nickname),
+        "gender": user.gender,
+        "genderRequired": user.gender not in {"male", "female"},
         "canChangeNickname": can_change,
         "nextNicknameChangeAt": (
             available_at.isoformat().replace("+00:00", "Z")
@@ -1225,7 +1431,7 @@ def weekly_challenge_penalty(logs, excuse_dates, target, started_on, as_of=None)
         "currentWeekEnd": current_week_end.isoformat(),
         "currentWorkouts": len(current_workouts),
         "currentRecoveryDays": len(current_recovery),
-        "currentRemaining": max(target - len(current_workouts), 0),
+        "currentRemaining": max(target - len(current_workouts | current_recovery), 0),
         "evaluatesFrom": first_eligible_week.isoformat(),
     }
 
@@ -1294,6 +1500,7 @@ def level_for_experience(experience):
 def stats_from_logs(
     logs,
     excuse_dates,
+    excuse_notes=None,
     weekly_target=None,
     weekly_target_started_on=None,
     attendance_penalty_carryover=0,
@@ -1361,6 +1568,15 @@ def stats_from_logs(
         if weekly_goal_active
         else daily_challenge_penalty(logs, excuse_dates)
     )
+    weekly_recovery_notes = []
+    if weekly_goal_active and excuse_notes:
+        week_start = challenge.get("currentWeekStart")
+        week_end = challenge.get("currentWeekEnd")
+        weekly_recovery_notes = [
+            {"date": day_key, "reason": str(reason).strip()}
+            for day_key, reason in sorted(excuse_notes.items())
+            if week_start <= day_key <= week_end and str(reason).strip()
+        ]
     suspicious_count = sum(1 for log in logs if log.get("suspicionScore", 0) > 0)
     cheat_penalty = cheat_penalty_from_logs(logs)
     carryover_penalty = max(int(attendance_penalty_carryover or 0), 0)
@@ -1416,6 +1632,7 @@ def stats_from_logs(
         "weeklyWorkoutCompleted": challenge.get("currentWorkouts", 0),
         "weeklyWorkoutRemaining": challenge.get("currentRemaining", 0),
         "weeklyRecoveryDays": challenge.get("currentRecoveryDays", 0),
+        "weeklyRecoveryNotes": weekly_recovery_notes,
         "weeklyGoalWeekStart": challenge.get("currentWeekStart"),
         "weeklyGoalWeekEnd": challenge.get("currentWeekEnd"),
         "weeklyGoalEvaluatesFrom": challenge.get("evaluatesFrom"),
@@ -1463,6 +1680,7 @@ def volume_stats(user_id):
     stats = stats_from_logs(
         logs,
         {item.excuse_date.isoformat() for item in excuses},
+        {item.excuse_date.isoformat(): item.excuse_text for item in excuses},
         weekly_target_for_user(user),
         weekly_target_start_date(user),
         weekly_penalty_carryover_for_user(user),
@@ -1740,23 +1958,37 @@ def get_profile():
 def update_profile():
     user = request_user()
     payload = request.get_json(silent=True) or {}
-    try:
-        nickname = validate_nickname(payload.get("nickname"))
-    except ValueError as error:
-        return jsonify({"error": str(error)}), 400
-    if nickname == user.nickname:
+    submitted_nickname = str(payload.get("nickname") or "").strip()
+    if submitted_nickname == (user.nickname or ""):
+        nickname = submitted_nickname
+    else:
+        try:
+            nickname = validate_nickname(submitted_nickname)
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+    gender = payload.get("gender")
+    if gender is not None:
+        gender = str(gender).strip().lower()
+        if gender not in {"male", "female"}:
+            return jsonify({"error": "성별을 선택해 주세요"}), 400
+    nickname_changed = nickname != user.nickname
+    gender_changed = gender is not None and gender != user.gender
+    if not nickname_changed and not gender_changed:
         return jsonify(profile_to_dict(user, volume_stats(user.id)))
     available_at = nickname_available_at(user)
     now = utc_now()
-    if user.nickname and available_at is not None and now < available_at:
+    if nickname_changed and user.nickname and available_at is not None and now < available_at:
         return jsonify(
             {
                 "error": "닉네임은 7일에 한 번만 변경할 수 있습니다",
                 "nextNicknameChangeAt": available_at.isoformat().replace("+00:00", "Z"),
             }
         ), 429
-    user.nickname = nickname
-    user.nickname_updated_at = now
+    if nickname_changed:
+        user.nickname = nickname
+        user.nickname_updated_at = now
+    if gender_changed:
+        user.gender = gender
     db.session.commit()
     return jsonify(profile_to_dict(user, volume_stats(user.id)))
 
@@ -1838,11 +2070,21 @@ def auth_register():
         return jsonify({"error": "password_confirmation_mismatch"}), 400
     if payload.get("termsAccepted") is not True:
         return jsonify({"error": "terms_required"}), 400
+    if payload.get("privacyAccepted") is not True:
+        return jsonify({"error": "privacy_consent_required"}), 400
     if db.session.scalar(select(AuthAccount.id).where(AuthAccount.email == email)) is not None:
         return jsonify({"error": "email_already_registered"}), 409
 
     penalty_carryover = attendance_penalty_snapshot(anonymous_user)
-    account = AuthAccount(email=email, password_hash=generate_password_hash(password))
+    consented_at = utc_now()
+    account = AuthAccount(
+        email=email,
+        password_hash=generate_password_hash(password),
+        terms_version=TERMS_VERSION,
+        terms_accepted_at=consented_at,
+        privacy_version=PRIVACY_VERSION,
+        privacy_accepted_at=consented_at,
+    )
     local_identity = AuthIdentity(
         account=account,
         provider="local",
@@ -1901,6 +2143,7 @@ def auth_login():
         if limited:
             return limited
     password = str(payload.get("password") or "")
+    prefer_account_records = payload.get("preferAccountRecords") is True
     account = db.session.scalar(select(AuthAccount).where(AuthAccount.email == email))
     if account is None or account.status != "active" or not check_password_hash(account.password_hash, password):
         record_auth_attempt("login_ip", ip_address)
@@ -1912,7 +2155,13 @@ def auth_login():
     anonymous_user = request_anonymous_user()
     anonymous_summary = get_user_data_summary(anonymous_user) if anonymous_user is not None else {"hasData": False}
     account_summary = get_user_data_summary(account_user)
-    if anonymous_user is not None and anonymous_user.id != account_user.id and anonymous_summary["hasData"] and account_summary["hasData"]:
+    if (
+        not prefer_account_records
+        and anonymous_user is not None
+        and anonymous_user.id != account_user.id
+        and anonymous_summary["hasData"]
+        and account_summary["hasData"]
+    ):
         return jsonify(
             {
                 "error": "anonymous_data_conflict",
@@ -2019,6 +2268,7 @@ def bootstrap():
     stats_data = stats_from_logs(
         logs,
         {item["date"] for item in excuse_rows},
+        {item["date"]: item["reason"] for item in excuse_rows},
         weekly_target_for_user(user),
         weekly_target_start_date(user),
         weekly_penalty_carryover_for_user(user),
