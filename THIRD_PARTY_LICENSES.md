@@ -1,5 +1,15 @@
 # Third Party Licenses
 
+## GSAP 3.15.0
+
+- Project: GreenSock Animation Platform (GSAP)
+- Source: https://www.npmjs.com/package/gsap/v/3.15.0
+- License: GSAP Standard "no charge" license
+- License terms: https://gsap.com/standard-license/
+- Local file: `static/vendor/gsap.min.js`
+
+SetCounter bundles GSAP locally for interface motion. It is not loaded from a CDN at runtime. The app does not use Club GSAP plugins or redistribute GSAP as a standalone product.
+
 ## Free Exercise DB
 
 - Project: `yuhonas/free-exercise-db`

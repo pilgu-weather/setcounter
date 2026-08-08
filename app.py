@@ -489,9 +489,16 @@ def add_release_headers(response):
         "connect-src 'self'; "
         "manifest-src 'self'; "
         "worker-src 'self'; "
+        "object-src 'none'; "
+        "form-action 'self'; "
         "base-uri 'self'; "
         "frame-ancestors 'none'",
     )
+    if app.config.get("SESSION_COOKIE_SECURE"):
+        response.headers.setdefault(
+            "Strict-Transport-Security",
+            "max-age=31536000; includeSubDomains",
+        )
     if request.path == "/main" or request.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
@@ -543,7 +550,7 @@ def get_current_health_user():
             session.clear()
             return None
         user = db.session.scalar(select(HealthUser).where(HealthUser.account_id == account_id))
-        if user is None:
+        if user is None or user.account is None or user.account.status != "active":
             session.clear()
             return None
         g.current_health_user = user
@@ -1764,7 +1771,10 @@ def privacy_policy():
     return render_template(
         "legal.html",
         page="privacy",
-        support_email=os.environ.get("PUBLIC_SUPPORT_EMAIL", "").strip(),
+        support_email=(
+            os.environ.get("PUBLIC_SUPPORT_EMAIL", "").strip()
+            or "northstarlabshelp@gmail.com"
+        ),
     )
 
 

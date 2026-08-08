@@ -705,6 +705,25 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(self.client.get("/api/logs", headers=self.headers(key)).status_code, 200)
 
+    def test_suspended_account_invalidates_existing_session_and_hides_data(self):
+        user_key = "suspended-account-key-0001"
+        email = self.email("suspended")
+        self.create_workout(user_key)
+        self.assertEqual(self.register(user_key, email).status_code, 201)
+
+        with app.app_context():
+            account = db.session.scalar(select(AuthAccount).where(AuthAccount.email == email))
+            account.status = "suspended"
+            db.session.commit()
+
+        status = self.client.get("/api/auth/status")
+        self.assertEqual(status.status_code, 200)
+        self.assertFalse(status.get_json()["authenticated"])
+
+        bootstrap = self.client.get("/api/bootstrap", headers=self.headers(user_key))
+        self.assertEqual(bootstrap.status_code, 401)
+        self.assertNotIn("workouts", bootstrap.get_json())
+
     def test_login_from_other_browser_reads_same_account_data(self):
         key = "anonymous-login-key-0001"
         email = self.email("login")
@@ -1143,8 +1162,36 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertIn(heading, response.get_data(as_text=True))
 
         privacy_html = app.test_client().get("/privacy").get_data(as_text=True)
-        for disclosure in ("주간 운동 목표", "세트 간 휴식시간", "익명 기록 삭제", "쿠키와 기기 저장소", "동의 거부 권리"):
+        for disclosure in (
+            "주간 운동 목표",
+            "세트 간 휴식시간",
+            "익명 기록 삭제",
+            "쿠키와 기기 저장소",
+            "동의 거부 권리",
+            "North Star Labs",
+            "싱가포르 리전",
+            "최대 7일",
+        ):
             self.assertIn(disclosure, privacy_html)
+
+    def test_release_security_headers_cover_https_and_form_boundaries(self):
+        with app.test_client() as client:
+            response = client.get("/privacy")
+            csp = response.headers["Content-Security-Policy"]
+            self.assertIn("object-src 'none'", csp)
+            self.assertIn("form-action 'self'", csp)
+            self.assertNotIn("Strict-Transport-Security", response.headers)
+
+            original = app.config["SESSION_COOKIE_SECURE"]
+            app.config["SESSION_COOKIE_SECURE"] = True
+            try:
+                secure_response = client.get("/privacy")
+            finally:
+                app.config["SESSION_COOKIE_SECURE"] = original
+            self.assertEqual(
+                secure_response.headers["Strict-Transport-Security"],
+                "max-age=31536000; includeSubDomains",
+            )
 
     def test_assetlinks_uses_configured_play_signing_fingerprints(self):
         fingerprints = "AA:BB:CC:DD,11:22:33:44"
