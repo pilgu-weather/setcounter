@@ -3711,21 +3711,22 @@ body {
   position: fixed;
   inset: 0;
   z-index: 10000;
-  display: grid;
-  place-items: center;
-  min-height: 100dvh;
-  padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+  min-height: 0;
+  padding: 0 24px;
   overflow: hidden;
   background: #080a0e;
   color: #f5f7fb;
 }
 
 .app-launch-splash-inner {
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 50%;
   display: grid;
   justify-items: center;
   gap: 22px;
   width: min(340px, calc(100vw - 48px));
+  transform: translate(-50%, -50%);
 }
 
 .app-launch-splash .sr-only {
@@ -4217,9 +4218,17 @@ select:focus {
   border-radius: var(--sc-radius-control);
   background: rgba(255, 255, 255, 0.055);
   color: var(--sc-primary-strong);
+  touch-action: manipulation;
+  user-select: none;
 }
 
 .stepper-button:hover { border-color: rgba(93, 156, 255, 0.42); background: rgba(46, 124, 255, 0.12); }
+
+.stepper-button.is-holding {
+  border-color: rgba(93, 156, 255, 0.62);
+  background: rgba(46, 124, 255, 0.18);
+  transform: scale(0.97);
+}
 
 [data-screen="record"] .input-stepper input {
   border-color: transparent;
@@ -9551,7 +9560,9 @@ body.keyboard-open .auth-dialog .complaint-actions {
 .level-up-rank,
 .level-up-emblem small,
 .level-up-emblem strong {
+  top: -10px;
   z-index: 3;
+  line-height: 1;
 }
 
 .level-up-rank {

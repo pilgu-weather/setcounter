@@ -1634,6 +1634,73 @@ function stepNumberInput(input, delta) {
   syncCounter();
 }
 
+function bindAcceleratingWeightStepper(button) {
+  let holdDelayId = 0;
+  let repeatId = 0;
+  let holdStartedAt = 0;
+  let pressing = false;
+  let pointerClickBlockedUntil = 0;
+
+  const applyStep = () => {
+    const delta = Number.parseFloat(button.dataset.step) || 0;
+    stepNumberInput(els.weightInput, delta);
+  };
+
+  const repeatStep = () => {
+    if (!pressing) return;
+    applyStep();
+
+    const elapsed = performance.now() - holdStartedAt;
+    const interval = elapsed >= 3000 ? 90 : elapsed >= 1700 ? 130 : 180;
+    repeatId = window.setTimeout(repeatStep, interval);
+  };
+
+  const stopPress = () => {
+    if (!pressing) return;
+    pressing = false;
+    window.clearTimeout(holdDelayId);
+    window.clearTimeout(repeatId);
+    button.classList.remove("is-holding");
+  };
+
+  button.addEventListener("pointerdown", (event) => {
+    if (button.disabled || pressing || (event.pointerType === "mouse" && event.button !== 0)) return;
+    event.preventDefault();
+    button.focus({ preventScroll: true });
+    pressing = true;
+    pointerClickBlockedUntil = Date.now() + 1500;
+    holdStartedAt = performance.now();
+    button.classList.add("is-holding");
+    applyStep();
+
+    try {
+      button.setPointerCapture(event.pointerId);
+    } catch (_error) {
+      // Pointer capture is optional on older embedded browsers.
+    }
+    holdDelayId = window.setTimeout(repeatStep, 1000);
+  });
+
+  ["pointerup", "pointercancel", "lostpointercapture", "pointerleave"].forEach((eventName) => {
+    button.addEventListener(eventName, stopPress);
+  });
+  button.addEventListener("contextmenu", (event) => {
+    if (pressing) event.preventDefault();
+  });
+  button.addEventListener("click", (event) => {
+    if (event.detail > 0 && Date.now() < pointerClickBlockedUntil) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    applyStep();
+  });
+  window.addEventListener("blur", stopPress);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopPress();
+  });
+}
+
 function buildRecordTable(rows, options = {}) {
   const repsOnly = Boolean(options.repsOnly);
   const table = document.createElement("table");
@@ -4908,6 +4975,10 @@ function bindEvents() {
     if (!document.hidden && restTimerState.running) updateRestTimer();
   });
   document.querySelectorAll("[data-step-for]").forEach((button) => {
+    if (button.dataset.stepFor === "weightInput") {
+      bindAcceleratingWeightStepper(button);
+      return;
+    }
     button.addEventListener("click", () => {
       const input = document.querySelector(`#${button.dataset.stepFor}`);
       const delta = Number.parseFloat(button.dataset.step) || 0;
