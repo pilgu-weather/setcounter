@@ -55,7 +55,7 @@
     return bodyPromises.get(side);
   }
 
-  function makeSvg(side, parts, primary, secondary) {
+  function makeSvg(side, parts, primary, secondary, distribution) {
     const figure = document.createElement("figure");
     figure.className = "muscle-map-figure";
     const svg = document.createElementNS(SVG_NS, "svg");
@@ -68,7 +68,12 @@
       const group = document.createElementNS(SVG_NS, "g");
       const slug = part.slug || "unknown";
       group.dataset.muscle = slug;
-      group.classList.add(primary.has(slug) ? "is-primary" : secondary.has(slug) ? "is-secondary" : "is-inactive");
+      const colorIndex = distribution.get(slug);
+      if (colorIndex) {
+        group.classList.add("is-distribution", `color-${colorIndex}`);
+      } else {
+        group.classList.add(primary.has(slug) ? "is-primary" : secondary.has(slug) ? "is-secondary" : "is-inactive");
+      }
       ["common", "left", "right"].forEach((position) => {
         (part.path?.[position] || []).forEach((definition) => {
           const path = document.createElementNS(SVG_NS, "path");
@@ -97,9 +102,16 @@
       if (target.dataset.renderRequest !== requestId) return;
       const primary = slugsFor(options.primary);
       const secondary = slugsFor(options.secondary);
+      const distribution = new Map();
+      (options.distribution || []).forEach((group) => {
+        slugsFor(group.muscles).forEach((slug) => distribution.set(slug, group.colorIndex));
+      });
       primary.forEach((slug) => secondary.delete(slug));
-      target.append(makeSvg("front", front, primary, secondary), makeSvg("back", back, primary, secondary));
-      target.classList.toggle("has-highlight", primary.size + secondary.size > 0);
+      target.append(
+        makeSvg("front", front, primary, secondary, distribution),
+        makeSvg("back", back, primary, secondary, distribution),
+      );
+      target.classList.toggle("has-highlight", primary.size + secondary.size + distribution.size > 0);
     } catch (error) {
       target.innerHTML = '<p class="muscle-map-unavailable">\uadfc\uc721 \uac15\uc870 \uc774\ubbf8\uc9c0\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.</p>';
     } finally {

@@ -412,9 +412,9 @@ function translateMuscleList(values, fallback = "-") {
   return list.length ? list.join(", ") : fallback;
 }
 
-function renderMuscleMap(target, primary = [], secondary = []) {
-  if (!target || !window.SetCounterBodyHighlighter) return;
-  window.SetCounterBodyHighlighter.render(target, { primary, secondary });
+function renderMuscleMap(target, primary = [], secondary = [], distribution = []) {
+  if (!target || !window.SetCounterBodyHighlighter) return Promise.resolve();
+  return window.SetCounterBodyHighlighter.render(target, { primary, secondary, distribution });
 }
 
 const koreanExerciseInstructions = {
@@ -3857,6 +3857,7 @@ function muscleSummaryForLogs(logs) {
   const sortedRows = [...scores.entries()]
     .map(([muscle, score]) => ({
       muscle,
+      muscles: [muscle],
       label: translateMuscle(muscle),
       score,
       exactPercent: total ? (score / total) * 100 : 0,
@@ -3868,11 +3869,12 @@ function muscleSummaryForLogs(logs) {
       ...sortedRows.slice(0, 4),
       sortedRows.slice(4).reduce((other, row) => ({
         muscle: "other",
+        muscles: [...other.muscles, ...row.muscles],
         label: "기타",
         score: other.score + row.score,
         exactPercent: other.exactPercent + row.exactPercent,
         percent: Math.round(other.exactPercent + row.exactPercent),
-      }), { muscle: "other", label: "기타", score: 0, exactPercent: 0, percent: 0 }),
+      }), { muscle: "other", muscles: [], label: "기타", score: 0, exactPercent: 0, percent: 0 }),
     ]
     : sortedRows;
   return { primary: [...primary], secondary: [...secondary], rows };
@@ -3892,12 +3894,43 @@ function buildDayMuscleSummary(logs) {
     </div>
     <div class="exercise-muscle-map" data-day-muscle-map aria-live="polite"></div>
     <div class="day-muscle-chart">
-      <svg class="day-muscle-pie" viewBox="0 0 100 100" role="img" aria-label="${escapeHtml(data.rows.map((row) => `${row.label} ${row.percent}%`).join(", "))}"></svg>
+      <div class="day-muscle-pie-shell">
+        <svg class="day-muscle-pie" viewBox="0 0 100 100" role="img" aria-label="${escapeHtml(data.rows.map((row) => `${row.label} ${row.percent}%`).join(", "))}"></svg>
+      </div>
       <div class="day-muscle-list"></div>
     </div>
   `;
   const pie = section.querySelector(".day-muscle-pie");
   const svgNamespace = "http://www.w3.org/2000/svg";
+  const gradientColors = [
+    ["#8bb8ff", "#2e7cff", "#123d86"],
+    ["#9aeaf3", "#45c3d8", "#176a7a"],
+    ["#d0bdff", "#9a78ff", "#49329a"],
+    ["#ffe1a5", "#f4b75d", "#8a5618"],
+    ["#b8efc9", "#66c987", "#286b3e"],
+  ];
+  const defs = document.createElementNS(svgNamespace, "defs");
+  gradientColors.slice(0, data.rows.length).forEach((stops, index) => {
+    const gradient = document.createElementNS(svgNamespace, "radialGradient");
+    gradient.id = `day-muscle-gradient-${index + 1}`;
+    gradient.setAttribute("cx", "34%");
+    gradient.setAttribute("cy", "26%");
+    gradient.setAttribute("r", "78%");
+    [["0%", stops[0]], ["48%", stops[1]], ["100%", stops[2]]].forEach(([offset, color]) => {
+      const stop = document.createElementNS(svgNamespace, "stop");
+      stop.setAttribute("offset", offset);
+      stop.setAttribute("stop-color", color);
+      gradient.append(stop);
+    });
+    defs.append(gradient);
+  });
+  pie.append(defs);
+  const depth = document.createElementNS(svgNamespace, "circle");
+  depth.classList.add("day-muscle-pie-depth");
+  depth.setAttribute("cx", "50");
+  depth.setAttribute("cy", "53");
+  depth.setAttribute("r", "47");
+  pie.append(depth);
   const pointOnPie = (percent, radius) => {
     const angle = ((percent * 3.6) - 90) * (Math.PI / 180);
     return { x: 50 + (Math.cos(angle) * radius), y: 50 + (Math.sin(angle) * radius) };
@@ -3920,7 +3953,8 @@ function buildDayMuscleSummary(logs) {
       sector = document.createElementNS(svgNamespace, "path");
       sector.setAttribute("d", `M 50 50 L ${startPoint.x} ${startPoint.y} A 48 48 0 ${end - start > 50 ? 1 : 0} 1 ${endPoint.x} ${endPoint.y} Z`);
     }
-    sector.setAttribute("fill", colors[index]);
+    sector.classList.add("day-muscle-sector", `color-${index + 1}`);
+    sector.setAttribute("fill", `url(#day-muscle-gradient-${index + 1})`);
     sector.setAttribute("stroke", "#151a22");
     sector.setAttribute("stroke-width", "1.5");
     pie.append(sector);
@@ -3933,14 +3967,50 @@ function buildDayMuscleSummary(logs) {
     label.textContent = `${row.percent}%`;
     pie.append(label);
   });
+  const rim = document.createElementNS(svgNamespace, "circle");
+  rim.classList.add("day-muscle-pie-rim");
+  rim.setAttribute("cx", "50");
+  rim.setAttribute("cy", "50");
+  rim.setAttribute("r", "48");
+  pie.append(rim);
   const list = section.querySelector(".day-muscle-list");
   data.rows.forEach((row, index) => {
     const item = document.createElement("div");
     item.innerHTML = `<i class="day-muscle-key color-${index + 1}"></i><strong>${escapeHtml(row.label)}</strong><span>${row.score % 1 ? row.score.toFixed(1) : row.score}세트</span>`;
     list.append(item);
   });
-  renderMuscleMap(section.querySelector("[data-day-muscle-map]"), data.primary, data.secondary);
+  const distribution = data.rows.map((row, index) => ({ muscles: row.muscles, colorIndex: index + 1 }));
+  renderMuscleMap(
+    section.querySelector("[data-day-muscle-map]"),
+    data.primary,
+    data.secondary,
+    distribution,
+  ).then(() => animateDayMuscleSummary(section));
   return section;
+}
+
+function animateDayMuscleSummary(section) {
+  if (!section || !window.gsap || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+  const sectors = section.querySelectorAll(".day-muscle-sector");
+  const labels = section.querySelectorAll(".day-muscle-pie-label");
+  const muscleGroups = section.querySelectorAll(".muscle-map-svg .is-distribution");
+  const rows = section.querySelectorAll(".day-muscle-list > div");
+  window.gsap.timeline({ defaults: { overwrite: "auto" } })
+    .fromTo(section.querySelector(".day-muscle-pie-shell"),
+      { autoAlpha: 0, y: 10, rotationX: 12, scale: 0.92 },
+      { autoAlpha: 1, y: 0, rotationX: 0, scale: 1, duration: 0.48, ease: "back.out(1.35)", clearProps: "transform,opacity,visibility" })
+    .fromTo(sectors,
+      { autoAlpha: 0, scale: 0.72, rotation: -9, transformOrigin: "50% 50%" },
+      { autoAlpha: 1, scale: 1, rotation: 0, duration: 0.42, stagger: 0.055, ease: "power3.out", clearProps: "transform,opacity,visibility" }, "<0.03")
+    .fromTo(labels,
+      { autoAlpha: 0, scale: 0.68, transformOrigin: "50% 50%" },
+      { autoAlpha: 1, scale: 1, duration: 0.24, stagger: 0.045, ease: "back.out(1.7)", clearProps: "transform,opacity,visibility" }, "-=0.2")
+    .fromTo(muscleGroups,
+      { autoAlpha: 0.2 },
+      { autoAlpha: 1, duration: 0.32, stagger: 0.025, ease: "power2.out", clearProps: "opacity,visibility" }, "<")
+    .fromTo(rows,
+      { autoAlpha: 0, x: 8 },
+      { autoAlpha: 1, x: 0, duration: 0.26, stagger: 0.045, ease: "power2.out", clearProps: "transform,opacity,visibility" }, "-=0.22");
 }
 
 function renderDayDetail() {

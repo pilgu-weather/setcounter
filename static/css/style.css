@@ -1119,6 +1119,11 @@ strong {
 
 .muscle-map-svg .is-secondary path { fill: #45c3d8; }
 .muscle-map-svg .is-inactive path { opacity: 0.68; }
+.muscle-map-svg .is-distribution.color-1 path { fill: #2e7cff; filter: drop-shadow(0 0 5px rgba(46, 124, 255, 0.58)); }
+.muscle-map-svg .is-distribution.color-2 path { fill: #45c3d8; filter: drop-shadow(0 0 5px rgba(69, 195, 216, 0.52)); }
+.muscle-map-svg .is-distribution.color-3 path { fill: #9a78ff; filter: drop-shadow(0 0 5px rgba(154, 120, 255, 0.52)); }
+.muscle-map-svg .is-distribution.color-4 path { fill: #f4b75d; filter: drop-shadow(0 0 5px rgba(244, 183, 93, 0.5)); }
+.muscle-map-svg .is-distribution.color-5 path { fill: #66c987; filter: drop-shadow(0 0 5px rgba(102, 201, 135, 0.5)); }
 
 .muscle-map-figure figcaption {
   color: var(--sc-text-tertiary);
@@ -6045,10 +6050,49 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
 }
 
 [data-screen="calendar"] .day-muscle-pie {
+  position: relative;
+  z-index: 1;
   width: 92px;
   overflow: hidden;
   border-radius: 50%;
-  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.28));
+  filter: drop-shadow(0 11px 12px rgba(0, 0, 0, 0.38));
+}
+
+[data-screen="calendar"] .day-muscle-pie-shell {
+  position: relative;
+  width: 92px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  perspective: 420px;
+}
+
+[data-screen="calendar"] .day-muscle-pie-shell::before {
+  content: "";
+  position: absolute;
+  inset: 8px 4px -8px;
+  border-radius: 50%;
+  background: rgba(14, 35, 70, 0.72);
+  filter: blur(8px);
+  transform: scaleY(0.72);
+}
+
+[data-screen="calendar"] .day-muscle-pie-depth {
+  fill: #080c14;
+  stroke: rgba(122, 170, 255, 0.22);
+  stroke-width: 2px;
+}
+
+[data-screen="calendar"] .day-muscle-sector {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+[data-screen="calendar"] .day-muscle-pie-rim {
+  fill: none;
+  stroke: rgba(221, 234, 255, 0.5);
+  stroke-width: 1.2px;
+  pointer-events: none;
 }
 
 [data-screen="calendar"] .day-muscle-pie-label {
@@ -6121,6 +6165,10 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
   }
 
   [data-screen="calendar"] .day-muscle-pie {
+    width: 82px;
+  }
+
+  [data-screen="calendar"] .day-muscle-pie-shell {
     width: 82px;
   }
 }
