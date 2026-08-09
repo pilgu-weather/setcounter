@@ -10231,3 +10231,140 @@ body.keyboard-open .auth-dialog .complaint-actions {
 body:has([data-screen="board"].is-active) .bottom-nav button {
   min-height: 48px;
 }
+
+/* 2026-08 control pass: tactile navigation and workout actions */
+[data-screen="home"] .menu-button {
+  border-color: rgba(117, 166, 255, 0.38);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 48%),
+    linear-gradient(145deg, #202938, #111720 72%);
+  color: #dce9ff;
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.34),
+    0 0 18px rgba(46, 124, 255, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.13),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.32);
+}
+
+[data-screen="home"] .menu-button:hover {
+  border-color: rgba(117, 166, 255, 0.62);
+  color: #ffffff;
+}
+
+.calendar-sos-button {
+  min-width: 52px;
+  min-height: 46px;
+  border: 1px solid rgba(240, 91, 100, 0.46);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 48%),
+    linear-gradient(145deg, rgba(91, 30, 40, 0.72), rgba(28, 13, 18, 0.95));
+  color: #ff9fa7;
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.28);
+  font-size: 14px;
+  font-weight: 900;
+  transition: transform 160ms var(--sc-ease), border-color 160ms ease, color 160ms ease;
+}
+
+.calendar-sos-button:active {
+  transform: translateY(1px) scale(0.97);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.38);
+}
+
+#menuSosSection {
+  scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 72px);
+  transition: border-color 220ms ease, box-shadow 220ms ease;
+}
+
+#menuSosSection.is-arrival-highlighted {
+  border-color: rgba(244, 183, 93, 0.62);
+  box-shadow: 0 0 0 1px rgba(244, 183, 93, 0.15), 0 12px 34px rgba(0, 0, 0, 0.34);
+}
+
+.record-actions .action-row {
+  gap: 10px;
+}
+
+.record-actions .secondary-button,
+.record-actions .count-button,
+.record-actions .confirm-button {
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 850;
+  box-shadow:
+    0 9px 20px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+  transition: transform 150ms var(--sc-ease), border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+
+.record-actions .secondary-button {
+  border-color: rgba(156, 174, 201, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), transparent 50%),
+    linear-gradient(145deg, #1b222d, #11161e);
+  color: #d7deea;
+}
+
+.record-actions .count-button {
+  border-color: rgba(112, 167, 255, 0.62);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 48%),
+    linear-gradient(145deg, #3d88ff, #2269dc 72%);
+  box-shadow:
+    0 10px 24px rgba(26, 94, 209, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -3px 0 rgba(9, 49, 116, 0.42);
+}
+
+.record-actions .confirm-button:not(.is-target-complete):not(:disabled) {
+  border-color: rgba(156, 174, 201, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 50%),
+    linear-gradient(145deg, #1a202a, #10151c);
+  color: #bdc6d4;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -2px 0 rgba(0, 0, 0, 0.28);
+}
+
+.record-actions :is(.secondary-button, .count-button, .confirm-button):active {
+  transform: translateY(1px) scale(0.985);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.36);
+}
+
+[data-screen="board"] .board-tabs {
+  border-color: rgba(133, 156, 192, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent),
+    #0e131a;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.48), 0 8px 18px rgba(0, 0, 0, 0.2);
+}
+
+[data-screen="board"] .board-tabs button {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #8791a2;
+  box-shadow: none;
+}
+
+[data-screen="board"] .board-tabs button.is-active {
+  border-color: rgba(111, 163, 255, 0.34);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.11), transparent 52%),
+    linear-gradient(145deg, rgba(45, 103, 196, 0.56), rgba(27, 55, 101, 0.62));
+  color: #e2edff;
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -2px 0 rgba(0, 0, 0, 0.24);
+}
+
+.workout-delete-dialog {
+  width: min(100%, 360px);
+  gap: 10px;
+}
+
+.workout-delete-dialog > p:not(.eyebrow) {
+  color: var(--sc-text-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}

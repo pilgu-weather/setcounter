@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=113">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=114">
   </head>
   <body>
     <div class="app-launch-splash" id="appLaunchSplash" role="status" aria-live="polite" aria-label="Set Counter를 불러오는 중">
@@ -84,7 +84,6 @@
               <p class="eyebrow">LOG</p>
               <h2>오늘 저장한 운동</h2>
             </div>
-            <button class="mini-button" type="button" data-go-screen="record">직접 기록</button>
           </div>
           <div class="today-routine" id="homeTodayList"></div>
         </section>
@@ -141,7 +140,7 @@
         <header class="screen-header">
           <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
           <h1 id="recordTitle">운동 기록하기</h1>
-          <button class="ghost-icon record-reset-button" id="resetSessionButton" type="button">초기화</button>
+          <span></span>
         </header>
 
         <section class="exercise-section" id="record" aria-labelledby="exerciseTitle">
@@ -262,7 +261,7 @@
         <header class="screen-header">
           <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
           <h1>달력</h1>
-          <button class="ghost-icon" type="button" data-go-screen="menu">SOS</button>
+          <button class="calendar-sos-button" id="calendarSosButton" type="button">SOS</button>
         </header>
         <section class="calendar-section" id="calendar" aria-labelledby="calendarTitle">
           <div class="section-head calendar-nav">
@@ -410,7 +409,7 @@
           </div>
         </section>
 
-        <section class="sos-section" aria-labelledby="sosTitle">
+        <section class="sos-section" id="menuSosSection" aria-labelledby="sosTitle">
           <div class="sos-section-head">
             <span class="menu-row-icon is-warning"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span>
             <div><p class="menu-section-kicker is-warning">RECOVERY LOG</p><h2 id="sosTitle">쉬는 날도 계획의 일부</h2></div>
@@ -855,9 +854,20 @@
         <button class="confirm-button" id="closeAuthAlertButton" type="button">확인</button>
       </section>
     </div>
+    <div class="profile-modal workout-delete-modal" id="workoutDeleteModal" role="alertdialog" aria-modal="true" aria-labelledby="workoutDeleteTitle" aria-describedby="workoutDeleteMessage" hidden>
+      <section class="profile-dialog workout-delete-dialog">
+        <p class="eyebrow danger">DELETE RECORD</p>
+        <h2 id="workoutDeleteTitle">운동 기록을 삭제할까요?</h2>
+        <p id="workoutDeleteMessage">삭제한 기록은 복구할 수 없습니다.</p>
+        <div class="complaint-actions">
+          <button class="ghost-button" id="cancelWorkoutDeleteButton" type="button">취소</button>
+          <button class="danger-button" id="confirmWorkoutDeleteButton" type="button">삭제</button>
+        </div>
+      </section>
+    </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=7"></script>
     <script src="{{ url_for('static', filename='js/body-highlighter.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=143"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=144"></script>
   </body>
 </html>

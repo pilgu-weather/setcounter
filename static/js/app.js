@@ -712,6 +712,7 @@ const state = {
   boardPosting: false,
   boardReportSubmitting: false,
   boardReportTarget: null,
+  pendingWorkoutDelete: null,
   boardSortLoading: false,
   complaintSubmitting: false,
   editingExercises: false,
@@ -976,14 +977,19 @@ const els = {
   countSetButton: document.querySelector("#countSetButton"),
   undoSetButton: document.querySelector("#undoSetButton"),
   confirmWorkoutButton: document.querySelector("#confirmWorkoutButton"),
-  resetSessionButton: document.querySelector("#resetSessionButton"),
   recordCompare: document.querySelector("#recordCompare"),
+  calendarSosButton: document.querySelector("#calendarSosButton"),
   sosReasonInput: document.querySelector("#sosReasonInput"),
   sosReasonCounter: document.querySelector("#sosReasonCounter"),
   sosReasonButtons: document.querySelectorAll("[data-sos-reason]"),
   sosSelectedDate: document.querySelector("#sosSelectedDate"),
   sosStatus: document.querySelector("#sosStatus"),
   sosButton: document.querySelector("#sosButton"),
+  menuSosSection: document.querySelector("#menuSosSection"),
+  workoutDeleteModal: document.querySelector("#workoutDeleteModal"),
+  workoutDeleteMessage: document.querySelector("#workoutDeleteMessage"),
+  cancelWorkoutDeleteButton: document.querySelector("#cancelWorkoutDeleteButton"),
+  confirmWorkoutDeleteButton: document.querySelector("#confirmWorkoutDeleteButton"),
   levelValue: document.querySelector("#levelValue"),
   totalVolumeValue: document.querySelector("#totalVolumeValue"),
   levelProgressBar: document.querySelector("#levelProgressBar"),
@@ -1184,7 +1190,7 @@ function rememberMenuOverlayTrigger() {
 }
 
 function syncMenuOverlayLock() {
-  const overlays = [els.profileModal, els.levelHistoryModal, els.complaintModal, els.registerModal, els.loginModal, els.deleteAccountModal, els.authConflictModal, els.authAlertModal, els.faqModal, els.privacyModal, els.blockedUsersModal];
+  const overlays = [els.profileModal, els.levelHistoryModal, els.complaintModal, els.registerModal, els.loginModal, els.deleteAccountModal, els.authConflictModal, els.authAlertModal, els.workoutDeleteModal, els.faqModal, els.privacyModal, els.blockedUsersModal];
   document.body.classList.toggle("has-modal-open", overlays.some((overlay) => overlay && !overlay.hidden));
 }
 
@@ -2659,6 +2665,56 @@ function renderMenuSos() {
   syncSosReasonInput();
 }
 
+function openMenuSos() {
+  setActiveScreen("menu");
+  window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+    els.menuSosSection?.scrollIntoView({ behavior: reducedMotionPreferred() ? "auto" : "smooth", block: "start" });
+    els.menuSosSection?.classList.add("is-arrival-highlighted");
+    window.setTimeout(() => els.menuSosSection?.classList.remove("is-arrival-highlighted"), 900);
+  }));
+}
+
+function openWorkoutDeleteConfirm(log, displayName) {
+  state.pendingWorkoutDelete = { id: log.id, displayName };
+  els.workoutDeleteMessage.textContent = `${displayName} 기록을 삭제하면 세트와 통계에서도 사라집니다.`;
+  els.workoutDeleteModal.hidden = false;
+  syncMenuOverlayLock();
+  window.SetCounterMotion?.openOverlay(els.workoutDeleteModal, {
+    onComplete: () => els.cancelWorkoutDeleteButton.focus(),
+  });
+}
+
+function closeWorkoutDeleteConfirm() {
+  if (els.confirmWorkoutDeleteButton.disabled) return;
+  window.SetCounterMotion?.closeOverlay(els.workoutDeleteModal, { onComplete: () => {
+    els.workoutDeleteModal.hidden = true;
+    state.pendingWorkoutDelete = null;
+    syncMenuOverlayLock();
+  } });
+}
+
+async function confirmWorkoutDelete() {
+  const pending = state.pendingWorkoutDelete;
+  if (!pending || els.confirmWorkoutDeleteButton.disabled) return;
+  els.confirmWorkoutDeleteButton.disabled = true;
+  els.confirmWorkoutDeleteButton.textContent = "삭제 중";
+  try {
+    const previousLevel = state.stats?.level;
+    await api(`/api/logs/${pending.id}`, { method: "DELETE" });
+    const data = await loadBootstrap();
+    els.workoutDeleteModal.hidden = true;
+    state.pendingWorkoutDelete = null;
+    syncMenuOverlayLock();
+    showToast("기록을 삭제했습니다.");
+    announceLevelChange(previousLevel, data.stats.level);
+  } catch (error) {
+    showToast(error.message || "기록을 삭제하지 못했습니다.");
+  } finally {
+    els.confirmWorkoutDeleteButton.disabled = false;
+    els.confirmWorkoutDeleteButton.textContent = "삭제";
+  }
+}
+
 function syncSelectedDateUi() {
   els.workoutDateInput.value = state.selectedDate;
   const showRecordDate = state.recordDateFromCalendar;
@@ -4079,13 +4135,7 @@ function renderDayDetail() {
       remove.type = "button";
       remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg>';
       remove.setAttribute("aria-label", `${displayName} 기록 삭제`);
-      remove.addEventListener("click", async () => {
-        const previousLevel = state.stats?.level;
-        await api(`/api/logs/${log.id}`, { method: "DELETE" });
-        const data = await loadBootstrap();
-        showToast("기록을 삭제했습니다.");
-        announceLevelChange(previousLevel, data.stats.level);
-      });
+      remove.addEventListener("click", () => openWorkoutDeleteConfirm(log, displayName));
       top.append(image, copy, remove);
 
       const setDetails = document.createElement("details");
@@ -5147,6 +5197,7 @@ function bindEvents() {
     closeNicknameModal(true);
     openAuthModal("login");
   });
+  els.calendarSosButton.addEventListener("click", openMenuSos);
   els.userBadgeLabel.addEventListener("click", openLevelHistory);
   els.closeLevelHistoryButton.addEventListener("click", closeLevelHistory);
   els.levelHistoryModal.addEventListener("click", (event) => {
@@ -5174,7 +5225,6 @@ function bindEvents() {
   els.seasonMoment?.addEventListener("click", (event) => {
     if (event.target === els.seasonMoment) closeSeasonMoment();
   });
-  els.resetSessionButton.addEventListener("click", () => resetSession(false));
   els.workoutDateInput.addEventListener("change", () => {
     if (els.workoutDateInput.value) chooseDate(els.workoutDateInput.value).catch((error) => showToast(error.message));
   });
@@ -5247,6 +5297,7 @@ function bindEvents() {
     else if (!els.profileModal.hidden) closeNicknameModal();
     else if (!els.complaintModal.hidden) closeComplaintModal();
     else if (!els.authAlertModal.hidden) closeAuthAlert();
+    else if (!els.workoutDeleteModal.hidden) closeWorkoutDeleteConfirm();
     else if (!els.registerModal.hidden) closeAuthModal("register");
     else if (!els.loginModal.hidden) cancelLoginModal();
     else if (!els.deleteAccountModal.hidden) closeDeleteAccountModal();
@@ -5272,6 +5323,11 @@ function bindEvents() {
     if (event.target === els.blockedUsersModal) closeSupportModal(els.blockedUsersModal);
   });
   els.versionButton.addEventListener("click", () => showToast("Set Counter v1.0.0"));
+  els.cancelWorkoutDeleteButton.addEventListener("click", closeWorkoutDeleteConfirm);
+  els.confirmWorkoutDeleteButton.addEventListener("click", () => confirmWorkoutDelete());
+  els.workoutDeleteModal.addEventListener("click", (event) => {
+    if (event.target === els.workoutDeleteModal) closeWorkoutDeleteConfirm();
+  });
   els.closeNextRecommendationButton.addEventListener("click", deferNextRecommendation);
   els.startNextRecommendationButton.addEventListener("click", () => {
     startNextRecommendation().catch((error) => showToast(error.message));
