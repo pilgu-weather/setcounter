@@ -2824,11 +2824,18 @@ function openLevelUpScreen(previousStats, nextStats, nextProfile, onContinue, op
 
   state.levelUpContinuation = typeof onContinue === "function" ? onContinue : null;
   const firstWorkoutBonus = Boolean(options.firstWorkoutBonus);
-  els.levelUpKicker.textContent = firstWorkoutBonus ? "FIRST WORKOUT COMPLETE" : "NEW PERSONAL BEST";
-  els.levelUpTitle.textContent = firstWorkoutBonus ? "첫 기록을 완료했습니다" : "한계를 넘어섰습니다";
-  els.levelUpCopy.textContent = firstWorkoutBonus
-    ? "첫 운동 보상으로 레벨 2에 도달했습니다. 다음부터는 새로운 기록을 세울 때 경험치를 얻습니다."
-    : "이전 기록을 뛰어넘어 새로운 레벨에 도달했습니다.";
+  const volumeMilestone = Number(options.volumeMilestone) || 0;
+  if (volumeMilestone) {
+    els.levelUpKicker.textContent = "VOLUME MILESTONE";
+    els.levelUpTitle.textContent = `누적 ${formatNumber(volumeMilestone)}kg 달성`;
+    els.levelUpCopy.textContent = `꾸준히 쌓은 운동량으로 +${displayExperience(options.volumeBonusExperience || 1)} XP를 얻어 새로운 레벨에 도달했습니다.`;
+  } else {
+    els.levelUpKicker.textContent = firstWorkoutBonus ? "FIRST WORKOUT COMPLETE" : "NEW PERSONAL BEST";
+    els.levelUpTitle.textContent = firstWorkoutBonus ? "첫 기록을 완료했습니다" : "한계를 넘어섰습니다";
+    els.levelUpCopy.textContent = firstWorkoutBonus
+      ? "첫 운동 보상으로 레벨 2에 도달했습니다. 다음부터는 새로운 기록을 세울 때 경험치를 얻습니다."
+      : "이전 기록을 뛰어넘어 새로운 레벨에 도달했습니다.";
+  }
   els.levelUpPrevious.textContent = previousLevel;
   els.levelUpNext.textContent = nextLevel;
   els.levelUpNumber.textContent = previousLevel;
@@ -4926,7 +4933,11 @@ async function saveWorkout() {
       { ...data.stats, level: authoritativeNextLevel },
       data.profile,
       continueAfterSaveMoment,
-      { firstWorkoutBonus: savedLog.firstWorkoutBonus },
+      {
+        firstWorkoutBonus: savedLog.firstWorkoutBonus,
+        volumeMilestone: savedLog.volumeMilestones?.slice(-1)[0],
+        volumeBonusExperience: savedLog.volumeBonusExperience,
+      },
     );
     return;
   }

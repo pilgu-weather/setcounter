@@ -220,6 +220,8 @@ MAX_MEMO_LENGTH = 500
 MAX_SETS_PER_WORKOUT = 30
 MAX_REPS_PER_SET = 1000
 MAX_WEIGHT_KG = 2000
+VOLUME_MILESTONE_KG = 10_000
+VOLUME_MILESTONE_EXPERIENCE = 1
 MAX_COMPLAINT_LENGTH = 1200
 MAX_BOARD_POST_LENGTH = 180
 MAX_BOARD_COMMENT_LENGTH = 120
@@ -1505,6 +1507,49 @@ def level_for_experience(experience):
     return max(math.floor(experience) + 1, 1)
 
 
+def award_volume_milestones(user_id, before_stats, after_stats, event_date):
+    previous_total = max(float(before_stats.get("totalVolume") or 0), 0)
+    current_total = max(float(after_stats.get("totalVolume") or 0), 0)
+    first_index = math.floor(previous_total / VOLUME_MILESTONE_KG) + 1
+    last_index = math.floor(current_total / VOLUME_MILESTONE_KG)
+    if first_index > last_index:
+        return []
+
+    milestones = [index * VOLUME_MILESTONE_KG for index in range(first_index, last_index + 1)]
+    source_keys = [f"volume-milestone-{milestone}" for milestone in milestones]
+    existing_keys = set(
+        db.session.scalars(
+            select(HealthLevelEvent.source_key).where(
+                HealthLevelEvent.user_id == user_id,
+                HealthLevelEvent.source_key.in_(source_keys),
+            )
+        ).all()
+    )
+    running_experience = float(after_stats.get("experience") or 0)
+    awarded = []
+    for milestone, source_key in zip(milestones, source_keys):
+        if source_key in existing_keys:
+            continue
+        level_before = level_for_experience(running_experience)
+        running_experience += VOLUME_MILESTONE_EXPERIENCE
+        level_after = level_for_experience(running_experience)
+        db.session.add(
+            HealthLevelEvent(
+                user_id=user_id,
+                event_type="level_up" if level_after > level_before else "experience_up",
+                event_date=event_date,
+                level_before=level_before,
+                level_after=level_after,
+                experience_delta=VOLUME_MILESTONE_EXPERIENCE,
+                reason=f"누적 볼륨 {milestone:,}kg 달성",
+                source_key=source_key,
+                affects_current=True,
+            )
+        )
+        awarded.append(milestone)
+    return awarded
+
+
 def stats_from_logs(
     logs,
     excuse_dates,
@@ -2712,6 +2757,14 @@ def create_log():
         workout.sets.append(
             HealthSet(exercise_id=exercise.id, set_index=index, weight=weight, reps=reps, memo=memo)
         )
+    db.session.flush()
+    stats_before_volume_bonus = volume_stats(user.id)
+    volume_milestones = award_volume_milestones(
+        user.id,
+        before_stats,
+        stats_before_volume_bonus,
+        workout_date,
+    )
     db.session.commit()
     saved_log = workout_to_log(workout)
     after_stats = volume_stats(user.id)
@@ -2725,6 +2778,9 @@ def create_log():
             "experienceAfter": after_stats["experience"],
             "experienceReduced": after_stats["experience"] < before_stats["experience"],
             "firstWorkoutBonus": first_workout_bonus,
+            "volumeMilestones": volume_milestones,
+            "volumeBonusExperience": len(volume_milestones) * VOLUME_MILESTONE_EXPERIENCE,
+            "levelUpReason": "volume_milestone" if volume_milestones else None,
         }
     )
     return jsonify(saved_log), 201

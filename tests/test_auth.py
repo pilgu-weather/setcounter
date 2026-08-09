@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-from sqlalchemy import create_engine, inspect, select, text
+from sqlalchemy import create_engine, func, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 
 TEST_DB = Path(tempfile.gettempdir()) / "setcounter-auth-tests.sqlite3"
@@ -1406,6 +1406,63 @@ class AuthSystemTestCase(unittest.TestCase):
                 )
             ).all()
             self.assertEqual(len(bonuses), 1)
+
+    def test_cumulative_volume_milestone_awards_experience_once(self):
+        key = "volume-milestone-key-0001"
+        workout_date = date.today().isoformat()
+        response = self.client.post(
+            "/api/logs",
+            headers=self.csrf_headers(self.client, key),
+            json={
+                "exercise": "Deadlift",
+                "date": workout_date,
+                "setWeights": [500, 500],
+                "setReps": [10, 10],
+                "completedSets": 2,
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.get_json())
+        payload = response.get_json()
+        self.assertEqual(payload["volumeMilestones"], [10_000])
+        self.assertEqual(payload["volumeBonusExperience"], 1)
+        self.assertEqual(payload["levelUpReason"], "volume_milestone")
+        self.assertEqual(payload["levelBefore"], 1)
+        self.assertEqual(payload["levelAfter"], 3)
+
+        with app.app_context():
+            user = db.session.scalar(select(HealthUser).where(HealthUser.user_key == key))
+            bonuses = db.session.scalars(
+                select(HealthLevelEvent).where(
+                    HealthLevelEvent.user_id == user.id,
+                    HealthLevelEvent.source_key == "volume-milestone-10000",
+                )
+            ).all()
+            self.assertEqual(len(bonuses), 1)
+            self.assertEqual(bonuses[0].reason, "누적 볼륨 10,000kg 달성")
+            self.assertEqual(bonuses[0].experience_delta, 1)
+
+        follow_up = self.client.post(
+            "/api/logs",
+            headers=self.csrf_headers(self.client, key),
+            json={
+                "exercise": "Push-Up",
+                "date": workout_date,
+                "setWeights": [0],
+                "setReps": [10],
+                "completedSets": 1,
+            },
+        )
+        self.assertEqual(follow_up.status_code, 201, follow_up.get_json())
+        self.assertEqual(follow_up.get_json()["volumeMilestones"], [])
+        with app.app_context():
+            self.assertEqual(
+                db.session.scalar(
+                    select(func.count()).select_from(HealthLevelEvent).where(
+                        HealthLevelEvent.source_key == "volume-milestone-10000"
+                    )
+                ),
+                1,
+            )
 
     def test_high_level_loss_removes_latest_fractional_award_and_recalculates_level(self):
         workout_date = date.today().isoformat()
