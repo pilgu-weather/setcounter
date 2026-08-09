@@ -3854,7 +3854,7 @@ function muscleSummaryForLogs(logs) {
 
   primary.forEach((muscle) => secondary.delete(muscle));
   const total = [...scores.values()].reduce((sum, score) => sum + score, 0);
-  const rows = [...scores.entries()]
+  const sortedRows = [...scores.entries()]
     .map(([muscle, score]) => ({
       muscle,
       label: translateMuscle(muscle),
@@ -3862,8 +3862,19 @@ function muscleSummaryForLogs(logs) {
       exactPercent: total ? (score / total) * 100 : 0,
       percent: total ? Math.round((score / total) * 100) : 0,
     }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
+    .sort((a, b) => b.score - a.score);
+  const rows = sortedRows.length > 5
+    ? [
+      ...sortedRows.slice(0, 4),
+      sortedRows.slice(4).reduce((other, row) => ({
+        muscle: "other",
+        label: "기타",
+        score: other.score + row.score,
+        exactPercent: other.exactPercent + row.exactPercent,
+        percent: Math.round(other.exactPercent + row.exactPercent),
+      }), { muscle: "other", label: "기타", score: 0, exactPercent: 0, percent: 0 }),
+    ]
+    : sortedRows;
   return { primary: [...primary], secondary: [...secondary], rows };
 }
 
@@ -3871,13 +3882,6 @@ function buildDayMuscleSummary(logs) {
   const data = muscleSummaryForLogs(logs);
   if (!data.rows.length) return null;
   const colors = ["#2e7cff", "#45c3d8", "#9a78ff", "#f4b75d", "#66c987"];
-  let cursor = 0;
-  const stops = data.rows.map((row, index) => {
-    const start = cursor;
-    cursor += row.exactPercent;
-    return `${colors[index]} ${start}% ${Math.min(cursor, 100)}%`;
-  });
-  if (cursor < 99.99) stops.push(`rgba(255,255,255,0.08) ${cursor}% 100%`);
 
   const section = document.createElement("section");
   section.className = "day-muscle-summary";
@@ -3888,14 +3892,51 @@ function buildDayMuscleSummary(logs) {
     </div>
     <div class="exercise-muscle-map" data-day-muscle-map aria-live="polite"></div>
     <div class="day-muscle-chart">
-      <div class="day-muscle-donut" role="img" aria-label="근육 사용 비율" style="--muscle-chart:${stops.join(",")}"><span>${data.rows[0].percent}%</span></div>
+      <svg class="day-muscle-pie" viewBox="0 0 100 100" role="img" aria-label="${escapeHtml(data.rows.map((row) => `${row.label} ${row.percent}%`).join(", "))}"></svg>
       <div class="day-muscle-list"></div>
     </div>
   `;
+  const pie = section.querySelector(".day-muscle-pie");
+  const svgNamespace = "http://www.w3.org/2000/svg";
+  const pointOnPie = (percent, radius) => {
+    const angle = ((percent * 3.6) - 90) * (Math.PI / 180);
+    return { x: 50 + (Math.cos(angle) * radius), y: 50 + (Math.sin(angle) * radius) };
+  };
+  let pieCursor = 0;
+  data.rows.forEach((row, index) => {
+    const start = pieCursor;
+    const end = Math.min(pieCursor + row.exactPercent, 100);
+    const midpoint = start + ((end - start) / 2);
+    pieCursor = end;
+    let sector;
+    if (end - start >= 99.99) {
+      sector = document.createElementNS(svgNamespace, "circle");
+      sector.setAttribute("cx", "50");
+      sector.setAttribute("cy", "50");
+      sector.setAttribute("r", "48");
+    } else {
+      const startPoint = pointOnPie(start, 48);
+      const endPoint = pointOnPie(end, 48);
+      sector = document.createElementNS(svgNamespace, "path");
+      sector.setAttribute("d", `M 50 50 L ${startPoint.x} ${startPoint.y} A 48 48 0 ${end - start > 50 ? 1 : 0} 1 ${endPoint.x} ${endPoint.y} Z`);
+    }
+    sector.setAttribute("fill", colors[index]);
+    sector.setAttribute("stroke", "#151a22");
+    sector.setAttribute("stroke-width", "1.5");
+    pie.append(sector);
+
+    const labelPoint = pointOnPie(midpoint, row.exactPercent < 12 ? 35 : 28);
+    const label = document.createElementNS(svgNamespace, "text");
+    label.classList.add("day-muscle-pie-label");
+    label.setAttribute("x", String(labelPoint.x));
+    label.setAttribute("y", String(labelPoint.y));
+    label.textContent = `${row.percent}%`;
+    pie.append(label);
+  });
   const list = section.querySelector(".day-muscle-list");
   data.rows.forEach((row, index) => {
     const item = document.createElement("div");
-    item.innerHTML = `<i style="--muscle-color:${colors[index]}"></i><strong>${escapeHtml(row.label)}</strong><span>${row.score % 1 ? row.score.toFixed(1) : row.score}세트</span><b>${row.percent}%</b>`;
+    item.innerHTML = `<i class="day-muscle-key color-${index + 1}"></i><strong>${escapeHtml(row.label)}</strong><span>${row.score % 1 ? row.score.toFixed(1) : row.score}세트</span>`;
     list.append(item);
   });
   renderMuscleMap(section.querySelector("[data-day-muscle-map]"), data.primary, data.secondary);

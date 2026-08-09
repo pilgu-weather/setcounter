@@ -6044,34 +6044,23 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
   padding-top: 2px;
 }
 
-[data-screen="calendar"] .day-muscle-donut {
-  position: relative;
+[data-screen="calendar"] .day-muscle-pie {
   width: 92px;
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
+  overflow: hidden;
   border-radius: 50%;
-  background: conic-gradient(var(--muscle-chart));
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24);
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.28));
 }
 
-[data-screen="calendar"] .day-muscle-donut::after {
-  content: "";
-  position: absolute;
-  width: 54%;
-  aspect-ratio: 1;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 50%;
-  background: #11161e;
-}
-
-[data-screen="calendar"] .day-muscle-donut span {
-  position: relative;
-  z-index: 1;
-  color: var(--sc-text);
-  font-size: 15px;
+[data-screen="calendar"] .day-muscle-pie-label {
+  fill: #fff;
+  font-size: 9px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.76);
+  stroke-width: 2px;
+  text-anchor: middle;
+  dominant-baseline: central;
 }
 
 [data-screen="calendar"] .day-muscle-list {
@@ -6083,7 +6072,7 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
 [data-screen="calendar"] .day-muscle-list > div {
   min-width: 0;
   display: grid;
-  grid-template-columns: 7px minmax(0, 1fr) auto 34px;
+  grid-template-columns: 7px minmax(0, 1fr) auto;
   align-items: center;
   gap: 7px;
   color: var(--sc-text-secondary);
@@ -6095,9 +6084,13 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--muscle-color);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--muscle-color) 58%, transparent);
 }
+
+[data-screen="calendar"] .day-muscle-key.color-1 { background: #2e7cff; box-shadow: 0 0 8px rgba(46, 124, 255, 0.58); }
+[data-screen="calendar"] .day-muscle-key.color-2 { background: #45c3d8; box-shadow: 0 0 8px rgba(69, 195, 216, 0.5); }
+[data-screen="calendar"] .day-muscle-key.color-3 { background: #9a78ff; box-shadow: 0 0 8px rgba(154, 120, 255, 0.5); }
+[data-screen="calendar"] .day-muscle-key.color-4 { background: #f4b75d; box-shadow: 0 0 8px rgba(244, 183, 93, 0.48); }
+[data-screen="calendar"] .day-muscle-key.color-5 { background: #66c987; box-shadow: 0 0 8px rgba(102, 201, 135, 0.48); }
 
 [data-screen="calendar"] .day-muscle-list strong {
   overflow: hidden;
@@ -6105,11 +6098,6 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-[data-screen="calendar"] .day-muscle-list b {
-  color: #70a3ff;
-  text-align: right;
 }
 
 @media (max-width: 374px) {
@@ -6132,7 +6120,7 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
     gap: 10px;
   }
 
-  [data-screen="calendar"] .day-muscle-donut {
+  [data-screen="calendar"] .day-muscle-pie {
     width: 82px;
   }
 }
