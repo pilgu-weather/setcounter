@@ -328,9 +328,9 @@ function exerciseDisplayName(exercise) {
   return mappedExerciseEntry(exercise).displayName || exercise.displayName || exercise.name || "";
 }
 
-function storedExerciseDisplayName(name) {
+function storedExerciseData(name) {
   const normalizedName = String(name || "").trim().toLocaleLowerCase();
-  const exercise = uniqueExercises([...exercises, ...libraryExercises]).find((item) => {
+  return uniqueExercises([...exercises, ...libraryExercises]).find((item) => {
     const mapped = mappedExerciseEntry(item);
     return [
       item.name,
@@ -341,7 +341,11 @@ function storedExerciseDisplayName(name) {
       exerciseEnglishName(item),
       ...(mapped.aliases || []),
     ].some((value) => String(value || "").trim().toLocaleLowerCase() === normalizedName);
-  });
+  }) || null;
+}
+
+function storedExerciseDisplayName(name) {
+  const exercise = storedExerciseData(name);
   return exercise ? exerciseDisplayName(exercise) : name;
 }
 
@@ -2051,7 +2055,7 @@ function percentChange(current, previous) {
 }
 
 function exerciseImage(name) {
-  const exercise = exercises.find((item) => item.name === name) || exercises[0];
+  const exercise = storedExerciseData(name);
   const firstImage = exercise?.images?.[0];
   if (firstImage) return freeDbImageUrl(firstImage);
   if (exercise?.image) return `/static/assets/${exercise.image}?v=6`;
@@ -3820,6 +3824,84 @@ function renderCalendar() {
   renderExcuses();
 }
 
+function muscleSummaryForLogs(logs) {
+  const scores = new Map();
+  const primary = new Set();
+  const secondary = new Set();
+  const addScore = (muscle, score) => {
+    const name = String(muscle || "").trim();
+    if (!name || score <= 0) return;
+    scores.set(name, (scores.get(name) || 0) + score);
+  };
+
+  logs.forEach((log) => {
+    const exercise = storedExerciseData(log.exercise);
+    if (!exercise) return;
+    const setCount = Math.max(Number(log.completedSets) || rowsFromLog(log).length || 1, 1);
+    const mainMuscles = exercise.primaryMuscles?.length
+      ? exercise.primaryMuscles
+      : [exercise.area].filter(Boolean);
+    const assistingMuscles = exercise.secondaryMuscles || [];
+    mainMuscles.forEach((muscle) => {
+      primary.add(muscle);
+      addScore(muscle, setCount);
+    });
+    assistingMuscles.forEach((muscle) => {
+      secondary.add(muscle);
+      addScore(muscle, setCount * 0.5);
+    });
+  });
+
+  primary.forEach((muscle) => secondary.delete(muscle));
+  const total = [...scores.values()].reduce((sum, score) => sum + score, 0);
+  const rows = [...scores.entries()]
+    .map(([muscle, score]) => ({
+      muscle,
+      label: translateMuscle(muscle),
+      score,
+      exactPercent: total ? (score / total) * 100 : 0,
+      percent: total ? Math.round((score / total) * 100) : 0,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+  return { primary: [...primary], secondary: [...secondary], rows };
+}
+
+function buildDayMuscleSummary(logs) {
+  const data = muscleSummaryForLogs(logs);
+  if (!data.rows.length) return null;
+  const colors = ["#2e7cff", "#45c3d8", "#9a78ff", "#f4b75d", "#66c987"];
+  let cursor = 0;
+  const stops = data.rows.map((row, index) => {
+    const start = cursor;
+    cursor += row.exactPercent;
+    return `${colors[index]} ${start}% ${Math.min(cursor, 100)}%`;
+  });
+  if (cursor < 99.99) stops.push(`rgba(255,255,255,0.08) ${cursor}% 100%`);
+
+  const section = document.createElement("section");
+  section.className = "day-muscle-summary";
+  section.innerHTML = `
+    <div class="day-muscle-summary-head">
+      <div><span>TRAINING MAP</span><h3>근육 사용 분포</h3></div>
+      <small>완료 세트 기준</small>
+    </div>
+    <div class="exercise-muscle-map" data-day-muscle-map aria-live="polite"></div>
+    <div class="day-muscle-chart">
+      <div class="day-muscle-donut" role="img" aria-label="근육 사용 비율" style="--muscle-chart:${stops.join(",")}"><span>${data.rows[0].percent}%</span></div>
+      <div class="day-muscle-list"></div>
+    </div>
+  `;
+  const list = section.querySelector(".day-muscle-list");
+  data.rows.forEach((row, index) => {
+    const item = document.createElement("div");
+    item.innerHTML = `<i style="--muscle-color:${colors[index]}"></i><strong>${escapeHtml(row.label)}</strong><span>${row.score % 1 ? row.score.toFixed(1) : row.score}세트</span><b>${row.percent}%</b>`;
+    list.append(item);
+  });
+  renderMuscleMap(section.querySelector("[data-day-muscle-map]"), data.primary, data.secondary);
+  return section;
+}
+
 function renderDayDetail() {
   const logs = logsForDate(state.selectedDate);
   const excuse = excuseForDate(state.selectedDate);
@@ -3850,35 +3932,62 @@ function renderDayDetail() {
     empty.textContent = "이 날짜를 선택한 상태로 아래에서 운동을 저장하면 여기에 들어옵니다.";
     els.calendarDayDetail.append(empty);
   } else {
+    const workoutList = document.createElement("div");
+    workoutList.className = "day-workout-list";
     logs.forEach((log) => {
-    const item = document.createElement("article");
-    item.className = "day-log-item";
-    const top = document.createElement("div");
-    top.className = "day-log-top";
-    const label = document.createElement("strong");
-    const displayName = storedExerciseDisplayName(log.exercise);
-    label.textContent = displayName;
-    const remove = document.createElement("button");
-    remove.className = "delete-button";
-    remove.type = "button";
-    remove.textContent = "×";
-    remove.setAttribute("aria-label", `${displayName} 기록 삭제`);
-    remove.addEventListener("click", async () => {
-      const previousLevel = state.stats?.level;
-      await api(`/api/logs/${log.id}`, { method: "DELETE" });
-      const data = await loadBootstrap();
-      showToast("기록을 삭제했습니다.");
-      announceLevelChange(previousLevel, data.stats.level);
+      const item = document.createElement("article");
+      item.className = "day-log-item";
+      const top = document.createElement("div");
+      top.className = "day-log-top";
+      const displayName = storedExerciseDisplayName(log.exercise);
+      const rows = rowsFromLog(log);
+      const coreExercise = exercisePartName(log.exercise) === "코어";
+      const maxWeight = Math.max(...rows.map((row) => Number(row.weightKg) || 0), 0);
+      const maxReps = Math.max(...rows.map((row) => Number(row.reps) || 0), 0);
+
+      const image = document.createElement("img");
+      image.className = "day-log-thumb";
+      image.src = exerciseImage(log.exercise);
+      image.alt = "";
+      image.loading = "lazy";
+      image.decoding = "async";
+      bindImageReveal(image);
+
+      const copy = document.createElement("div");
+      copy.className = "day-log-copy";
+      const label = document.createElement("strong");
+      label.textContent = displayName;
+      const meta = document.createElement("span");
+      meta.textContent = coreExercise
+        ? `${formatNumber(log.completedSets || rows.length)}세트 · 총 ${formatNumber(log.totalReps)}회`
+        : `${formatNumber(log.completedSets || rows.length)}세트 · 최고 ${formatNumber(maxWeight)}kg × ${formatNumber(maxReps)}회`;
+      copy.append(label, meta);
+
+      const remove = document.createElement("button");
+      remove.className = "delete-button";
+      remove.type = "button";
+      remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg>';
+      remove.setAttribute("aria-label", `${displayName} 기록 삭제`);
+      remove.addEventListener("click", async () => {
+        const previousLevel = state.stats?.level;
+        await api(`/api/logs/${log.id}`, { method: "DELETE" });
+        const data = await loadBootstrap();
+        showToast("기록을 삭제했습니다.");
+        announceLevelChange(previousLevel, data.stats.level);
+      });
+      top.append(image, copy, remove);
+
+      const setDetails = document.createElement("details");
+      setDetails.className = "day-log-sets";
+      const setSummary = document.createElement("summary");
+      setSummary.innerHTML = '<span>세트 상세</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+      setDetails.append(setSummary, buildRecordTable(rows, { repsOnly: coreExercise }));
+      item.append(top, setDetails);
+      workoutList.append(item);
     });
-    top.append(label, remove);
-    const meta = document.createElement("p");
-    const coreExercise = exercisePartName(log.exercise) === "코어";
-    meta.textContent = coreExercise
-      ? `총 ${formatNumber(log.totalReps)}회`
-      : `총 ${formatNumber(log.totalReps)}회 · 볼륨 ${formatNumber(log.volume)}kg`;
-    item.append(top, meta, buildRecordTable(rowsFromLog(log), { repsOnly: coreExercise }));
-    els.calendarDayDetail.append(item);
-    });
+    els.calendarDayDetail.append(workoutList);
+    const muscleSummary = buildDayMuscleSummary(logs);
+    if (muscleSummary) els.calendarDayDetail.append(muscleSummary);
   }
 
   if (excuse) {
