@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=111">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=112">
   </head>
   <body>
     <div class="app-launch-splash" id="appLaunchSplash" role="status" aria-live="polite" aria-label="Set Counter를 불러오는 중">
@@ -274,6 +274,7 @@
             <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
           </div>
           <div class="calendar-grid" id="calendarGrid"></div>
+          <div class="calendar-muscle-detail" id="calendarMuscleDetail" aria-live="polite"></div>
           <div class="calendar-day-detail" id="calendarDayDetail" aria-live="polite"></div>
           <div class="calendar-excuses" id="calendarExcuseList" aria-live="polite"></div>
         </section>
@@ -857,6 +858,6 @@
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=7"></script>
     <script src="{{ url_for('static', filename='js/body-highlighter.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=141"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=142"></script>
   </body>
 </html>

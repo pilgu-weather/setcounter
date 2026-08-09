@@ -1011,6 +1011,7 @@ const els = {
   submitBoardReportButton: document.querySelector("#submitBoardReportButton"),
   calendarTitle: document.querySelector("#calendarTitle"),
   calendarGrid: document.querySelector("#calendarGrid"),
+  calendarMuscleDetail: document.querySelector("#calendarMuscleDetail"),
   calendarDayDetail: document.querySelector("#calendarDayDetail"),
   calendarExcuseList: document.querySelector("#calendarExcuseList"),
   prevMonthButton: document.querySelector("#prevMonthButton"),
@@ -4015,13 +4016,13 @@ function animateDayMuscleSummary(section) {
 
 function renderDayDetail() {
   const logs = logsForDate(state.selectedDate);
-  const excuse = excuseForDate(state.selectedDate);
+  els.calendarMuscleDetail.replaceChildren();
   els.calendarDayDetail.replaceChildren();
 
   const head = document.createElement("div");
   head.className = "day-detail-head";
   const title = document.createElement("strong");
-  title.textContent = `${selectedDateText()} 기록`;
+  title.textContent = `${selectedDateText()} 상세 기록`;
   const summary = document.createElement("span");
   summary.textContent = logs.length ? calendarActivitySummary(logs) : "기록 없음";
   head.append(title, summary);
@@ -4096,16 +4097,9 @@ function renderDayDetail() {
       item.append(top, setDetails);
       workoutList.append(item);
     });
-    els.calendarDayDetail.append(workoutList);
     const muscleSummary = buildDayMuscleSummary(logs);
-    if (muscleSummary) els.calendarDayDetail.append(muscleSummary);
-  }
-
-  if (excuse) {
-    const sos = document.createElement("p");
-    sos.className = "day-sos-reason";
-    sos.textContent = logs.length ? `SOS 사유: ${excuse.reason}` : `SOS: ${excuse.reason}`;
-    els.calendarDayDetail.append(sos);
+    if (muscleSummary) els.calendarMuscleDetail.append(muscleSummary);
+    els.calendarDayDetail.append(workoutList);
   }
 
   const action = document.createElement("button");
@@ -4154,13 +4148,18 @@ async function chooseDate(dateKey, options = {}) {
     renderCalendar();
     await loadLatestRecord();
   }
+  if (els.calendarMuscleDetail.childElementCount) {
+    window.SetCounterMotion?.animateSwap(els.calendarMuscleDetail, 1);
+  }
   window.SetCounterMotion?.animateSwap(els.calendarDayDetail, 1);
   window.SetCounterMotion?.animateSelection(els.calendarGrid.querySelector(".day-cell.is-selected"));
   syncCounter();
   renderHomeDashboard();
   showToast(`${selectedDateText()} 기록 날짜로 선택했습니다.`);
   if (options.scrollToInput) openRecordScreen({ fromCalendar: true });
-  const target = options.scrollToInput ? document.querySelector(".counter-panel") : els.calendarDayDetail;
+  const target = options.scrollToInput
+    ? document.querySelector(".counter-panel")
+    : (els.calendarMuscleDetail.firstElementChild ? els.calendarMuscleDetail : els.calendarDayDetail);
   target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 

@@ -3999,6 +3999,7 @@ h3 { font-size: 17px; font-weight: 750; line-height: 1.3; }
 .account-panel,
 .home-progress-card,
 .workout-plan-card,
+.calendar-muscle-detail,
 .calendar-day-detail,
 .calendar-excuses,
 .history-day,
@@ -5772,15 +5773,24 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
   box-shadow: 0 0 8px rgba(240, 91, 100, 0.42);
 }
 
+[data-screen="calendar"] .calendar-muscle-detail,
 [data-screen="calendar"] .calendar-day-detail,
 [data-screen="calendar"] .calendar-excuses {
   gap: 10px;
   padding: 14px 12px 0;
 }
 
-[data-screen="calendar"] .calendar-day-detail {
+[data-screen="calendar"] .calendar-muscle-detail {
   margin-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.075);
+}
+
+[data-screen="calendar"] .calendar-muscle-detail:empty {
+  display: none;
+}
+
+[data-screen="calendar"] .calendar-day-detail {
+  margin-top: 2px;
 }
 
 [data-screen="calendar"] .day-detail-head {
@@ -6451,6 +6461,7 @@ body:has([data-screen="calendar"].is-active) .bottom-nav button:active {
   [data-screen="calendar"] .calendar-grid { gap: 3px; padding-inline: 10px; }
   [data-screen="calendar"] .day-cell { min-height: 64px; padding-inline: 1px; }
   [data-screen="calendar"] .day-cell-breakdown small { font-size: 6.5px; }
+  [data-screen="calendar"] .calendar-muscle-detail,
   [data-screen="calendar"] .calendar-day-detail,
   [data-screen="calendar"] .calendar-excuses { padding-inline: 10px; }
   [data-screen="calendar"] .day-log-item { padding: 10px; }
