@@ -734,7 +734,7 @@ const state = {
   setRows: [],
   stats: null,
   profile: null,
-  auth: { loaded: false, authenticated: false, anonymous: true, accountLinked: false, emailMasked: null, hasAnonymousData: false, csrfToken: null },
+  auth: { loaded: false, authenticated: false, anonymous: true, accountLinked: false, emailMasked: null, role: "user", hasAnonymousData: false, csrfToken: null },
   authRecoveryPending: false,
   weeklyGoalDraft: null,
 };
@@ -1082,7 +1082,7 @@ async function loadAuthStatus() {
     state.auth = { ...state.auth, ...auth, loaded: true };
   } catch (error) {
     console.error("Unable to load auth status", error);
-    state.auth = { ...state.auth, loaded: true, authenticated: false, anonymous: true, accountLinked: false, emailMasked: null, hasAnonymousData: false };
+    state.auth = { ...state.auth, loaded: true, authenticated: false, anonymous: true, accountLinked: false, emailMasked: null, role: "user", hasAnonymousData: false };
   }
   renderAuthPanel();
   return state.auth;
@@ -1096,7 +1096,8 @@ function renderAuthPanel() {
   els.accountPanelTitle.textContent = authenticated ? "계정에 안전하게 연결됨" : "기록을 안전하게 보관하기";
   els.accountPanelCopy.textContent = authenticated ? "운동 기록이 계정에 안전하게 연결되어 있습니다. 다른 기기에서도 이어서 볼 수 있어요." : "계정을 연결하면 기기를 바꿔도 운동 기록을 안전하게 이어갈 수 있습니다.";
   els.accountEmail.hidden = !authenticated;
-  els.accountEmail.textContent = authenticated ? state.auth.emailMasked || "연결된 계정" : "";
+  const accountLabel = state.auth.role === "operator" ? "운영자" : "연결된 계정";
+  els.accountEmail.textContent = authenticated ? `${accountLabel} · ${state.auth.emailMasked || "계정"}` : "";
   els.anonymousAccountActions.hidden = authenticated;
   els.authenticatedAccountActions.hidden = !authenticated;
   els.accountPanel.dataset.authState = authenticated ? "authenticated" : "anonymous";

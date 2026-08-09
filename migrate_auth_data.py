@@ -185,6 +185,13 @@ def migrate(engine):
         add_column_if_missing(connection, "auth_accounts", "terms_accepted_at", f"terms_accepted_at {timestamp_type}")
         add_column_if_missing(connection, "auth_accounts", "privacy_version", "privacy_version VARCHAR(32)")
         add_column_if_missing(connection, "auth_accounts", "privacy_accepted_at", f"privacy_accepted_at {timestamp_type}")
+        add_column_if_missing(
+            connection,
+            "auth_accounts",
+            "role",
+            "role VARCHAR(32) NOT NULL DEFAULT 'user'",
+        )
+        connection.execute(text("UPDATE auth_accounts SET role = 'user' WHERE role IS NULL OR role = ''"))
         connection.execute(
             text(
                 """

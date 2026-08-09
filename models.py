@@ -94,6 +94,7 @@ class AuthAccount(db.Model):
     password_hash = db.Column(db.String(512), nullable=False)
     email_verified = db.Column(db.Boolean, nullable=False, default=False)
     status = db.Column(db.String(32), nullable=False, default="active")
+    role = db.Column(db.String(32), nullable=False, default="user", server_default="user")
     provider = db.Column(db.String(32), nullable=False, default="local")
     provider_user_id = db.Column(db.String(255), nullable=True)
     terms_version = db.Column(db.String(32))

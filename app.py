@@ -250,6 +250,7 @@ REQUIRED_SCHEMA = {
         "password_hash",
         "email_verified",
         "status",
+        "role",
         "provider",
         "provider_user_id",
         "terms_version",
@@ -2037,6 +2038,7 @@ def auth_status():
                     "anonymous": False,
                     "accountLinked": True,
                     "emailMasked": mask_email(user.account.email),
+                    "role": user.account.role or "user",
                     "hasAnonymousData": False,
                     "csrfToken": csrf_token,
                 }
@@ -2049,6 +2051,7 @@ def auth_status():
             "anonymous": True,
             "accountLinked": False,
             "emailMasked": None,
+            "role": "user",
             "hasAnonymousData": summary["hasData"],
             "csrfToken": csrf_token,
         }
@@ -2129,6 +2132,7 @@ def auth_register():
             "anonymous": False,
             "accountLinked": True,
             "emailMasked": mask_email(account.email),
+            "role": account.role or "user",
             "healthUserId": anonymous_user.id,
         }
     ), 201
@@ -2195,6 +2199,7 @@ def auth_login():
             "anonymous": False,
             "accountLinked": True,
             "emailMasked": mask_email(account.email),
+            "role": account.role or "user",
             "healthUserId": account_user.id,
         }
     )

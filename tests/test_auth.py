@@ -696,6 +696,21 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertIsNotNone(account.terms_accepted_at)
             self.assertIsNotNone(account.privacy_accepted_at)
 
+    def test_auth_status_exposes_operator_role_without_disabling_account(self):
+        key = "operator-role-key-0001"
+        email = self.email("operator")
+        response = self.register(key, email)
+        self.assertEqual(response.status_code, 201, response.get_json())
+        with app.app_context():
+            account = db.session.query(AuthAccount).filter_by(email=email).one()
+            account.role = "operator"
+            db.session.commit()
+
+        status = self.client.get("/api/auth/status")
+        self.assertEqual(status.status_code, 200)
+        self.assertTrue(status.get_json()["authenticated"])
+        self.assertEqual(status.get_json()["role"], "operator")
+
     def test_account_linked_key_cannot_access_data_without_session(self):
         key = "anonymous-key-security-0001"
         self.create_workout(key)
