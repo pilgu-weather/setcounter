@@ -4573,30 +4573,54 @@ async function blockBoardUser(userId, nickname, trigger) {
 }
 
 async function openBlockedUsers() {
-  els.blockedUsersList.innerHTML = '<p class="blocked-users-empty">불러오는 중...</p>';
+  renderBlockedUsersStatus("loading", "차단 목록 확인 중");
   openSupportModal(els.blockedUsersModal, els.closeBlockedUsersButton);
   try {
     const blockedUsers = await api("/api/board/blocks");
     renderBlockedUsers(blockedUsers);
   } catch (error) {
-    els.blockedUsersList.innerHTML = '<p class="blocked-users-empty">차단 목록을 불러오지 못했습니다.</p>';
+    renderBlockedUsersStatus("error", "목록을 불러오지 못했습니다");
   }
+}
+
+function renderBlockedUsersStatus(type, title) {
+  const statePanel = document.createElement("div");
+  statePanel.className = `blocked-users-state is-${type}`;
+  statePanel.innerHTML = `
+    <span class="blocked-users-state-mark" aria-hidden="true">
+      <svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3Z"></path>
+        <path d="m9 12 2 2 4-4"></path>
+      </svg>
+    </span>
+    <span class="blocked-users-state-label">${type === "empty" ? "ALL CLEAR" : type === "loading" ? "CHECKING" : "RETRY NEEDED"}</span>
+    <strong>${title}</strong>
+  `;
+  els.blockedUsersList.replaceChildren(statePanel);
 }
 
 function renderBlockedUsers(blockedUsers) {
   els.blockedUsersList.replaceChildren();
   if (!blockedUsers.length) {
-    const empty = document.createElement("p");
-    empty.className = "blocked-users-empty";
-    empty.textContent = "차단한 사용자가 없습니다.";
-    els.blockedUsersList.append(empty);
+    renderBlockedUsersStatus("empty", "차단 목록이 비어 있습니다");
     return;
   }
   blockedUsers.forEach((blockedUser) => {
     const row = document.createElement("div");
     row.className = "blocked-user-row";
+    const identity = document.createElement("div");
+    identity.className = "blocked-user-identity";
+    const avatar = document.createElement("span");
+    avatar.className = "blocked-user-avatar";
+    avatar.setAttribute("aria-hidden", "true");
+    avatar.textContent = String(blockedUser.nickname || "?").trim().slice(0, 1).toUpperCase();
+    const copy = document.createElement("div");
     const nickname = document.createElement("strong");
     nickname.textContent = blockedUser.nickname;
+    const status = document.createElement("span");
+    status.textContent = "커뮤니티에서 숨김";
+    copy.append(nickname, status);
+    identity.append(avatar, copy);
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = "차단 해제";
@@ -4613,7 +4637,7 @@ function renderBlockedUsers(blockedUsers) {
         showToast(error.message);
       }
     });
-    row.append(nickname, button);
+    row.append(identity, button);
     els.blockedUsersList.append(row);
   });
 }

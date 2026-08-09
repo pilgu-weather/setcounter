@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=114">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=115">
   </head>
   <body>
     <div class="app-launch-splash" id="appLaunchSplash" role="status" aria-live="polite" aria-label="Set Counter를 불러오는 중">
@@ -764,7 +764,10 @@
           <div><p class="eyebrow">COMMUNITY SAFETY</p><h2 id="blockedUsersTitle">차단 사용자 관리</h2></div>
           <button class="library-close" id="closeBlockedUsersButton" type="button" aria-label="닫기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </header>
-        <p class="blocked-users-copy">차단한 사용자의 게시글과 댓글은 표시되지 않습니다. 신고와 차단은 별도로 처리됩니다.</p>
+        <div class="blocked-users-notice">
+          <span class="blocked-users-notice-icon" aria-hidden="true"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+          <div><strong>내 커뮤니티 피드 보호</strong><p>차단한 사용자의 게시글과 댓글은 숨겨집니다. 신고 내역은 별도로 처리됩니다.</p></div>
+        </div>
         <div class="blocked-users-list" id="blockedUsersList" aria-live="polite"></div>
       </section>
     </div>
@@ -849,6 +852,6 @@
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=7"></script>
     <script src="{{ url_for('static', filename='js/body-highlighter.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=145"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=146"></script>
   </body>
 </html>

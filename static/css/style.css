@@ -8202,50 +8202,147 @@ body:has([data-screen="level-up"].is-active) .app-shell {
 [data-screen="menu"] #authenticatedAccountActions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 [data-screen="menu"] #logoutButton { color: var(--sc-text-secondary); }
 
-.blocked-users-copy {
-  margin: 0;
-  color: var(--sc-text-secondary);
-  font-size: 14px;
-  line-height: 1.6;
+.blocked-users-dialog {
+  min-height: min(430px, 62dvh);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  background:
+    radial-gradient(circle at 84% 14%, rgba(46, 124, 255, 0.11), transparent 30%),
+    linear-gradient(160deg, rgba(26, 33, 44, 0.98), rgba(13, 17, 24, 0.99));
 }
 
-.blocked-users-list {
+.blocked-users-notice {
   display: grid;
-  gap: 8px;
-  margin-top: 16px;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin: 16px 20px 0;
+  padding: 14px;
+  border: 1px solid rgba(105, 157, 255, 0.16);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(46, 124, 255, 0.09), rgba(255, 255, 255, 0.025));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.blocked-users-notice-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(105, 157, 255, 0.26);
+  border-radius: 10px;
+  background: rgba(46, 124, 255, 0.12);
+  color: #75a7ff;
+}
+
+.blocked-users-notice-icon svg { width: 20px; height: 20px; }
+.blocked-users-notice strong { display: block; color: var(--sc-text-primary); font-size: 14px; }
+.blocked-users-notice p { margin: 4px 0 0; color: var(--sc-text-secondary); font-size: 12px; line-height: 1.5; }
+
+.blocked-users-list {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  overflow-y: auto;
+  padding: 16px 20px max(20px, env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
 }
 
 .blocked-user-row {
-  min-height: 56px;
+  min-height: 68px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 6px 0;
+  padding: 10px 10px 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
-.blocked-user-row strong {
+.blocked-user-identity { min-width: 0; display: flex; align-items: center; gap: 11px; }
+.blocked-user-avatar {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(240, 91, 100, 0.2);
+  border-radius: 10px;
+  background: rgba(240, 91, 100, 0.08);
+  color: #f3a0a6;
+  font-weight: 900;
+}
+.blocked-user-identity > div { min-width: 0; display: grid; gap: 3px; }
+.blocked-user-identity strong {
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--sc-text-primary);
+  font-size: 14px;
 }
+.blocked-user-identity span { color: var(--sc-text-muted); font-size: 11px; }
 
 .blocked-user-row button {
-  min-width: 96px;
-  min-height: 48px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  min-width: 84px;
+  min-height: 44px;
+  border: 1px solid rgba(240, 91, 100, 0.2);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--sc-text-secondary);
+  background: linear-gradient(180deg, rgba(240, 91, 100, 0.12), rgba(240, 91, 100, 0.055));
+  color: #f3a0a6;
   font-weight: 800;
+  transition: transform 150ms ease, background 150ms ease;
+}
+.blocked-user-row button:active { transform: translateY(1px) scale(0.98); background: rgba(240, 91, 100, 0.17); }
+
+.blocked-users-state {
+  min-height: 190px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 12px 30px;
+  text-align: center;
 }
 
-.blocked-users-empty {
-  margin: 0;
-  padding: 28px 8px;
-  color: var(--sc-text-muted);
-  text-align: center;
+.blocked-users-state-mark {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+  border: 1px solid rgba(102, 201, 135, 0.25);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(102, 201, 135, 0.16), rgba(102, 201, 135, 0.035) 62%, transparent 64%);
+  color: var(--sc-success);
+  box-shadow: 0 0 28px rgba(102, 201, 135, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.blocked-users-state-mark::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px dashed rgba(102, 201, 135, 0.23);
+  border-radius: inherit;
+}
+
+.blocked-users-state-mark svg { width: 34px; height: 34px; }
+.blocked-users-state-label { margin-bottom: 6px; color: var(--sc-success); font-size: 10px; font-weight: 900; letter-spacing: 1.2px; }
+.blocked-users-state strong { color: var(--sc-text-primary); font-size: 17px; line-height: 1.35; }
+.blocked-users-state.is-loading .blocked-users-state-mark { color: #75a7ff; border-color: rgba(46, 124, 255, 0.26); animation: sc-blocked-pulse 1.25s ease-in-out infinite; }
+.blocked-users-state.is-loading .blocked-users-state-label { color: #75a7ff; }
+.blocked-users-state.is-error .blocked-users-state-mark { color: var(--sc-danger); border-color: rgba(240, 91, 100, 0.24); box-shadow: 0 0 28px rgba(240, 91, 100, 0.08); }
+.blocked-users-state.is-error .blocked-users-state-label { color: #f3a0a6; }
+
+@keyframes sc-blocked-pulse {
+  50% { transform: scale(0.96); opacity: 0.72; }
+}
+
+@media (max-width: 380px) {
+  .blocked-users-notice { margin-inline: 14px; }
+  .blocked-users-list { padding-inline: 14px; }
 }
 [data-screen="menu"] .account-delete-button {
   border: 1px solid rgba(240, 91, 100, 0.2);
