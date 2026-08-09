@@ -1810,9 +1810,14 @@ function renderSetTable() {
 function syncCounter() {
   const target = targetSets();
   const completed = state.setRows.length;
+  const wasTargetComplete = els.confirmWorkoutButton.classList.contains("is-target-complete");
   els.confirmWorkoutButton.disabled = completed === 0;
   els.confirmWorkoutButton.classList.toggle("is-target-complete", completed >= target);
   els.countSetButton.disabled = completed >= target;
+  els.countSetButton.setAttribute("aria-label", `이번 세트 완료, ${completed}/${target}세트 완료`);
+  if (!wasTargetComplete && completed >= target) {
+    window.SetCounterMotion?.animateRecordSaveReady(els.confirmWorkoutButton);
+  }
   renderSetTable();
   syncPlannedRecord();
   syncLastRecordChips();
@@ -4984,6 +4989,7 @@ function countSet() {
   state.setRows.push({ weightKg, reps: currentReps() });
   applyNextSetFromLatestRecord();
   syncCounter();
+  window.SetCounterMotion?.animateRecordSetComplete(els.countSetButton, state.setRows.length, targetSets());
   const completedChip = els.lastRecord.querySelector(`.record-chip[data-set-index="${completedIndex}"]`);
   window.SetCounterMotion?.animateSetChipComplete(completedChip);
   if (state.setRows.length >= targetSets()) {

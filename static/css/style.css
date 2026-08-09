@@ -10431,6 +10431,149 @@ body:has([data-screen="board"].is-active) .bottom-nav button {
   box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.36);
 }
 
+/* Record actions are tactile controls: set completion is immediate, save is a final commit. */
+.record-actions .record-action-button {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  min-height: 58px;
+  padding: 0;
+  border-radius: 13px;
+  transform-origin: center bottom;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.record-action-face {
+  position: relative;
+  z-index: 2;
+  min-height: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 18px;
+  border-radius: inherit;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
+}
+
+.record-action-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.28));
+}
+
+.record-action-glow {
+  position: absolute;
+  z-index: 0;
+  inset: 7px 12%;
+  border-radius: 999px;
+  background: rgba(76, 145, 255, 0.48);
+  filter: blur(16px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.record-action-sheen {
+  position: absolute;
+  z-index: 3;
+  top: 1px;
+  bottom: 4px;
+  left: 38%;
+  width: 18%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.34), transparent);
+  transform: skewX(-18deg) translateX(-520%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.record-actions .record-set-button {
+  border-color: rgba(116, 173, 255, 0.74);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 42%),
+    linear-gradient(150deg, #438eff 0%, #2b73e8 56%, #1c59bf 100%);
+  box-shadow:
+    0 11px 23px rgba(24, 88, 190, 0.3),
+    0 4px 0 #123d87,
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -2px 0 rgba(4, 36, 91, 0.34);
+}
+
+.record-actions .record-set-button:not(:disabled):hover {
+  filter: brightness(1.055);
+  box-shadow:
+    0 13px 27px rgba(24, 88, 190, 0.36),
+    0 4px 0 #123d87,
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 -2px 0 rgba(4, 36, 91, 0.34);
+}
+
+.record-actions .record-save-button {
+  border-color: rgba(149, 164, 188, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), transparent 48%),
+    linear-gradient(150deg, #202731, #131922 72%);
+  color: #c2cad7;
+  box-shadow:
+    0 9px 18px rgba(0, 0, 0, 0.28),
+    0 3px 0 #090d12,
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.record-actions .record-save-button.is-target-complete {
+  border-color: rgba(116, 173, 255, 0.72);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 43%),
+    linear-gradient(150deg, #3e88fb, #2467d7 70%, #194ca3);
+  color: #fff;
+  box-shadow:
+    0 12px 28px rgba(25, 91, 199, 0.34),
+    0 4px 0 #103976,
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -2px 0 rgba(3, 31, 79, 0.36);
+}
+
+.record-actions .record-action-button:disabled {
+  border-color: rgba(255, 255, 255, 0.07);
+  background: linear-gradient(150deg, #1a1f27, #11161d);
+  color: #68717f;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  opacity: 1;
+}
+
+.record-actions .record-action-button:focus-visible {
+  outline: 3px solid rgba(79, 143, 255, 0.34);
+  outline-offset: 3px;
+}
+
+.record-action-burst {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  top: 50%;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.record-action-burst i {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  margin: -2px;
+  border-radius: 50%;
+  background: #dceaff;
+  box-shadow: 0 0 7px rgba(104, 166, 255, 0.9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .record-action-sheen,
+  .record-action-burst { display: none; }
+}
+
 [data-screen="board"] .board-tabs {
   border-color: rgba(133, 156, 192, 0.22);
   background:

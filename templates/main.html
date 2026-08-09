@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=115">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=116">
   </head>
   <body>
     <div class="app-launch-splash" id="appLaunchSplash" role="status" aria-live="polite" aria-label="Set Counter를 불러오는 중">
@@ -238,9 +238,17 @@
           <div class="record-actions">
             <div class="action-row">
               <button class="secondary-button" id="undoSetButton" type="button">이전</button>
-              <button class="count-button" id="countSetButton" type="button">이번 세트 완료</button>
+              <button class="count-button record-action-button record-set-button" id="countSetButton" type="button">
+                <span class="record-action-glow" aria-hidden="true"></span>
+                <span class="record-action-face"><svg class="lucide record-action-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg><span>이번 세트 완료</span></span>
+                <span class="record-action-sheen" aria-hidden="true"></span>
+              </button>
             </div>
-            <button class="confirm-button" id="confirmWorkoutButton" type="button" disabled>기록 저장</button>
+            <button class="confirm-button record-action-button record-save-button" id="confirmWorkoutButton" type="button" disabled>
+              <span class="record-action-glow" aria-hidden="true"></span>
+              <span class="record-action-face"><svg class="lucide record-action-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.8Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg><span>기록 저장</span></span>
+              <span class="record-action-sheen" aria-hidden="true"></span>
+            </button>
           </div>
 
           <div class="planned-record" id="plannedRecord">오늘: 8kg · 0회 완료 · 볼륨 0kg</div>
@@ -850,8 +858,8 @@
       </section>
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
-    <script src="{{ url_for('static', filename='js/motion.js') }}?v=7"></script>
+    <script src="{{ url_for('static', filename='js/motion.js') }}?v=8"></script>
     <script src="{{ url_for('static', filename='js/body-highlighter.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=146"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=147"></script>
   </body>
 </html>

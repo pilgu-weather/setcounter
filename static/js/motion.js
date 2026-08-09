@@ -34,12 +34,24 @@
 
   function animatePress(element, pressed) {
     if (!element || !canAnimate()) return;
+    const recordAction = element.matches?.(".record-action-button");
     gsap.to(element, {
-      scale: pressed ? 0.97 : 1,
-      duration: pressed ? 0.09 : 0.14,
-      ease: pressed ? "power1.out" : "power2.out",
+      y: recordAction && pressed ? 3 : 0,
+      scale: pressed ? (recordAction ? 0.988 : 0.97) : 1,
+      duration: pressed ? (recordAction ? 0.065 : 0.09) : (recordAction ? 0.2 : 0.14),
+      ease: pressed ? "power1.out" : (recordAction ? "back.out(2.2)" : "power2.out"),
       overwrite: "auto",
     });
+    const face = recordAction ? element.querySelector(".record-action-face") : null;
+    if (face) {
+      gsap.to(face, {
+        y: pressed ? 1 : 0,
+        scale: pressed ? 0.995 : 1,
+        duration: pressed ? 0.065 : 0.18,
+        ease: pressed ? "power1.out" : "back.out(2)",
+        overwrite: "auto",
+      });
+    }
   }
 
   function pressTarget(event) {
@@ -405,7 +417,8 @@
   function animateWorkoutSuccess(button, elements = []) {
     if (!canAnimate()) return;
     const targets = Array.from(elements || []).filter(Boolean);
-    animateButtonComplete(button);
+    if (button?.matches?.(".record-save-button")) animateRecordSaveComplete(button);
+    else animateButtonComplete(button);
     if (targets.length) {
       gsap.fromTo(targets, { autoAlpha: 0.4, y: 8 }, {
         autoAlpha: 1,
@@ -417,6 +430,83 @@
         overwrite: "auto",
       });
     }
+  }
+
+  function createRecordActionBurst(button, count = 8) {
+    const burst = document.createElement("span");
+    burst.className = "record-action-burst";
+    const particles = Array.from({ length: count }, () => {
+      const particle = document.createElement("i");
+      burst.append(particle);
+      return particle;
+    });
+    button.append(burst);
+    return { burst, particles };
+  }
+
+  function animateRecordSetComplete(button, completed, target) {
+    if (!button || !canAnimate()) return;
+    const face = button.querySelector(".record-action-face");
+    const icon = button.querySelector(".record-action-icon");
+    const glow = button.querySelector(".record-action-glow");
+    const { burst, particles } = createRecordActionBurst(button, 8);
+    gsap.killTweensOf([button, face, icon, glow]);
+    gsap.timeline({
+      defaults: { overwrite: "auto" },
+      onComplete: () => {
+        burst.remove();
+        gsap.set([button, face, icon, glow], { clearProps: "transform,opacity,filter" });
+      },
+    })
+      .fromTo(button, { y: 3, scale: 0.985 }, { y: 0, scale: 1.018, duration: 0.13, ease: "power2.out" }, 0)
+      .to(button, { scale: 1, duration: 0.2, ease: "back.out(2.4)" }, 0.13)
+      .fromTo(face, { y: 1 }, { y: 0, duration: 0.2, ease: "back.out(2)" }, 0.04)
+      .fromTo(icon, { scale: 0.55, rotate: -16 }, { scale: 1.16, rotate: 0, duration: 0.2, ease: "back.out(2.8)" }, 0.04)
+      .to(icon, { scale: 1, duration: 0.14, ease: "power2.out" }, 0.23)
+      .fromTo(glow, { autoAlpha: 0.72, scaleX: 0.35 }, { autoAlpha: 0, scaleX: 1.1, duration: 0.42, ease: "power2.out" }, 0.02);
+    particles.forEach((particle, index) => {
+      const angle = Math.PI * (0.1 + (0.8 * index) / Math.max(1, particles.length - 1));
+      const distance = 20 + (index % 3) * 5;
+      gsap.fromTo(particle, { x: 0, y: 0, scale: 0.4, autoAlpha: 0.95 }, {
+        x: Math.cos(angle) * distance,
+        y: -Math.sin(angle) * distance,
+        scale: 0.9,
+        autoAlpha: 0,
+        duration: 0.38,
+        delay: index * 0.012,
+        ease: "power2.out",
+      });
+    });
+    button.setAttribute("aria-label", `이번 세트 완료, ${completed}/${target}세트`);
+  }
+
+  function animateRecordSaveReady(button) {
+    if (!button || !canAnimate()) return;
+    const face = button.querySelector(".record-action-face");
+    const icon = button.querySelector(".record-action-icon");
+    const sheen = button.querySelector(".record-action-sheen");
+    gsap.killTweensOf([button, face, icon, sheen]);
+    gsap.timeline({ defaults: { overwrite: "auto" } })
+      .fromTo(button, { scale: 0.985 }, { scale: 1.012, duration: 0.2, ease: "back.out(2)" }, 0)
+      .to(button, { scale: 1, duration: 0.2, ease: "power2.out", clearProps: "transform" }, 0.2)
+      .fromTo(icon, { y: 3, autoAlpha: 0.4 }, { y: 0, autoAlpha: 1, duration: 0.24, ease: "back.out(2.4)", clearProps: "transform,opacity,visibility" }, 0.05)
+      .fromTo(sheen, { xPercent: -160, autoAlpha: 0 }, { xPercent: 180, autoAlpha: 0.7, duration: 0.52, ease: "power2.inOut", clearProps: "transform,opacity,visibility" }, 0.08);
+  }
+
+  function animateRecordSaveComplete(button) {
+    if (!button || !canAnimate()) return;
+    const face = button.querySelector(".record-action-face");
+    const icon = button.querySelector(".record-action-icon");
+    const glow = button.querySelector(".record-action-glow");
+    const sheen = button.querySelector(".record-action-sheen");
+    gsap.killTweensOf([button, face, icon, glow, sheen]);
+    gsap.timeline({ defaults: { overwrite: "auto" } })
+      .fromTo(button, { y: 3, scale: 0.985 }, { y: 0, scale: 1.018, duration: 0.15, ease: "power2.out" }, 0)
+      .to(button, { scale: 1, duration: 0.24, ease: "back.out(2.2)", clearProps: "transform" }, 0.15)
+      .fromTo(glow, { autoAlpha: 0.9, scaleX: 0.25 }, { autoAlpha: 0, scaleX: 1.2, duration: 0.58, ease: "power2.out", clearProps: "transform,opacity,visibility" }, 0.02)
+      .fromTo(icon, { scale: 0.72, rotate: -12 }, { scale: 1.12, rotate: 0, duration: 0.25, ease: "back.out(2.6)" }, 0.04)
+      .to(icon, { scale: 1, duration: 0.16, ease: "power2.out", clearProps: "transform" }, 0.27)
+      .fromTo(sheen, { xPercent: -160, autoAlpha: 0 }, { xPercent: 180, autoAlpha: 0.86, duration: 0.58, ease: "power2.inOut", clearProps: "transform,opacity,visibility" }, 0.08);
   }
 
   function animateSetChipComplete(chip) {
@@ -580,6 +670,8 @@
     animateSetChipComplete,
     animatePlanArrows,
     animateWorkoutSuccess,
+    animateRecordSetComplete,
+    animateRecordSaveReady,
     animateToast,
     animateRestComplete,
     animateSeasonMoment,
