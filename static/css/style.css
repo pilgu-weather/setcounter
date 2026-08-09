@@ -5961,14 +5961,13 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
   min-height: 48px;
   display: inline-grid;
   place-items: center;
-  border: 1px solid rgba(240, 91, 100, 0.28);
-  border-radius: 10px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 46%),
-    linear-gradient(145deg, rgba(91, 31, 40, 0.72), rgba(41, 16, 22, 0.88));
-  color: #ff8d95;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -2px 0 rgba(0, 0, 0, 0.28), 0 6px 13px rgba(0, 0, 0, 0.24);
-  transition: transform 140ms var(--sc-ease), background-color 160ms var(--sc-ease), border-color 160ms var(--sc-ease);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 116, 126, 0.82);
+  box-shadow: none;
+  transition: color 150ms ease, transform 140ms var(--sc-ease);
 }
 
 [data-screen="calendar"] .delete-button svg {
@@ -5983,13 +5982,21 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
 
 [data-screen="calendar"] .delete-button:hover,
 [data-screen="calendar"] .delete-button:focus-visible {
-  border-color: rgba(240, 91, 100, 0.58);
-  background: rgba(134, 30, 43, 0.28);
+  background: transparent;
+  color: #ff8d95;
+}
+
+[data-screen="calendar"] .delete-button:focus-visible {
+  outline: 2px solid rgba(240, 91, 100, 0.34);
+  outline-offset: -7px;
+  border-radius: 10px;
 }
 
 [data-screen="calendar"] .delete-button:active {
-  transform: translateY(1px) scale(0.96);
-  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.42), 0 2px 5px rgba(0, 0, 0, 0.18);
+  transform: scale(0.9);
+  background: transparent;
+  color: #ff6671;
+  box-shadow: none;
 }
 
 [data-screen="calendar"] .day-log-sets {
