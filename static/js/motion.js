@@ -66,6 +66,62 @@
     });
   }
 
+  function planArrowOwner(target) {
+    return target instanceof Element
+      ? target.closest(".workout-plan-card, .plan-workout-row.is-selectable, .plan-detail-cta button")
+      : null;
+  }
+
+  function animatePlanArrow(owner, active) {
+    const arrow = owner?.querySelector(".plan-arrow");
+    if (!arrow || !canAnimate()) return;
+    gsap.to(arrow, {
+      x: active ? 3 : 0,
+      scale: active ? 1.08 : 1,
+      duration: active ? 0.2 : 0.24,
+      ease: active ? "back.out(1.8)" : "power2.out",
+      overwrite: "auto",
+    });
+  }
+
+  function bindPlanArrowFeedback() {
+    document.addEventListener("pointerover", (event) => {
+      const owner = planArrowOwner(event.target);
+      if (!owner || (event.relatedTarget instanceof Node && owner.contains(event.relatedTarget))) return;
+      animatePlanArrow(owner, true);
+    }, { passive: true });
+    document.addEventListener("pointerout", (event) => {
+      const owner = planArrowOwner(event.target);
+      if (!owner || (event.relatedTarget instanceof Node && owner.contains(event.relatedTarget))) return;
+      animatePlanArrow(owner, false);
+    }, { passive: true });
+    document.addEventListener("focusin", (event) => animatePlanArrow(planArrowOwner(event.target), true));
+    document.addEventListener("focusout", (event) => animatePlanArrow(planArrowOwner(event.target), false));
+  }
+
+  function animatePlanArrows(root = document) {
+    const arrows = Array.from(root?.querySelectorAll?.(".plan-arrow") || []).filter((arrow) => {
+      if (arrow.dataset.motionArrowReady === "1") return false;
+      arrow.dataset.motionArrowReady = "1";
+      return true;
+    });
+    if (!arrows.length || !canAnimate()) return;
+    gsap.fromTo(arrows, {
+      autoAlpha: 0,
+      x: -7,
+      scale: 0.72,
+    }, {
+      autoAlpha: 1,
+      x: 0,
+      scale: 1,
+      duration: 0.34,
+      stagger: 0.035,
+      ease: "back.out(1.7)",
+      clearProps: "transform,opacity,visibility",
+      overwrite: "auto",
+    });
+  }
+
   function ensureNavIndicator() {
     const nav = document.querySelector(".bottom-nav");
     if (!nav) return;
@@ -490,6 +546,7 @@
     document.documentElement.classList.toggle("has-gsap", Boolean(gsap));
     document.documentElement.classList.add("motion-ready");
     bindTouchFeedback();
+    bindPlanArrowFeedback();
     ensureNavIndicator();
     animateBottomNavIndicator(document.querySelector(".bottom-nav [data-tab].is-active"), true);
     viewportHandler = () => window.requestAnimationFrame(() => {
@@ -521,6 +578,7 @@
     revealImage,
     animateButtonComplete,
     animateSetChipComplete,
+    animatePlanArrows,
     animateWorkoutSuccess,
     animateToast,
     animateRestComplete,

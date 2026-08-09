@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=106">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=107">
   </head>
   <body>
     <div class="app-launch-splash" id="appLaunchSplash" role="status" aria-live="polite" aria-label="Set Counter를 불러오는 중">
@@ -134,7 +134,7 @@
             <div class="plan-schedule" id="planSchedule"></div>
           </section>
         </div>
-        <div class="plan-detail-cta"><button id="startPlanDetailButton" type="button">지금 시작 <span aria-hidden="true">→</span></button></div>
+        <div class="plan-detail-cta"><button id="startPlanDetailButton" type="button">지금 시작 <span class="plan-arrow" aria-hidden="true"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button></div>
       </section>
 
       <section class="app-screen" data-screen="record" aria-labelledby="recordTitle">
@@ -194,25 +194,25 @@
               <label>
                 <span>무게 kg</span>
                 <div class="input-stepper">
-                  <button class="stepper-button" type="button" data-step-for="weightInput" data-step="-1" aria-label="무게 내리기">-</button>
+                  <button class="stepper-button" type="button" data-step-for="weightInput" data-step="-1" aria-label="무게 내리기"><svg class="lucide" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
                   <input id="weightInput" name="weight" type="text" value="8" inputmode="decimal" pattern="(?:맨몸|\d+(?:\.\d+)?)" aria-label="무게, 0은 맨몸">
-                  <button class="stepper-button" type="button" data-step-for="weightInput" data-step="1" aria-label="무게 올리기">+</button>
+                  <button class="stepper-button" type="button" data-step-for="weightInput" data-step="1" aria-label="무게 올리기"><svg class="lucide" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
                 </div>
               </label>
               <label>
                 <span>이번 세트 횟수</span>
                 <div class="input-stepper">
-                  <button class="stepper-button" type="button" data-step-for="currentRepsInput" data-step="-1" aria-label="횟수 내리기">-</button>
+                  <button class="stepper-button" type="button" data-step-for="currentRepsInput" data-step="-1" aria-label="횟수 내리기"><svg class="lucide" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
                   <input id="currentRepsInput" name="currentReps" type="number" min="1" max="200" step="1" value="12" inputmode="numeric">
-                  <button class="stepper-button" type="button" data-step-for="currentRepsInput" data-step="1" aria-label="횟수 올리기">+</button>
+                  <button class="stepper-button" type="button" data-step-for="currentRepsInput" data-step="1" aria-label="횟수 올리기"><svg class="lucide" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
                 </div>
               </label>
               <label>
                 <span>목표 세트</span>
                 <div class="input-stepper">
-                  <button class="stepper-button" type="button" data-step-for="setsInput" data-step="-1" aria-label="세트 내리기">-</button>
+                  <button class="stepper-button" type="button" data-step-for="setsInput" data-step="-1" aria-label="세트 내리기"><svg class="lucide" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
                   <input id="setsInput" name="sets" type="number" min="1" max="30" step="1" value="3" inputmode="numeric">
-                  <button class="stepper-button" type="button" data-step-for="setsInput" data-step="1" aria-label="세트 올리기">+</button>
+                  <button class="stepper-button" type="button" data-step-for="setsInput" data-step="1" aria-label="세트 올리기"><svg class="lucide" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
                 </div>
               </label>
             </div>
@@ -855,8 +855,8 @@
       </section>
     </div>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
-    <script src="{{ url_for('static', filename='js/motion.js') }}?v=6"></script>
+    <script src="{{ url_for('static', filename='js/motion.js') }}?v=7"></script>
     <script src="{{ url_for('static', filename='js/body-highlighter.js') }}?v=2"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=136"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=137"></script>
   </body>
 </html>

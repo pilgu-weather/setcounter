@@ -270,6 +270,8 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+const PLAN_ARROW_MARKUP = '<span class="plan-arrow" aria-hidden="true"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>';
+
 const levelTiers = [
   { minimum: 95, className: "champion", label: "PRISM", labelKo: "프리즘", image: "/static/assets/level-badges/rank-11.webp?v=3" },
   { minimum: 90, className: "crown", label: "OBSIDIAN", labelKo: "옵시디언", image: "/static/assets/level-badges/rank-10.webp?v=3" },
@@ -2433,7 +2435,7 @@ function renderPlanWorkoutGroup(title, rows, options = {}) {
     item.innerHTML = `
       <img src="${escapeHtml(planImageUrl(row.image))}" alt="">
       <span><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.meta)}</small></span>
-      ${options.onSelect ? '<b aria-hidden="true">→</b>' : ""}
+      ${options.onSelect ? PLAN_ARROW_MARKUP : ""}
     `;
     if (options.onSelect) item.addEventListener("click", () => options.onSelect(row, index));
     group.append(item);
@@ -2513,6 +2515,7 @@ function openPlanDetail(plan) {
     els.planSchedule.append(item);
   });
   setActiveScreen("plan");
+  window.SetCounterMotion?.animatePlanArrows(document.querySelector('[data-screen="plan"]'));
 }
 
 function renderWorkoutPlans() {
@@ -2528,7 +2531,7 @@ function renderWorkoutPlans() {
       <div class="workout-plan-card-copy"><p>${routineExercises.length}종목 · ${escapeHtml(plan.focus)}</p><h3>${escapeHtml(plan.title)}</h3><span>${escapeHtml(plan.copy)}</span></div>
       <div class="workout-plan-sequence" aria-label="플랜 구성"><span>준비 ${planSupportSteps(plan).warmup.length}</span><i></i><span>본 운동 ${routineExercises.length}</span><i></i><span>마무리 ${planSupportSteps(plan).cooldown.length}</span></div>
       <div class="workout-plan-meta"><span>${plan.duration}</span><span>${routineExercises.reduce((total, exercise) => total + exercise.planPrescription.sets, 0)}세트</span></div>
-      <span class="workout-plan-open">상세 보기 <b aria-hidden="true">→</b></span>
+      <span class="workout-plan-open">상세 보기 ${PLAN_ARROW_MARKUP}</span>
     `;
     card.tabIndex = 0;
     card.setAttribute("role", "button");
@@ -2543,6 +2546,7 @@ function renderWorkoutPlans() {
     els.workoutPlanRail.append(card);
   });
   window.SetCounterMotion?.animateListEnter(els.workoutPlanRail.children, { scope: "plans", limit: 8, y: 12 });
+  window.SetCounterMotion?.animatePlanArrows(els.workoutPlanRail);
 }
 
 function renderHomeDashboard() {
