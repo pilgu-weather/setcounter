@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=112">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=113">
   </head>
   <body>
     <div class="app-launch-splash" id="appLaunchSplash" role="status" aria-live="polite" aria-label="Set Counter를 불러오는 중">
@@ -366,9 +366,9 @@
           <form class="weekly-goal-form" id="weeklyGoalForm">
             <span class="weekly-goal-label">일주일 목표</span>
             <div class="weekly-goal-stepper">
-              <button type="button" id="weeklyGoalDecrease" aria-label="주간 운동 목표 줄이기">-</button>
+              <button type="button" id="weeklyGoalDecrease" aria-label="주간 운동 목표 줄이기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
               <output id="weeklyGoalValue">3회</output>
-              <button type="button" id="weeklyGoalIncrease" aria-label="주간 운동 목표 늘리기">+</button>
+              <button type="button" id="weeklyGoalIncrease" aria-label="주간 운동 목표 늘리기"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
             </div>
             <button class="weekly-goal-save" id="weeklyGoalSaveButton" type="submit">적용</button>
           </form>
@@ -858,6 +858,6 @@
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=7"></script>
     <script src="{{ url_for('static', filename='js/body-highlighter.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=142"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=143"></script>
   </body>
 </html>

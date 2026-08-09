@@ -1119,11 +1119,11 @@ strong {
 
 .muscle-map-svg .is-secondary path { fill: #45c3d8; }
 .muscle-map-svg .is-inactive path { opacity: 0.68; }
-.muscle-map-svg .is-distribution.color-1 path { fill: #2e7cff; filter: drop-shadow(0 0 5px rgba(46, 124, 255, 0.58)); }
-.muscle-map-svg .is-distribution.color-2 path { fill: #45c3d8; filter: drop-shadow(0 0 5px rgba(69, 195, 216, 0.52)); }
-.muscle-map-svg .is-distribution.color-3 path { fill: #9a78ff; filter: drop-shadow(0 0 5px rgba(154, 120, 255, 0.52)); }
-.muscle-map-svg .is-distribution.color-4 path { fill: #f4b75d; filter: drop-shadow(0 0 5px rgba(244, 183, 93, 0.5)); }
-.muscle-map-svg .is-distribution.color-5 path { fill: #66c987; filter: drop-shadow(0 0 5px rgba(102, 201, 135, 0.5)); }
+.muscle-map-svg .is-distribution.color-1 path { fill: #5278b8; filter: drop-shadow(0 0 4px rgba(82, 120, 184, 0.34)); }
+.muscle-map-svg .is-distribution.color-2 path { fill: #4f8f98; filter: drop-shadow(0 0 4px rgba(79, 143, 152, 0.32)); }
+.muscle-map-svg .is-distribution.color-3 path { fill: #786da8; filter: drop-shadow(0 0 4px rgba(120, 109, 168, 0.32)); }
+.muscle-map-svg .is-distribution.color-4 path { fill: #b28a52; filter: drop-shadow(0 0 4px rgba(178, 138, 82, 0.3)); }
+.muscle-map-svg .is-distribution.color-5 path { fill: #668c72; filter: drop-shadow(0 0 4px rgba(102, 140, 114, 0.3)); }
 
 .muscle-map-figure figcaption {
   color: var(--sc-text-tertiary);
@@ -1723,13 +1723,11 @@ body:has(.app-screen[data-screen="record"].is-active)::-webkit-scrollbar {
   height: 44px;
   min-height: 44px;
   padding: 0;
-  border-color: var(--sc-border-strong);
+  border-color: var(--sc-metal-control-border);
   border-radius: 12px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 44%),
-    linear-gradient(145deg, #1c2430, #10151d 72%);
+  background: var(--sc-metal-control-bg);
   color: var(--sc-text-secondary);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13), inset 0 -2px 0 rgba(0, 0, 0, 0.3), 0 6px 13px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--sc-metal-control-shadow);
   line-height: 0;
 }
 
@@ -1740,12 +1738,15 @@ body:has(.app-screen[data-screen="record"].is-active)::-webkit-scrollbar {
 
 [data-screen="record"] .exercise-tools button:active {
   transform: translateY(1px) scale(0.97);
-  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.42), 0 2px 5px rgba(0, 0, 0, 0.2);
+  background: var(--sc-metal-control-bg-pressed);
+  box-shadow: var(--sc-metal-control-shadow-pressed);
 }
 
 [data-screen="record"] .exercise-tools .add-exercise-button {
   border-color: rgba(93, 156, 255, 0.5);
-  background: rgba(46, 124, 255, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 44%),
+    linear-gradient(145deg, rgba(35, 75, 137, 0.88), rgba(13, 30, 54, 0.96) 72%);
   color: var(--sc-primary-strong);
 }
 
@@ -1967,8 +1968,9 @@ body:has(.app-screen[data-screen="record"].is-active)::-webkit-scrollbar {
   min-height: 40px;
   border: 1px solid var(--sc-border-strong);
   border-radius: 12px;
-  background: var(--sc-surface-strong);
+  background: var(--sc-metal-control-bg);
   color: var(--sc-primary-strong);
+  box-shadow: var(--sc-metal-control-shadow);
   padding: 0 12px;
   font-size: 12px;
   font-weight: 900;
@@ -2028,6 +2030,17 @@ body:has(.app-screen[data-screen="record"].is-active)::-webkit-scrollbar {
   border-radius: 0;
   background: transparent;
   padding: 9px 0;
+}
+
+.exercise-detail-toggle:hover,
+.exercise-detail-toggle:focus-visible {
+  background: var(--sc-metal-control-bg-hover);
+}
+
+.exercise-detail-toggle:active {
+  background: var(--sc-metal-control-bg-pressed);
+  box-shadow: var(--sc-metal-control-shadow-pressed);
+  transform: translateY(1px) scale(0.98);
 }
 
 .exercise-detail-meta dt {
@@ -3738,6 +3751,21 @@ body:has(.exercise-step-modal:not([hidden])) {
   --sc-shadow-lg: 0 28px 72px rgba(0, 0, 0, 0.5);
   --sc-glow: 0 0 0 1px rgba(73, 137, 255, 0.2), 0 14px 30px rgba(29, 95, 220, 0.2);
   --sc-ease: cubic-bezier(0.2, 0.75, 0.25, 1);
+  --sc-metal-control-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.13), transparent 44%),
+    linear-gradient(145deg, #1c2430, #10151d 72%);
+  --sc-metal-control-bg-hover:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 44%),
+    linear-gradient(145deg, #222d3c, #121923 72%);
+  --sc-metal-control-bg-pressed: linear-gradient(180deg, #10151d, #1b2636);
+  --sc-metal-control-border: rgba(146, 169, 204, 0.26);
+  --sc-metal-control-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.32),
+    0 6px 13px rgba(0, 0, 0, 0.28);
+  --sc-metal-control-shadow-pressed:
+    inset 0 3px 7px rgba(0, 0, 0, 0.44),
+    0 2px 5px rgba(0, 0, 0, 0.2);
   --bg: var(--sc-bg);
   --bg-soft: var(--sc-bg-elevated);
   --panel: var(--sc-surface);
@@ -4050,21 +4078,21 @@ h3 { font-size: 17px; font-weight: 750; line-height: 1.3; }
 .icon-button,
 .ghost-icon,
 .library-close,
-.exercise-step-head button {
+.exercise-step-head button,
+.exercise-step-footer > button:not(:last-child) {
   display: inline-grid;
   width: 44px;
   min-width: 44px;
   height: 44px;
   min-height: 44px;
   place-items: center;
-  border: 1px solid var(--sc-border);
+  border: 1px solid var(--sc-metal-control-border);
   border-radius: 14px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 44%),
-    linear-gradient(145deg, #1c2430, #10151d 72%);
+  background: var(--sc-metal-control-bg);
   color: var(--sc-text);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13), inset 0 -2px 0 rgba(0, 0, 0, 0.3), 0 6px 13px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--sc-metal-control-shadow);
   line-height: 0;
+  transition: transform 140ms var(--sc-ease), border-color 160ms var(--sc-ease), background 160ms var(--sc-ease), box-shadow 160ms var(--sc-ease), color 160ms var(--sc-ease);
 }
 
 .menu-button .lucide,
@@ -4098,9 +4126,10 @@ h3 { font-size: 17px; font-weight: 750; line-height: 1.3; }
 .icon-button:hover,
 .ghost-icon:hover,
 .library-close:hover,
-.exercise-step-head button:hover {
+.exercise-step-head button:hover,
+.exercise-step-footer > button:not(:last-child):hover {
   border-color: var(--sc-border-strong);
-  background: rgba(255, 255, 255, 0.085);
+  background: var(--sc-metal-control-bg-hover);
 }
 
 .menu-button:active,
@@ -4108,9 +4137,20 @@ h3 { font-size: 17px; font-weight: 750; line-height: 1.3; }
 .icon-button:active,
 .ghost-icon:active,
 .library-close:active,
-.exercise-step-head button:active {
+.exercise-step-head button:active,
+.exercise-step-footer > button:not(:last-child):active {
   transform: translateY(1px) scale(0.97);
-  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.42), 0 2px 5px rgba(0, 0, 0, 0.2);
+  background: var(--sc-metal-control-bg-pressed);
+  box-shadow: var(--sc-metal-control-shadow-pressed);
+}
+
+.exercise-step-footer > button:not(:last-child):disabled {
+  border-color: rgba(146, 169, 204, 0.1);
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: none;
+  color: var(--sc-text-tertiary);
+  opacity: 0.58;
+  transform: none;
 }
 
 .menu-popover {
@@ -4304,16 +4344,11 @@ select:focus {
   isolation: isolate;
   overflow: hidden;
   padding: 0;
-  border: 1px solid rgba(105, 145, 207, 0.34);
+  border: 1px solid var(--sc-metal-control-border);
   border-radius: var(--sc-radius-control);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.13), transparent 44%),
-    linear-gradient(145deg, #1c2430, #10151d 72%);
+  background: var(--sc-metal-control-bg);
   color: var(--sc-primary-strong);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.3),
-    0 6px 13px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--sc-metal-control-shadow);
   touch-action: manipulation;
   user-select: none;
   line-height: 0;
@@ -4342,17 +4377,15 @@ select:focus {
 
 .stepper-button:hover {
   border-color: rgba(93, 156, 255, 0.55);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.15), transparent 44%),
-    linear-gradient(145deg, #202b3b, #111923 72%);
+  background: var(--sc-metal-control-bg-hover);
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.18), inset 0 -2px rgba(0, 0, 0, 0.3), 0 7px 16px rgba(0, 0, 0, 0.3), 0 0 14px rgba(46, 124, 255, 0.1);
 }
 
 .stepper-button:active,
 .stepper-button.is-holding {
   border-color: rgba(93, 156, 255, 0.62);
-  background: linear-gradient(180deg, #111721, #182335);
-  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.42), 0 2px 5px rgba(0, 0, 0, 0.2), 0 0 12px rgba(46, 124, 255, 0.13);
+  background: var(--sc-metal-control-bg-pressed);
+  box-shadow: var(--sc-metal-control-shadow-pressed), 0 0 12px rgba(46, 124, 255, 0.13);
   transform: translateY(1px) scale(0.97);
 }
 
@@ -4518,17 +4551,33 @@ select:focus {
   min-height: 48px;
   border: 1px solid rgba(111, 164, 255, 0.24);
   border-radius: 10px;
-  background: rgba(46, 124, 255, 0.08);
+  background: var(--sc-metal-control-bg);
   color: #a9c8ff;
+  box-shadow: var(--sc-metal-control-shadow);
   padding: 0 9px;
   font-size: 11px;
   font-weight: 900;
   white-space: nowrap;
 }
 
+.library-exercise-detail-button:hover,
+.library-exercise-detail-button:focus-visible {
+  border-color: rgba(111, 164, 255, 0.5);
+  background: var(--sc-metal-control-bg-hover);
+  color: #d7e6ff;
+}
+
+.library-exercise-detail-button:active {
+  background: var(--sc-metal-control-bg-pressed);
+  box-shadow: var(--sc-metal-control-shadow-pressed);
+  transform: translateY(1px) scale(0.98);
+}
+
 .library-exercise-detail-button[aria-expanded="true"] {
   border-color: rgba(111, 164, 255, 0.56);
-  background: rgba(46, 124, 255, 0.16);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 44%),
+    linear-gradient(145deg, rgba(35, 75, 137, 0.72), rgba(13, 30, 54, 0.9) 72%);
   color: #d7e6ff;
 }
 
@@ -4958,9 +5007,23 @@ select:focus {
   place-items: center;
   border: 0;
   border-radius: 0;
-  background: transparent;
-  color: #8fa1bb;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(9, 13, 19, 0.14));
+  color: #a8b7cb;
   padding: 0;
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.025);
+  transition: background 140ms var(--sc-ease), color 140ms var(--sc-ease), transform 140ms var(--sc-ease);
+}
+
+.rest-duration-buttons button:hover,
+.rest-duration-buttons button:focus-visible {
+  background: rgba(93, 156, 255, 0.13);
+  color: #c5d8f7;
+}
+
+.rest-duration-buttons button:active {
+  background: rgba(8, 12, 18, 0.72);
+  color: #7faaff;
+  transform: scale(0.93);
 }
 
 .rest-duration-buttons button + button {
@@ -5520,14 +5583,10 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
   min-height: 48px;
   height: 48px;
   padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.11);
+  border: 1px solid var(--sc-metal-control-border);
   border-radius: 12px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.02)),
-    #141922;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 8px 20px rgba(0, 0, 0, 0.27);
+  background: var(--sc-metal-control-bg);
+  box-shadow: var(--sc-metal-control-shadow);
   color: var(--sc-text);
   line-height: 1;
   transition: transform 140ms var(--sc-ease), border-color 160ms var(--sc-ease), background-color 160ms var(--sc-ease);
@@ -5598,13 +5657,11 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
   min-height: 48px;
   height: 48px;
   padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--sc-metal-control-border);
   border-radius: 12px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 55%),
-    #191e27;
+  background: var(--sc-metal-control-bg);
   color: #dbe3ef;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13), inset 0 -2px 0 rgba(0, 0, 0, 0.3), 0 6px 13px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--sc-metal-control-shadow);
   line-height: 0;
   transition: transform 140ms var(--sc-ease), border-color 160ms var(--sc-ease), color 160ms var(--sc-ease);
 }
@@ -5621,8 +5678,9 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
 }
 
 [data-screen="calendar"] .calendar-nav .icon-button:active {
-  transform: scale(0.95);
-  background: rgba(46, 124, 255, 0.14);
+  transform: translateY(1px) scale(0.97);
+  background: var(--sc-metal-control-bg-pressed);
+  box-shadow: var(--sc-metal-control-shadow-pressed);
 }
 
 [data-screen="calendar"] .calendar-weekdays,
@@ -5905,9 +5963,11 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
   place-items: center;
   border: 1px solid rgba(240, 91, 100, 0.28);
   border-radius: 10px;
-  background: rgba(104, 25, 35, 0.2);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 46%),
+    linear-gradient(145deg, rgba(91, 31, 40, 0.72), rgba(41, 16, 22, 0.88));
   color: #ff8d95;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -2px 0 rgba(0, 0, 0, 0.28), 0 6px 13px rgba(0, 0, 0, 0.24);
   transition: transform 140ms var(--sc-ease), background-color 160ms var(--sc-ease), border-color 160ms var(--sc-ease);
 }
 
@@ -5928,7 +5988,8 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
 }
 
 [data-screen="calendar"] .delete-button:active {
-  transform: scale(0.94);
+  transform: translateY(1px) scale(0.96);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.42), 0 2px 5px rgba(0, 0, 0, 0.18);
 }
 
 [data-screen="calendar"] .day-log-sets {
@@ -6140,11 +6201,11 @@ body:has([data-screen="home"].is-active) .bottom-nav button:active {
   border-radius: 50%;
 }
 
-[data-screen="calendar"] .day-muscle-key.color-1 { background: #2e7cff; box-shadow: 0 0 8px rgba(46, 124, 255, 0.58); }
-[data-screen="calendar"] .day-muscle-key.color-2 { background: #45c3d8; box-shadow: 0 0 8px rgba(69, 195, 216, 0.5); }
-[data-screen="calendar"] .day-muscle-key.color-3 { background: #9a78ff; box-shadow: 0 0 8px rgba(154, 120, 255, 0.5); }
-[data-screen="calendar"] .day-muscle-key.color-4 { background: #f4b75d; box-shadow: 0 0 8px rgba(244, 183, 93, 0.48); }
-[data-screen="calendar"] .day-muscle-key.color-5 { background: #66c987; box-shadow: 0 0 8px rgba(102, 201, 135, 0.48); }
+[data-screen="calendar"] .day-muscle-key.color-1 { background: #5278b8; box-shadow: 0 0 7px rgba(82, 120, 184, 0.34); }
+[data-screen="calendar"] .day-muscle-key.color-2 { background: #4f8f98; box-shadow: 0 0 7px rgba(79, 143, 152, 0.32); }
+[data-screen="calendar"] .day-muscle-key.color-3 { background: #786da8; box-shadow: 0 0 7px rgba(120, 109, 168, 0.32); }
+[data-screen="calendar"] .day-muscle-key.color-4 { background: #b28a52; box-shadow: 0 0 7px rgba(178, 138, 82, 0.3); }
+[data-screen="calendar"] .day-muscle-key.color-5 { background: #668c72; box-shadow: 0 0 7px rgba(102, 140, 114, 0.3); }
 
 [data-screen="calendar"] .day-muscle-list strong {
   overflow: hidden;
@@ -6500,15 +6561,11 @@ body:has([data-screen="calendar"].is-active) .bottom-nav button:active {
   width: 48px;
   min-width: 48px;
   min-height: 48px;
-  border: 1px solid rgba(255, 255, 255, 0.11);
+  border: 1px solid var(--sc-metal-control-border);
   border-radius: 12px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.02)),
-    #141922;
+  background: var(--sc-metal-control-bg);
   color: var(--sc-text);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 8px 20px rgba(0, 0, 0, 0.27);
+  box-shadow: var(--sc-metal-control-shadow);
   transition: transform 140ms var(--sc-ease), border-color 160ms var(--sc-ease);
 }
 
@@ -7914,10 +7971,10 @@ body:has([data-screen="level-up"].is-active) .app-shell {
   display: grid;
   grid-template-columns: 44px minmax(48px, 1fr) 44px;
   min-height: 46px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.04);
+  gap: 5px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 [data-screen="menu"] .weekly-goal-stepper button,
@@ -7925,9 +7982,7 @@ body:has([data-screen="level-up"].is-active) .app-shell {
   display: grid;
   min-height: 46px;
   place-items: center;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  border-radius: 11px;
   color: var(--sc-text);
   font-size: 15px;
   font-weight: 850;
@@ -7935,17 +7990,41 @@ body:has([data-screen="level-up"].is-active) .app-shell {
 }
 
 [data-screen="menu"] .weekly-goal-stepper button {
+  border: 1px solid var(--sc-metal-control-border);
+  background: var(--sc-metal-control-bg);
   color: #78a8ff;
-  font-size: 20px;
+  box-shadow: var(--sc-metal-control-shadow);
+  line-height: 0;
+  transition: transform 140ms var(--sc-ease), background 140ms var(--sc-ease), box-shadow 140ms var(--sc-ease);
+}
+
+[data-screen="menu"] .weekly-goal-stepper button svg {
+  width: 19px;
+  height: 19px;
+  stroke-width: 2.5;
+  transform: translateY(1px);
+}
+
+[data-screen="menu"] .weekly-goal-stepper button:not(:disabled):hover {
+  background: var(--sc-metal-control-bg-hover);
+}
+
+[data-screen="menu"] .weekly-goal-stepper button:not(:disabled):active {
+  background: var(--sc-metal-control-bg-pressed);
+  box-shadow: var(--sc-metal-control-shadow-pressed);
+  transform: translateY(1px) scale(0.97);
 }
 
 [data-screen="menu"] .weekly-goal-stepper button:disabled {
   color: #465061;
+  border-color: rgba(146, 169, 204, 0.1);
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: none;
 }
 
 [data-screen="menu"] .weekly-goal-stepper output {
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
 }
 
 [data-screen="menu"] .weekly-goal-save {

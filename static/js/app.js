@@ -3884,7 +3884,6 @@ function muscleSummaryForLogs(logs) {
 function buildDayMuscleSummary(logs) {
   const data = muscleSummaryForLogs(logs);
   if (!data.rows.length) return null;
-  const colors = ["#2e7cff", "#45c3d8", "#9a78ff", "#f4b75d", "#66c987"];
 
   const section = document.createElement("section");
   section.className = "day-muscle-summary";
@@ -3904,11 +3903,11 @@ function buildDayMuscleSummary(logs) {
   const pie = section.querySelector(".day-muscle-pie");
   const svgNamespace = "http://www.w3.org/2000/svg";
   const gradientColors = [
-    ["#8bb8ff", "#2e7cff", "#123d86"],
-    ["#9aeaf3", "#45c3d8", "#176a7a"],
-    ["#d0bdff", "#9a78ff", "#49329a"],
-    ["#ffe1a5", "#f4b75d", "#8a5618"],
-    ["#b8efc9", "#66c987", "#286b3e"],
+    ["#94acd2", "#5278b8", "#263e67"],
+    ["#91b8bc", "#4f8f98", "#234e55"],
+    ["#aea5cb", "#786da8", "#3d365f"],
+    ["#d7bc8a", "#b28a52", "#604521"],
+    ["#a6c4ae", "#668c72", "#324f3a"],
   ];
   const defs = document.createElementNS(svgNamespace, "defs");
   gradientColors.slice(0, data.rows.length).forEach((stops, index) => {
