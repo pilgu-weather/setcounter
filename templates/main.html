@@ -374,53 +374,18 @@
           <p class="weekly-goal-help" id="weeklyGoalHelp">월요일부터 일요일 사이 원하는 3일에 운동하면 됩니다. 나머지 4일은 쉬어도 경험치가 차감되지 않습니다. 설정한 주는 안내 기간이며 다음 완료 주부터 판정합니다.</p>
         </section>
 
-        <section class="menu-hub-section" aria-labelledby="menuQuickTitle">
-          <div class="menu-section-heading"><div><p class="menu-section-kicker">QUICK START</p><h2 id="menuQuickTitle">빠른 실행</h2></div></div>
-          <div class="menu-list menu-quick-links" aria-label="주요 화면 바로가기">
-            <button type="button" data-go-screen="record">
-              <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/><path d="m8 14-6 6"/></svg></span>
-              <span class="menu-row-copy"><strong>운동 기록</strong><small>세트와 무게를 바로 기록합니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-            </button>
-            <button type="button" data-go-screen="calendar">
-              <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg></span>
-              <span class="menu-row-copy"><strong>운동 달력</strong><small>운동일과 쉬는 날을 확인합니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-            </button>
-            <button type="button" data-go-screen="board">
-              <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/></svg></span>
-              <span class="menu-row-copy"><strong>커뮤니티</strong><small>운동 인증과 기록을 공유합니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-            </button>
-          </div>
-        </section>
-
-        <section class="account-panel" id="accountPanel" aria-live="polite">
-          <div class="account-panel-heading">
-            <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
-            <div><p class="menu-section-kicker">ACCOUNT &amp; STORAGE</p><h2 id="accountPanelTitle">기록을 안전하게 보관하기</h2></div>
-          </div>
-          <p id="accountPanelCopy">계정을 연결하면 휴대폰을 바꾸거나 앱을 다시 설치해도 운동 기록을 이어서 볼 수 있어요.</p>
-          <p class="account-email" id="accountEmail" hidden></p>
-          <div class="account-actions" id="anonymousAccountActions">
-            <button class="confirm-button" id="openRegisterButton" type="button">계정 연결</button>
-            <button class="ghost-button" id="openLoginButton" type="button">이미 계정이 있어요</button>
-          </div>
-          <div class="account-actions" id="authenticatedAccountActions" hidden>
-            <button class="ghost-button" id="logoutButton" type="button">로그아웃</button>
-            <button class="account-delete-button" id="openDeleteAccountButton" type="button">계정 삭제</button>
-          </div>
-        </section>
-
         <section class="sos-section" id="menuSosSection" aria-labelledby="sosTitle">
           <div class="sos-section-head">
             <span class="menu-row-icon is-warning"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span>
             <div><p class="menu-section-kicker is-warning">RECOVERY LOG</p><h2 id="sosTitle">쉬는 날도 계획의 일부</h2></div>
             <span class="sos-date" id="sosSelectedDate">오늘</span>
           </div>
-          <p class="sos-copy">오늘 쉬어야 하는 이유를 기록해두세요. 저장한 사유는 달력과 통계에 반영됩니다.</p>
+          <p class="sos-copy">쉬어야 하는 이유를 기록해두세요. SOS를 저장하면 해당 날짜는 주간 운동 목표에서 운동한 날로 반영됩니다.</p>
           <div class="sos-reason-chips" aria-label="빠른 사유 선택">
             <button type="button" data-sos-reason="감기">감기</button><button type="button" data-sos-reason="몸살">몸살</button><button type="button" data-sos-reason="야근">야근</button><button type="button" data-sos-reason="가족 일정">가족 일정</button><button type="button" data-sos-reason="출장">출장</button><button type="button" data-sos-reason="회복 필요">회복 필요</button>
           </div>
           <label class="sos-input-wrap"><span>회복 사유</span><textarea id="sosReasonInput" rows="4" maxlength="500" placeholder="직접 사유를 입력하거나 위 항목을 선택하세요."></textarea><small id="sosReasonCounter">0 / 500</small></label>
-          <div class="sos-status" id="sosStatus" role="status">선택한 날짜에 저장된 회복 기록이 없습니다.</div>
+          <div class="sos-status" id="sosStatus" role="status" hidden></div>
           <button class="sos-button" id="sosButton" type="button"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg><span>SOS 저장</span></button>
         </section>
 
@@ -442,6 +407,22 @@
           <button type="button" id="openBlockedUsersButton">
             <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a6 6 0 0 1 9.1-5.1"/><path d="m17 17 5 5"/><path d="m22 17-5 5"/></svg></span><span class="menu-row-copy"><strong>차단 사용자 관리</strong><small>커뮤니티에서 숨긴 사용자를 확인합니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </button>
+          </div>
+        </section>
+        <section class="account-panel" id="accountPanel" aria-live="polite">
+          <div class="account-panel-heading">
+            <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+            <div><p class="menu-section-kicker">ACCOUNT &amp; STORAGE</p><h2 id="accountPanelTitle">기록을 안전하게 보관하기</h2></div>
+          </div>
+          <p id="accountPanelCopy">계정을 연결하면 휴대폰을 바꾸거나 앱을 다시 설치해도 운동 기록을 이어서 볼 수 있어요.</p>
+          <p class="account-email" id="accountEmail" hidden></p>
+          <div class="account-actions" id="anonymousAccountActions">
+            <button class="confirm-button" id="openRegisterButton" type="button">계정 연결</button>
+            <button class="ghost-button" id="openLoginButton" type="button">이미 계정이 있어요</button>
+          </div>
+          <div class="account-actions" id="authenticatedAccountActions" hidden>
+            <button class="ghost-button" id="logoutButton" type="button">로그아웃</button>
+            <button class="account-delete-button" id="openDeleteAccountButton" type="button">계정 삭제</button>
           </div>
         </section>
         <button class="menu-version" type="button" id="versionButton"><span>SetCounter</span><b>Version 1.0.0</b></button>

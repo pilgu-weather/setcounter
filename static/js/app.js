@@ -2653,9 +2653,8 @@ function renderMenuSos() {
   const excuse = excuseForDate(state.selectedDate);
   els.sosSelectedDate.textContent = menuSelectedDateText();
   els.sosStatus.classList.toggle("has-record", Boolean(excuse));
-  els.sosStatus.textContent = excuse
-    ? `저장된 회복 사유 · ${excuse.reason}`
-    : "선택한 날짜에 저장된 회복 기록이 없습니다.";
+  els.sosStatus.hidden = !excuse;
+  els.sosStatus.textContent = excuse ? `저장된 회복 사유 · ${excuse.reason}` : "";
   if (excuse && document.activeElement !== els.sosReasonInput) {
     els.sosReasonInput.value = excuse.reason || "";
   }
