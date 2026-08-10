@@ -298,8 +298,9 @@ function levelBadgeClass(level) {
 
 function levelBadgeMarkup(level) {
   const tier = levelTier(level);
+  const tierName = window.SetCounterI18n?.isEnglish() ? tier.label : tier.labelKo;
   return `
-    <span class="${levelBadgeClass(level)}" aria-label="${tier.labelKo} 레벨 ${level}" data-rank="${tier.label}">
+    <span class="${levelBadgeClass(level)}" aria-label="${tierName} ${window.SetCounterI18n?.isEnglish() ? "level" : "레벨"} ${level}" data-rank="${tier.label}">
       <img class="level-badge-image" src="${tier.image}" alt="" aria-hidden="true" decoding="async">
       <span class="level-badge-number">${level}</span>
     </span>
@@ -325,6 +326,11 @@ function mappedExerciseEntry(exercise) {
 
 function exerciseDisplayName(exercise) {
   if (!exercise) return "";
+  if (window.SetCounterI18n?.isEnglish()) {
+    const original = exercise.englishName || exercise.freeDbName || exercise.originalName;
+    if (original) return original;
+    return window.SetCounterI18n.exerciseName(exercise.name || exercise.displayName || "");
+  }
   return mappedExerciseEntry(exercise).displayName || exercise.displayName || exercise.name || "";
 }
 
@@ -355,14 +361,27 @@ function exerciseEnglishName(exercise) {
 }
 
 function translateMuscle(value) {
+  if (window.SetCounterI18n?.isEnglish()) {
+    const englishMuscles = {
+      "가슴": "Chest", "등": "Back", "등 상부": "Upper back", "광배근": "Lats", "견갑": "Scapular muscles",
+      "어깨": "Shoulders", "후면 어깨": "Rear delts", "삼두": "Triceps", "이두": "Biceps", "팔": "Arms",
+      "전신": "Full body", "하체": "Lower body", "허벅지": "Quads", "둔근": "Glutes", "햄스트링": "Hamstrings",
+      "고관절": "Hips", "흉추": "Thoracic spine", "가동성": "Mobility", "회복": "Recovery", "심폐": "Cardio",
+    };
+    return englishMuscles[value] || String(value || "-").replaceAll("_", " ");
+  }
   return koMuscleMap[value] || value || "-";
 }
 
 function translateEquipment(value) {
+  if (window.SetCounterI18n?.isEnglish()) return String(value || "-").replaceAll("_", " ");
   return koEquipmentMap[value] || value || "-";
 }
 
 function translateLevel(value) {
+  if (window.SetCounterI18n?.isEnglish()) {
+    return { beginner: "Beginner", intermediate: "Intermediate", expert: "Advanced" }[value] || value || "-";
+  }
   return {
     beginner: "초급",
     intermediate: "중급",
@@ -371,6 +390,9 @@ function translateLevel(value) {
 }
 
 function translateCategory(value) {
+  if (window.SetCounterI18n?.isEnglish()) {
+    return String(value || "-").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
   return {
     cardio: "유산소",
     olympic_weightlifting: "올림픽 리프팅",
@@ -384,6 +406,7 @@ function translateCategory(value) {
 }
 
 function translateForce(value) {
+  if (window.SetCounterI18n?.isEnglish()) return { pull: "Pull", push: "Push", static: "Static" }[value] || value || "-";
   return {
     pull: "당기는 동작",
     push: "미는 동작",
@@ -392,6 +415,7 @@ function translateForce(value) {
 }
 
 function translateMechanic(value) {
+  if (window.SetCounterI18n?.isEnglish()) return { compound: "Compound", isolation: "Isolation" }[value] || value || "-";
   return {
     compound: "복합 관절",
     isolation: "단일 관절",
@@ -399,6 +423,9 @@ function translateMechanic(value) {
 }
 
 function sourceLabel(value) {
+  if (window.SetCounterI18n?.isEnglish()) {
+    return { "free-exercise-db": "Exercise data", "setcounter-free-db": "Built-in exercise", setcounter: "Custom exercise", custom: "Custom exercise" }[value] || "Exercise info";
+  }
   return {
     "free-exercise-db": "운동 데이터",
     "setcounter-free-db": "내 기본 운동",
@@ -492,6 +519,7 @@ const koreanExerciseInstructions = {
 };
 
 function exerciseInstructionsForDetail(exercise) {
+  if (window.SetCounterI18n?.isEnglish()) return exercise.instructions?.filter(Boolean) || [];
   const sourceId = exercise.freeDbSourceId || exercise.sourceId;
   if (koreanExerciseInstructions[sourceId]) return koreanExerciseInstructions[sourceId];
   if (koInstructionsMap[sourceId]?.length) return koInstructionsMap[sourceId];
@@ -1029,7 +1057,7 @@ const els = {
 };
 
 function showToast(message) {
-  els.toast.textContent = message;
+  els.toast.textContent = window.SetCounterI18n?.t(message) || message;
   els.toast.classList.add("is-visible");
   window.SetCounterMotion?.animateToast(els.toast);
   window.clearTimeout(showToast.timer);
@@ -1101,14 +1129,17 @@ async function loadAuthStatus() {
 
 function renderAuthPanel() {
   const authenticated = state.auth.authenticated;
+  const isEnglish = window.SetCounterI18n?.isEnglish();
   const previousAuthState = els.accountPanel.dataset.authState;
   els.accountPanel.classList.toggle("authenticated-account-panel", authenticated);
   els.accountPanel.classList.toggle("anonymous-account-panel", !authenticated);
   els.accountPanelTitle.textContent = authenticated ? "계정에 안전하게 연결됨" : "기록을 안전하게 보관하기";
   els.accountPanelCopy.textContent = authenticated ? "운동 기록이 계정에 안전하게 연결되어 있습니다. 다른 기기에서도 이어서 볼 수 있어요." : "계정을 연결하면 기기를 바꿔도 운동 기록을 안전하게 이어갈 수 있습니다.";
   els.accountEmail.hidden = !authenticated;
-  const accountLabel = state.auth.role === "operator" ? "운영자" : "연결된 계정";
-  els.accountEmail.textContent = authenticated ? `${accountLabel} · ${state.auth.emailMasked || "계정"}` : "";
+  const accountLabel = isEnglish
+    ? (state.auth.role === "operator" ? "Admin" : "Linked account")
+    : (state.auth.role === "operator" ? "운영자" : "연결된 계정");
+  els.accountEmail.textContent = authenticated ? `${accountLabel} · ${state.auth.emailMasked || (isEnglish ? "Account" : "계정")}` : "";
   els.anonymousAccountActions.hidden = authenticated;
   els.authenticatedAccountActions.hidden = !authenticated;
   els.accountPanel.dataset.authState = authenticated ? "authenticated" : "anonymous";
@@ -1140,17 +1171,25 @@ function renderWeeklyGoal(resetDraft = false) {
   const covered = Math.min(completed + recoveryNotes.length, target);
   const ratio = target > 0 ? Math.min(covered / target, 1) : 0;
   const reasons = recoveryNotes.map((item) => String(item?.reason || "").trim()).filter(Boolean);
-  els.weeklyGoalBadge.textContent = `주 ${target}회`;
-  els.weeklyGoalProgress.textContent = `이번 주 ${completed}회 운동${reasons.length ? ` · ${reasons.join(" · ")}` : ""}`;
-  els.weeklyGoalRemaining.textContent = remaining > 0 ? `목표까지 ${remaining}회` : "이번 주 목표 충족";
+  const isEnglish = window.SetCounterI18n?.isEnglish();
+  els.weeklyGoalBadge.textContent = isEnglish ? `${target}x/week` : `주 ${target}회`;
+  const weeklyProgressLabel = isEnglish
+    ? `${completed} workouts this week`
+    : `이번 주 ${completed}회 운동`;
+  els.weeklyGoalProgress.textContent = `${weeklyProgressLabel}${reasons.length ? ` · ${reasons.join(" · ")}` : ""}`;
+  els.weeklyGoalRemaining.textContent = remaining > 0
+    ? (isEnglish ? `${remaining} to goal` : `목표까지 ${remaining}회`)
+    : (isEnglish ? "Weekly goal complete" : "이번 주 목표 충족");
   els.weeklyGoalBar.style.transform = `scaleX(${ratio})`;
   els.weeklyGoalTrack.setAttribute("aria-valuemax", String(target));
   els.weeklyGoalTrack.setAttribute("aria-valuenow", String(covered));
-  els.weeklyGoalValue.textContent = `${draft}회`;
+  els.weeklyGoalValue.textContent = isEnglish ? `${draft} workouts` : `${draft}회`;
   els.weeklyGoalDecrease.disabled = draft <= 1;
   els.weeklyGoalIncrease.disabled = draft >= 7;
   els.weeklyGoalSaveButton.disabled = draft === target;
-  els.weeklyGoalHelp.textContent = `월요일부터 일요일 사이 원하는 ${draft}일에 운동하면 됩니다. 나머지 ${7 - draft}일은 쉬어도 경험치가 차감되지 않습니다. 설정한 주는 안내 기간이며 다음 완료 주부터 판정합니다.`;
+  els.weeklyGoalHelp.textContent = isEnglish
+    ? `Train on any ${draft} days from Monday through Sunday. Resting on the other ${7 - draft} days will not reduce XP. This week is a grace period; evaluation begins after the next full week.`
+    : `월요일부터 일요일 사이 원하는 ${draft}일에 운동하면 됩니다. 나머지 ${7 - draft}일은 쉬어도 경험치가 차감되지 않습니다. 설정한 주는 안내 기간이며 다음 완료 주부터 판정합니다.`;
 }
 
 function changeWeeklyGoalDraft(offset) {
@@ -1842,17 +1881,19 @@ function renderStats(stats) {
   window.SetCounterMotion?.animateProgress(els.levelProgressBar, (stats.progressPercent || 0) / 100);
   const level = Math.max(Math.round(Number(stats.level) || 1), 1);
   if (level >= 99) {
-    els.levelCopy.innerHTML = `<span>MAX LEVEL</span><strong>한계돌파의 정점에 도달했습니다</strong>`;
-    els.levelCopy.setAttribute("aria-label", "최고 레벨에 도달했습니다");
+    els.levelCopy.innerHTML = `<span>MAX LEVEL</span><strong>${window.SetCounterI18n?.isEnglish() ? "You reached the highest level" : "한계돌파의 정점에 도달했습니다"}</strong>`;
+    els.levelCopy.setAttribute("aria-label", window.SetCounterI18n?.isEnglish() ? "Maximum level reached" : "최고 레벨에 도달했습니다");
   } else {
     const progress = Math.min(Math.max((Number(stats.experiencePercent) || 0) / 100, 0), 1);
     const breakthroughRate = Math.max(Number(stats.nextBreakthroughRate) || 1, 0.01);
     const breakthroughsRemaining = Math.max(Math.ceil((1 - progress - 0.000001) / breakthroughRate), 1);
     const nextLevel = level + 1;
-    els.levelCopy.innerHTML = `<span>NEXT LEVEL ${nextLevel}</span><strong>한계돌파 ${breakthroughsRemaining}회 남음</strong>`;
+    els.levelCopy.innerHTML = `<span>NEXT LEVEL ${nextLevel}</span><strong>${window.SetCounterI18n?.isEnglish() ? `${breakthroughsRemaining} personal best${breakthroughsRemaining === 1 ? "" : "s"} to go` : `한계돌파 ${breakthroughsRemaining}회 남음`}</strong>`;
     els.levelCopy.setAttribute(
       "aria-label",
-      `한계돌파 ${breakthroughsRemaining}회 더 달성하면 레벨 ${nextLevel}`,
+      window.SetCounterI18n?.isEnglish()
+        ? `Reach ${breakthroughsRemaining} more personal best${breakthroughsRemaining === 1 ? "" : "s"} for level ${nextLevel}`
+        : `한계돌파 ${breakthroughsRemaining}회 더 달성하면 레벨 ${nextLevel}`,
     );
   }
   renderProfile();
@@ -1884,10 +1925,15 @@ function renderProfile(profile = state.profile) {
   }
   if (els.menuNicknameAvailability) {
     const availableAt = state.profile?.nextNicknameChangeAt ? new Date(state.profile.nextNicknameChangeAt) : null;
+    const isEnglish = window.SetCounterI18n?.isEnglish();
     const availableLabel = availableAt && !Number.isNaN(availableAt.getTime())
-      ? `${availableAt.toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 변경 가능`
-      : "7일에 한 번 변경";
-    els.menuNicknameAvailability.textContent = state.profile?.canChangeNickname === false ? availableLabel : "지금 변경 가능";
+      ? (isEnglish
+        ? `Available ${availableAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+        : `${availableAt.toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 변경 가능`)
+      : (isEnglish ? "Change once every 7 days" : "7일에 한 번 변경");
+    els.menuNicknameAvailability.textContent = state.profile?.canChangeNickname === false
+      ? availableLabel
+      : (isEnglish ? "Available now" : "지금 변경 가능");
     els.menuNicknameButton.disabled = state.profile?.canChangeNickname === false;
   }
   renderWeeklyGoal(previousWeeklyTarget !== state.profile?.weeklyWorkoutTarget);
@@ -1905,16 +1951,21 @@ function openNicknameModal(required = false) {
   const needsNickname = Boolean(state.profile?.nicknameRequired);
   const needsGender = Boolean(state.profile?.genderRequired);
   const completingGenderOnly = required && !needsNickname && needsGender;
-  els.profileModalTitle.textContent = completingGenderOnly
-    ? "성별 설정"
-    : required
-      ? "닉네임 만들기"
-      : "닉네임 변경";
-  els.profileModalCopy.textContent = completingGenderOnly
-    ? "로그인은 완료되었습니다. 묶음 운동의 시작 중량을 맞추기 위해 성별을 선택하세요."
-    : required
-      ? "운동 레벨에 표시할 닉네임과 시작 중량에 사용할 성별을 정하세요."
-      : "닉네임 변경은 7일에 한 번만 가능합니다.";
+  const isEnglish = window.SetCounterI18n?.isEnglish();
+  els.profileModalTitle.textContent = isEnglish
+    ? (completingGenderOnly ? "Set gender" : required ? "Create nickname" : "Change nickname")
+    : (completingGenderOnly ? "성별 설정" : required ? "닉네임 만들기" : "닉네임 변경");
+  els.profileModalCopy.textContent = isEnglish
+    ? (completingGenderOnly
+      ? "You are signed in. Choose a gender to set suggested starting weights for workout plans."
+      : required
+        ? "Choose the nickname shown with your level and the gender used for suggested starting weights."
+        : "You can change your nickname once every 7 days.")
+    : (completingGenderOnly
+      ? "로그인은 완료되었습니다. 묶음 운동의 시작 중량을 맞추기 위해 성별을 선택하세요."
+      : required
+        ? "운동 레벨에 표시할 닉네임과 시작 중량에 사용할 성별을 정하세요."
+        : "닉네임 변경은 7일에 한 번만 가능합니다.");
   els.nicknameInput.value = state.profile?.nickname || "";
   els.profileGenderInputs.forEach((input) => {
     input.checked = input.value === state.profile?.gender;
@@ -1923,8 +1974,10 @@ function openNicknameModal(required = false) {
   els.profileLoginButton.hidden = !required || state.auth.authenticated;
   const availableAt = state.profile?.nextNicknameChangeAt ? new Date(state.profile.nextNicknameChangeAt) : null;
   els.nicknameAvailabilityNote.textContent = state.profile?.canChangeNickname === false && availableAt
-    ? `${availableAt.toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}부터 다시 변경할 수 있습니다.`
-    : "닉네임은 7일에 한 번 변경할 수 있습니다.";
+    ? (isEnglish
+      ? `Available again ${availableAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.`
+      : `${availableAt.toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}부터 다시 변경할 수 있습니다.`)
+    : (isEnglish ? "You can change your nickname once every 7 days." : "닉네임은 7일에 한 번 변경할 수 있습니다.");
   syncNicknameInput();
   els.profileModal.hidden = false;
   syncMenuOverlayLock();
@@ -1934,7 +1987,7 @@ function openNicknameModal(required = false) {
 function formatLevelHistoryDate(value) {
   const date = dateFromKey(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" });
+  return date.toLocaleDateString(window.SetCounterI18n?.isEnglish() ? "en-US" : "ko-KR", { year: "numeric", month: "short", day: "numeric" });
 }
 
 function renderLevelHistory() {
@@ -2077,6 +2130,8 @@ function exerciseImage(name) {
 const workoutPlans = [
   {
     id: "upper-push", focus: "가슴 · 어깨 · 삼두", title: "넓고 탄탄한 상체 만들기",
+    focusEn: "Chest · Shoulders · Triceps", titleEn: "Build a Broad, Strong Upper Body",
+    copyEn: "Build chest thickness, shoulder width, and finish with triceps in one focused session.", durationEn: "About 50 min",
     copy: "가슴의 두께부터 어깨 너비, 삼두 마무리까지 한 번에 채웁니다.", duration: "약 50분", theme: "gold", image: "plan-upper-push.webp",
     exercises: [
       { sourceId: "Barbell_Bench_Press_-_Medium_Grip", name: "바벨 벤치프레스", fallbackName: "벤치프레스", sets: 3, reps: "6-10", defaultReps: 8, rest: 90, maleWeight: 20, femaleWeight: 15 },
@@ -2088,6 +2143,8 @@ const workoutPlans = [
   },
   {
     id: "upper-pull", focus: "등 · 후면 어깨 · 이두", title: "등과 팔 라인 채우기",
+    focusEn: "Back · Rear Delts · Biceps", titleEn: "Build Your Back and Arms",
+    copyEn: "Build back width and thickness first, then finish with rear delts and arms.", durationEn: "About 45 min",
     copy: "등 너비와 두께를 먼저 만들고 후면 어깨와 팔까지 단단히 마칩니다.", duration: "약 45분", theme: "cyan", image: "plan-upper-pull.webp",
     exercises: [
       { sourceId: "Wide-Grip_Lat_Pulldown", name: "와이드 그립 랫풀다운", sets: 3, reps: "8-12", defaultReps: 10, rest: 80, maleWeight: 25, femaleWeight: 15 },
@@ -2099,6 +2156,8 @@ const workoutPlans = [
   },
   {
     id: "lower-body", focus: "허벅지 · 둔근 · 햄스트링", title: "하체 힘 꽉 채우기",
+    focusEn: "Quads · Glutes · Hamstrings", titleEn: "Build Lower-Body Strength",
+    copyEn: "Train the front and back of your legs and your glutes with squats, hinges, and lunges.", durationEn: "About 50 min",
     copy: "스쿼트, 힌지, 런지를 중심으로 하체 앞뒤와 둔근을 고르게 단련합니다.", duration: "약 50분", theme: "coral", image: "plan-lower-body.webp",
     exercises: [
       { sourceId: "Barbell_Full_Squat", name: "바벨 백 스쿼트", sets: 3, reps: "6-10", defaultReps: 8, rest: 90, maleWeight: 20, femaleWeight: 15 },
@@ -2110,6 +2169,8 @@ const workoutPlans = [
   },
   {
     id: "quick-full-body", focus: "하체 · 밀기 · 당기기", title: "25분 전신 깨우기",
+    focusEn: "Lower Body · Push · Pull", titleEn: "25-Minute Full-Body Reset",
+    copyEn: "Four big movements create a short but complete full-body session.", durationEn: "About 25 min",
     copy: "큰 근육을 쓰는 네 동작으로 짧지만 빠짐없는 전신 루틴을 완성합니다.", duration: "약 25분", theme: "violet", image: "plan-quick-full-body.webp",
     exercises: [
       { sourceId: "Goblet_Squat", name: "고블릿 스쿼트", fallbackName: "고블릿 스쿼트", sets: 2, reps: "10-12", defaultReps: 10, rest: 30, maleWeight: 8, femaleWeight: 4 },
@@ -2119,6 +2180,15 @@ const workoutPlans = [
     ],
   },
 ];
+
+if (window.SetCounterI18n?.isEnglish()) {
+  workoutPlans.forEach((plan) => {
+    plan.title = plan.titleEn || plan.title;
+    plan.focus = plan.focusEn || plan.focus;
+    plan.copy = plan.copyEn || plan.copy;
+    plan.duration = plan.durationEn || plan.duration;
+  });
+}
 
 const planDetailContent = {
   "upper-push": {
@@ -2138,6 +2208,31 @@ const planDetailContent = {
     benefits: ["짧은 시간에 전신을 고르게 자극", "운동 루틴을 다시 시작하기 좋은 구성", "큰 근육을 쓰는 동작으로 활동량 확보"],
   },
 };
+
+if (window.SetCounterI18n?.isEnglish()) {
+  Object.assign(planDetailContent, {
+    "upper-push": {
+      difficulty: "Intermediate", equipment: "Dumbbells, bench", focus: "Chest · Shoulders",
+      intro: "Build strength through the front of your upper body with compound presses, then finish with focused shoulder work.",
+      benefits: ["Balanced chest and shoulder strength", "Better pressing stability and training volume", "A focused upper-body session in limited time"],
+    },
+    "upper-pull": {
+      difficulty: "Beginner–Intermediate", equipment: "Dumbbells", focus: "Back · Arms",
+      intro: "Activate your back first, then train your arms to build a stronger, more defined back line.",
+      benefits: ["A stronger pulling pattern using back and arms", "Better activation of posture-supporting back muscles", "A complete upper-body accessory session with dumbbells"],
+    },
+    "lower-body": {
+      difficulty: "Intermediate", equipment: "Dumbbells", focus: "Lower Body · Glutes",
+      intro: "Train squat and hip-hinge patterns together to build a solid base of leg and glute strength.",
+      benefits: ["Stronger lower body, including glutes and hamstrings", "A stable base for everyday movement", "High training density built around major movement patterns"],
+    },
+    "quick-full-body": {
+      difficulty: "Beginner–Intermediate", equipment: "Dumbbells, bodyweight", focus: "Full Body",
+      intro: "When time is short, train lower-body, pushing, and pulling patterns without leaving gaps.",
+      benefits: ["Balanced full-body stimulus in less time", "An approachable way to restart your routine", "More activity through large-muscle movements"],
+    },
+  });
+}
 
 function exerciseBySourceId(sourceId, fallbackName = "") {
   const candidates = uniqueExercises([...libraryExercises, ...exercises]);
@@ -2159,6 +2254,7 @@ function workoutPlanExercise(plan) {
     sourceId: plan.id,
     name: plan.title,
     displayName: plan.title,
+    englishName: plan.titleEn || plan.title,
     area: "묶음 운동",
     equipment: "루틴",
     image: plan.image,
@@ -2183,13 +2279,17 @@ function parsePlanStepDefaults(meta = "") {
 function planSupportExercise(plan, step, phase, index) {
   const base = exerciseBySourceId(step.sourceId) || {};
   const defaults = parsePlanStepDefaults(step.meta);
+  const isEnglish = window.SetCounterI18n?.isEnglish();
+  const localizedName = isEnglish
+    ? (exerciseDisplayName(base) || window.SetCounterI18n?.exerciseName(step.name) || step.name)
+    : step.name;
   return {
     ...base,
     source: "setcounter-plan-step",
     sourceId: `${plan.id}:${phase}:${index}:${step.sourceId}`,
     freeDbSourceId: base.freeDbSourceId || step.sourceId,
-    name: step.name,
-    displayName: step.name,
+    name: localizedName,
+    displayName: localizedName,
     area: step.muscles?.[0] || base.area || "전신",
     equipment: base.equipment || "body only",
     image: base.image || plan.image,
@@ -2205,7 +2305,7 @@ function planSupportExercise(plan, step, phase, index) {
       femaleWeight: 0,
     },
     routinePhase: phase,
-    routinePhaseLabel: phase === "warmup" ? "준비 운동" : "쿨다운",
+    routinePhaseLabel: isEnglish ? (phase === "warmup" ? "Warm-up" : "Cooldown") : (phase === "warmup" ? "준비 운동" : "쿨다운"),
   };
 }
 
@@ -2316,6 +2416,19 @@ function planImageUrl(image) {
   return value.startsWith("/") || /^https?:/i.test(value) ? value : `/static/assets/${value || "newlogo.webp"}`;
 }
 
+function localizedPlanMeta(meta = "") {
+  const value = String(meta);
+  if (!window.SetCounterI18n?.isEnglish()) return value;
+  const eachSide = /^좌우\s+/.test(value);
+  const localized = value
+    .replace(/^좌우\s+/, "")
+    .replace(/(\d+)세트/g, "$1 sets")
+    .replace(/(\d+)-(\d+)회/g, "$1–$2 reps")
+    .replace(/(\d+)회/g, "$1 reps")
+    .replace(/휴식\s*(\d+)초/g, "$1 sec rest");
+  return eachSide ? `${localized} each side` : localized;
+}
+
 function startWorkoutPlan(plan, startIndex = 0, options = {}) {
   const routineExercises = routineExercisesForPlan(plan);
   if (!routineExercises.length) return;
@@ -2382,8 +2495,15 @@ function planSupportSteps(plan) {
   const prescription = planSupportPrescriptions[plan.id] || { warmup: [], cooldown: [] };
   const resolve = (step) => {
     const exercise = exerciseBySourceId(step.sourceId);
+    const isEnglish = window.SetCounterI18n?.isEnglish();
     return {
       ...step,
+      name: isEnglish ? exerciseDisplayName(exercise || { name: step.name }) : step.name,
+      meta: localizedPlanMeta(step.meta),
+      description: isEnglish
+        ? (exerciseInstructionsForDetail(exercise || {})[0] || "Move with control through a comfortable range of motion.")
+        : step.description,
+      muscles: isEnglish ? (step.muscles || []).map((muscle) => translateMuscle(muscle)) : step.muscles,
       image: planStepImage(exercise, plan.image),
       primaryMuscles: exercise?.primaryMuscles?.length ? exercise.primaryMuscles : (step.muscles || []),
       secondaryMuscles: exercise?.secondaryMuscles || [],
@@ -2407,10 +2527,15 @@ function renderPlanExerciseDetail(direction = 0) {
     delete els.planExerciseDetailImage.dataset.motionLoaded;
     els.planExerciseDetailImage.src = nextImageSource;
   }
-  els.planExerciseDetailImage.alt = `${step.name} 동작 이미지`;
-  els.planExerciseDetailMetaLabel.textContent = step.meta.includes("세트") ? "권장 구성" : "지속시간";
+  const isEnglish = window.SetCounterI18n?.isEnglish();
+  els.planExerciseDetailImage.alt = isEnglish ? `${step.name} exercise` : `${step.name} 동작 이미지`;
+  els.planExerciseDetailMetaLabel.textContent = isEnglish
+    ? (step.meta.includes("sets") ? "Recommended" : "Duration")
+    : (step.meta.includes("세트") ? "권장 구성" : "지속시간");
   els.planExerciseDetailMeta.textContent = step.meta;
-  els.planExerciseDetailDescription.textContent = step.description || "안정적인 자세로 동작 범위를 조절하며 진행하세요.";
+  els.planExerciseDetailDescription.textContent = step.description || (isEnglish
+    ? "Move with control through a comfortable range of motion."
+    : "안정적인 자세로 동작 범위를 조절하며 진행하세요.");
   els.planExerciseDetailMuscles.replaceChildren();
   (step.muscles || ["전신"]).forEach((muscle) => {
     const chip = document.createElement("span");
@@ -2468,12 +2593,15 @@ function openPlanDetail(plan) {
   els.planDetailTitle.textContent = plan.title;
   els.planDetailHero.style.setProperty("--plan-image", `url('/static/assets/${plan.image}')`);
   els.planDetailHero.className = `plan-detail-hero ${plan.theme}`;
-  els.planDetailLabel.textContent = `${routineExercises.length}종목 · ${plan.duration}`;
+  const isEnglish = window.SetCounterI18n?.isEnglish();
+  els.planDetailLabel.textContent = isEnglish
+    ? `${routineExercises.length} exercises · ${plan.duration}`
+    : `${routineExercises.length}종목 · ${plan.duration}`;
   els.planDetailHeroTitle.textContent = plan.title;
   els.planDetailDifficulty.textContent = content.difficulty;
   els.planDetailIntro.textContent = content.intro;
   els.planDetailTags.replaceChildren();
-  ["근력 강화", "꾸준한 기록", content.focus].forEach((tag) => {
+  (isEnglish ? ["Build strength", "Train consistently", content.focus] : ["근력 강화", "꾸준한 기록", content.focus]).forEach((tag) => {
     const item = document.createElement("span");
     item.textContent = tag;
     els.planDetailTags.append(item);
@@ -2485,11 +2613,17 @@ function openPlanDetail(plan) {
     const muscleNames = translateMuscleList(exercise.primaryMuscles, "").split(", ").filter(Boolean);
     return {
       name: exerciseDisplayName(exercise),
-      meta: `${prescription.sets}세트 · ${prescription.reps}회 · 휴식 ${prescription.rest}초`,
+      meta: isEnglish
+        ? `${prescription.sets} sets · ${String(prescription.reps).replace("좌우 ", "")} reps${String(prescription.reps).startsWith("좌우 ") ? " each side" : ""} · ${prescription.rest} sec rest`
+        : `${prescription.sets}세트 · ${prescription.reps}회 · 휴식 ${prescription.rest}초`,
       image: planStepImage(exercise, plan.image),
-      description: muscleNames.length
-        ? `${muscleNames.join(", ")}을 중심으로 사용합니다. 정해진 반복 범위의 상단을 안정적으로 채우면 다음 운동에서 무게를 조금 높여보세요.`
-        : `정해진 반복 범위를 안정적으로 채운 뒤 다음 운동에서 무게를 조금 높여보세요.`,
+      description: isEnglish
+        ? (muscleNames.length
+          ? `Primarily targets ${muscleNames.join(", ")}. Complete the top of the rep range with stable form before increasing weight.`
+          : "Complete the prescribed rep range with stable form before increasing weight.")
+        : (muscleNames.length
+          ? `${muscleNames.join(", ")}을 중심으로 사용합니다. 정해진 반복 범위의 상단을 안정적으로 채우면 다음 운동에서 무게를 조금 높여보세요.`
+          : `정해진 반복 범위를 안정적으로 채운 뒤 다음 운동에서 무게를 조금 높여보세요.`),
       muscles: muscleNames.length
         ? muscleNames
         : [exercise.area || "전신"],
@@ -2499,14 +2633,13 @@ function openPlanDetail(plan) {
   });
   const detailSteps = [...supportSteps.warmup, ...mainSteps, ...supportSteps.cooldown];
   const openStep = (step) => openPlanExerciseDetail(detailSteps, detailSteps.indexOf(step));
-  renderPlanWorkoutGroup("준비 운동", supportSteps.warmup, { onSelect: openStep });
-  renderPlanWorkoutGroup("본 운동", mainSteps, { onSelect: openStep });
-  renderPlanWorkoutGroup("쿨다운", supportSteps.cooldown, { onSelect: openStep });
-  const info = [
-    ["기간", plan.duration],
-    ["난이도", content.difficulty],
-    ["장비", content.equipment],
-    ["목표", content.focus],
+  renderPlanWorkoutGroup(isEnglish ? "Warm-up" : "준비 운동", supportSteps.warmup, { onSelect: openStep });
+  renderPlanWorkoutGroup(isEnglish ? "Main workout" : "본 운동", mainSteps, { onSelect: openStep });
+  renderPlanWorkoutGroup(isEnglish ? "Cooldown" : "쿨다운", supportSteps.cooldown, { onSelect: openStep });
+  const info = isEnglish ? [
+    ["Duration", plan.duration], ["Difficulty", content.difficulty], ["Equipment", content.equipment], ["Goal", content.focus],
+  ] : [
+    ["기간", plan.duration], ["난이도", content.difficulty], ["장비", content.equipment], ["목표", content.focus],
   ];
   els.planInfoGrid.replaceChildren();
   info.forEach(([label, value], index) => {
@@ -2520,7 +2653,11 @@ function openPlanDetail(plan) {
     item.textContent = benefit;
     els.planBenefitList.append(item);
   });
-  const schedule = [
+  const schedule = isEnglish ? [
+    ["01", "Warm-up", `${supportSteps.warmup.length} dynamic movements raise body temperature and prepare your joints.`],
+    ["02", "Main workout", `${mainSteps.length} exercises progress from major compound movements while keeping the prescribed rest periods.`],
+    ["03", "Cooldown", `${supportSteps.cooldown.length} finishing movements gradually lower your breathing rate and release the muscles you trained.`],
+  ] : [
     ["01", "준비 운동", `${supportSteps.warmup.length}가지 동적 준비 운동으로 체온과 관절 가동 범위를 먼저 올립니다.`],
     ["02", "본 운동", `${mainSteps.length}가지 본 운동을 큰 복합 동작부터 진행하고, 정해진 휴식 시간을 지킵니다.`],
     ["03", "쿨다운", `${supportSteps.cooldown.length}가지 마무리 동작으로 호흡을 낮추고 사용한 부위를 천천히 이완합니다.`],
@@ -2539,20 +2676,21 @@ function renderWorkoutPlans() {
   if (!els.workoutPlanRail) return;
   els.workoutPlanRail.replaceChildren();
   workoutPlans.forEach((plan) => {
+    const isEnglish = window.SetCounterI18n?.isEnglish();
     const routineExercises = exercisesForPlan(plan);
     const card = document.createElement("article");
     card.className = `workout-plan-card ${plan.theme}`;
     card.dataset.motionKey = `plan-${plan.id || plan.title}`;
     card.style.setProperty("--plan-image", `url('/static/assets/${plan.image}')`);
     card.innerHTML = `
-      <div class="workout-plan-card-copy"><p>${routineExercises.length}종목 · ${escapeHtml(plan.focus)}</p><h3>${escapeHtml(plan.title)}</h3><span>${escapeHtml(plan.copy)}</span></div>
-      <div class="workout-plan-sequence" aria-label="플랜 구성"><span>준비 ${planSupportSteps(plan).warmup.length}</span><i></i><span>본 운동 ${routineExercises.length}</span><i></i><span>마무리 ${planSupportSteps(plan).cooldown.length}</span></div>
-      <div class="workout-plan-meta"><span>${plan.duration}</span><span>${routineExercises.reduce((total, exercise) => total + exercise.planPrescription.sets, 0)}세트</span></div>
-      <span class="workout-plan-open">상세 보기 ${PLAN_ARROW_MARKUP}</span>
+      <div class="workout-plan-card-copy"><p>${routineExercises.length}${isEnglish ? " exercises" : "종목"} · ${escapeHtml(plan.focus)}</p><h3>${escapeHtml(plan.title)}</h3><span>${escapeHtml(plan.copy)}</span></div>
+      <div class="workout-plan-sequence" aria-label="${isEnglish ? "Plan structure" : "플랜 구성"}"><span>${isEnglish ? "Warm-up" : "준비"} ${planSupportSteps(plan).warmup.length}</span><i></i><span>${isEnglish ? "Main" : "본 운동"} ${routineExercises.length}</span><i></i><span>${isEnglish ? "Cooldown" : "마무리"} ${planSupportSteps(plan).cooldown.length}</span></div>
+      <div class="workout-plan-meta"><span>${plan.duration}</span><span>${routineExercises.reduce((total, exercise) => total + exercise.planPrescription.sets, 0)} ${isEnglish ? "sets" : "세트"}</span></div>
+      <span class="workout-plan-open">${isEnglish ? "View details" : "상세 보기"} ${PLAN_ARROW_MARKUP}</span>
     `;
     card.tabIndex = 0;
     card.setAttribute("role", "button");
-    card.setAttribute("aria-label", `${plan.title} 상세 보기`);
+    card.setAttribute("aria-label", isEnglish ? `View ${plan.title} details` : `${plan.title} 상세 보기`);
     card.addEventListener("click", () => openPlanDetail(plan));
     card.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
@@ -2633,14 +2771,14 @@ async function saveNickname(event) {
 }
 
 function selectedDateText() {
-  return state.selectedDate === todayKey ? "오늘" : state.selectedDate;
+  return state.selectedDate === todayKey ? (window.SetCounterI18n?.isEnglish() ? "Today" : "오늘") : state.selectedDate;
 }
 
 function menuSelectedDateText() {
-  if (state.selectedDate === todayKey) return "오늘";
+  if (state.selectedDate === todayKey) return window.SetCounterI18n?.isEnglish() ? "Today" : "오늘";
   const date = new Date(`${state.selectedDate}T00:00:00`);
   if (Number.isNaN(date.getTime())) return state.selectedDate;
-  return date.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
+  return date.toLocaleDateString(window.SetCounterI18n?.isEnglish() ? "en-US" : "ko-KR", { month: "long", day: "numeric", weekday: "short" });
 }
 
 function syncSosReasonInput() {
@@ -2659,7 +2797,9 @@ function renderMenuSos() {
   els.sosSelectedDate.textContent = menuSelectedDateText();
   els.sosStatus.classList.toggle("has-record", Boolean(excuse));
   els.sosStatus.hidden = !excuse;
-  els.sosStatus.textContent = excuse ? `저장된 회복 사유 · ${excuse.reason}` : "";
+  els.sosStatus.textContent = excuse
+    ? `${window.SetCounterI18n?.isEnglish() ? "Saved SOS note" : "저장된 회복 사유"} · ${excuse.reason}`
+    : "";
   if (excuse && document.activeElement !== els.sosReasonInput) {
     els.sosReasonInput.value = excuse.reason || "";
   }
@@ -3801,9 +3941,10 @@ function volumeBreakdownForLogs(logs) {
 }
 
 function formatBreakdownRow(row) {
+  const label = window.SetCounterI18n?.isEnglish() ? translateMuscle(row.part) : row.part;
   return row.part === "코어"
-    ? `${row.part} ${formatNumber(row.reps)}회`
-    : `${row.part} ${formatNumber(row.volume)}kg`;
+    ? `${label} ${formatNumber(row.reps)}${window.SetCounterI18n?.isEnglish() ? " reps" : "회"}`
+    : `${label} ${formatNumber(row.volume)}kg`;
 }
 
 function formatBreakdownText(breakdown) {
@@ -3818,9 +3959,9 @@ function calendarActivitySummary(logs) {
   const coreReps = breakdown.find((row) => row.part === "코어")?.reps || 0;
   const metrics = [];
   if (nonCoreVolume > 0) metrics.push(`${formatNumber(nonCoreVolume)}kg`);
-  if (coreReps > 0) metrics.push(`코어 ${formatNumber(coreReps)}회`);
-  if (!metrics.length) metrics.push(`${formatNumber(logs.reduce((sum, log) => sum + (log.totalReps || 0), 0))}회`);
-  return `${logs.length}종목 · ${metrics.join(" · ")}`;
+  if (coreReps > 0) metrics.push(window.SetCounterI18n?.isEnglish() ? `Core ${formatNumber(coreReps)} reps` : `코어 ${formatNumber(coreReps)}회`);
+  if (!metrics.length) metrics.push(`${formatNumber(logs.reduce((sum, log) => sum + (log.totalReps || 0), 0))}${window.SetCounterI18n?.isEnglish() ? " reps" : "회"}`);
+  return `${logs.length}${window.SetCounterI18n?.isEnglish() ? " exercises" : "종목"} · ${metrics.join(" · ")}`;
 }
 
 function renderCalendar() {
@@ -3839,7 +3980,9 @@ function renderCalendar() {
   });
   const excusesByDate = new Map(state.excuses.map((excuse) => [excuse.date, excuse]));
 
-  els.calendarTitle.textContent = `${year}년 ${month + 1}월`;
+  els.calendarTitle.textContent = window.SetCounterI18n?.isEnglish()
+    ? new Date(year, month, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : `${year}년 ${month + 1}월`;
   els.calendarGrid.replaceChildren();
 
   for (let i = 0; i < firstDay.getDay(); i += 1) {
@@ -3875,7 +4018,9 @@ function renderCalendar() {
       cell.classList.add("has-volume");
     }
     const breakdownText = summary ? formatBreakdownText(volumeBreakdownForLogs(summary.logs)) : "";
-    cell.setAttribute("aria-label", summary ? `${key} 기록 보기 · ${breakdownText}` : `${key} 기록 보기`);
+    cell.setAttribute("aria-label", window.SetCounterI18n?.isEnglish()
+      ? (summary ? `View ${key} workout · ${breakdownText}` : `View ${key} workout`)
+      : (summary ? `${key} 기록 보기 · ${breakdownText}` : `${key} 기록 보기`));
     if (key === todayKey) cell.classList.add("is-today");
     if (key === state.selectedDate) cell.classList.add("is-selected");
     if (summary) cell.classList.add("has-workout");
@@ -4088,9 +4233,9 @@ function renderDayDetail() {
   const head = document.createElement("div");
   head.className = "day-detail-head";
   const title = document.createElement("strong");
-  title.textContent = `${selectedDateText()} 상세 기록`;
+  title.textContent = window.SetCounterI18n?.isEnglish() ? `${selectedDateText()} workout details` : `${selectedDateText()} 상세 기록`;
   const summary = document.createElement("span");
-  summary.textContent = logs.length ? calendarActivitySummary(logs) : "기록 없음";
+  summary.textContent = logs.length ? calendarActivitySummary(logs) : (window.SetCounterI18n?.isEnglish() ? "No workouts" : "기록 없음");
   head.append(title, summary);
   els.calendarDayDetail.append(head);
   if (logs.length) {
@@ -4165,7 +4310,9 @@ function renderDayDetail() {
   const action = document.createElement("button");
   action.type = "button";
   action.className = "day-add-button";
-  action.textContent = `${selectedDateText()} 운동 입력하기`;
+  action.textContent = window.SetCounterI18n?.isEnglish()
+    ? `Log a workout for ${selectedDateText()}`
+    : `${selectedDateText()} 운동 입력하기`;
   action.addEventListener("click", () => {
     openRecordScreen({ fromCalendar: true });
     document.querySelector(".counter-panel").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -4820,7 +4967,9 @@ async function submitBoardPost(event) {
 function renderHistory() {
   const totalSets = state.logs.reduce((sum, log) => sum + log.completedSets, 0);
   const monthlyMetrics = state.logs.length ? calendarActivitySummary(state.logs).replace(/^\d+종목 · /, "") : "0kg";
-  els.monthSummary.textContent = `${state.logs.length}회 · ${totalSets}세트 · ${monthlyMetrics}`;
+  els.monthSummary.textContent = window.SetCounterI18n?.isEnglish()
+    ? `${state.logs.length} workouts · ${totalSets} sets · ${monthlyMetrics}`
+    : `${state.logs.length}회 · ${totalSets}세트 · ${monthlyMetrics}`;
   els.historyList.replaceChildren();
   if (!state.logs.length) {
     const empty = document.createElement("p");

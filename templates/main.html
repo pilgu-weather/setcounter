@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='assets/app-icon-192.png') }}?v=8">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v=8">
     <title>Set Counter</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=117">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=118">
   </head>
   <body>
     <div class="app-launch-splash" id="appLaunchSplash" role="status" aria-live="polite" aria-label="Set Counter를 불러오는 중">
@@ -400,6 +400,13 @@
         <section class="menu-hub-section" aria-labelledby="menuSupportTitle">
           <div class="menu-section-heading"><div><p class="menu-section-kicker">SUPPORT</p><h2 id="menuSupportTitle">앱 설정 및 고객지원</h2></div></div>
           <div class="support-menu" aria-label="고객 지원">
+          <div class="menu-language-row" role="group" aria-label="언어">
+            <span class="menu-row-copy"><strong>언어</strong><small>앱 표시 언어</small></span>
+            <div class="language-segmented">
+              <button type="button" data-language="ko" aria-pressed="true">한국어</button>
+              <button type="button" data-language="en" aria-pressed="false">English</button>
+            </div>
+          </div>
           <button type="button" id="openFeedbackButton">
             <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M8 9h8"/><path d="M8 13h6"/></svg></span><span class="menu-row-copy"><strong>피드백 보내기</strong><small>불편한 점이나 제안을 운영자에게 보냅니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </button>
@@ -857,9 +864,10 @@
         </div>
       </section>
     </div>
+    <script src="{{ url_for('static', filename='js/i18n.js') }}?v=1"></script>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=8"></script>
     <script src="{{ url_for('static', filename='js/body-highlighter.js') }}?v=3"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=147"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=148"></script>
   </body>
 </html>
