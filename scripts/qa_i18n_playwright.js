@@ -68,10 +68,21 @@ function assert(condition, message) {
 (async () => {
   const browser = await chromium.launch({ headless: true, executablePath: CHROME });
   const context = await browser.newContext({ locale: "en-US", viewport: { width: 390, height: 844 } });
+  const qaKey = "i18n-qa-user-20260810-000000000001";
   await context.addInitScript(() => {
     localStorage.setItem("setcounterLanguage", "en");
     localStorage.setItem("healthUserKey", "i18n-qa-user-20260810-000000000001");
   });
+  const authStatus = await context.request.get(`${BASE_URL}/api/auth/status`, { headers: { "X-User-Key": qaKey } });
+  assert(authStatus.ok(), `Could not initialize QA guest: ${authStatus.status()}`);
+  const csrfToken = (await authStatus.json()).csrfToken;
+  for (const [exercise, reps] of [["트라이셉 덤벨 킥백", 7], ["시티드 트라이셉스 프레스", 10]]) {
+    const created = await context.request.post(`${BASE_URL}/api/logs`, {
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken, "X-User-Key": qaKey },
+      data: { exercise, date: "2026-08-06", weightKg: 8, completedSets: 3, targetSets: 3, setWeights: [8, 8, 8], setReps: [reps, reps, reps], restSeconds: 90 },
+    });
+    assert(created.ok(), `Could not seed ${exercise}: ${created.status()}`);
+  }
   const page = await context.newPage();
   page.setDefaultTimeout(3000);
   const consoleErrors = [];
@@ -103,6 +114,23 @@ function assert(condition, message) {
     assert(await page.locator(`[data-screen="${screen}"]`).evaluate((element) => element.classList.contains("is-active")), `${screen} did not activate`);
     report[screen] = await targetKorean(page, `[data-screen="${screen}"]`);
   }
+
+  await page.evaluate(() => {
+    document.querySelector('[data-tab="calendar"]')?.click();
+    document.querySelector(".history-day-button")?.click();
+  });
+  await page.waitForTimeout(350);
+  report.calendarSelectedDay = await targetKorean(page, '[data-screen="calendar"]');
+  const calendarSemantics = await page.evaluate(() => ({
+    historyAction: document.querySelector(".history-open")?.textContent?.trim(),
+    details: [...document.querySelectorAll(".day-log-item")].map((item) => item.innerText),
+    muscleBasis: document.querySelector(".day-muscle-summary-head small")?.textContent?.trim(),
+  }));
+  assert(calendarSemantics.historyAction === "View", `Unexpected calendar action: ${calendarSemantics.historyAction}`);
+  assert(calendarSemantics.details.some((text) => /Tricep Dumbbell Kickback/.test(text)), `Kickback name was not restored to English: ${JSON.stringify(calendarSemantics)}`);
+  assert(calendarSemantics.details.some((text) => /Seated Triceps Press/.test(text)), `Seated Triceps Press was not restored to English: ${JSON.stringify(calendarSemantics)}`);
+  assert(calendarSemantics.details.every((text) => /sets · Best \d+kg × \d+ reps/.test(text)), `Calendar metadata was not fully translated: ${calendarSemantics.details.join(" | ")}`);
+  assert(calendarSemantics.muscleBasis === "Based on completed sets", `Unexpected muscle basis: ${calendarSemantics.muscleBasis}`);
 
   const planCardCount = await page.locator(".workout-plan-card").count();
   assert(planCardCount > 0, "No workout plan cards rendered");
@@ -171,6 +199,34 @@ function assert(condition, message) {
     });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert(overflow <= 1, `${viewport.width}px viewport has ${overflow}px horizontal overflow`);
+    await page.evaluate(() => document.querySelector('[data-tab="record"]')?.click());
+    const timerLayout = await page.evaluate(() => {
+      const output = document.querySelector("#restDurationValue");
+      const timer = document.querySelector("#restTimer");
+      const outputRect = output?.getBoundingClientRect();
+      return {
+        timerWidth: timer?.getBoundingClientRect().width || 0,
+        outputWidth: outputRect?.width || 0,
+        outputHeight: outputRect?.height || 0,
+        lineHeight: Number.parseFloat(getComputedStyle(output).lineHeight),
+        whiteSpace: getComputedStyle(output).whiteSpace,
+        clipped: output ? output.scrollWidth > output.clientWidth + 1 : true,
+      };
+    });
+    assert(timerLayout.whiteSpace === "nowrap" && !timerLayout.clipped, `${viewport.width}px timer label wrapped or clipped: ${JSON.stringify(timerLayout)}`);
+    await page.evaluate(() => document.querySelector('[data-tab="menu"]')?.click());
+    const languageLayout = await page.evaluate(() => {
+      const row = document.querySelector(".menu-language-row");
+      const buttons = [...document.querySelectorAll(".language-segmented button")];
+      return {
+        rowOverflow: row ? row.scrollWidth - row.clientWidth : 999,
+        buttonHeights: buttons.map((button) => button.getBoundingClientRect().height),
+        buttonWidths: buttons.map((button) => button.getBoundingClientRect().width),
+      };
+    });
+    assert(languageLayout.rowOverflow <= 1, `${viewport.width}px language selector overflows: ${JSON.stringify(languageLayout)}`);
+    assert(languageLayout.buttonHeights.every((height) => height >= 44), `${viewport.width}px language touch target is too short: ${JSON.stringify(languageLayout)}`);
+    assert(languageLayout.buttonWidths.every((width) => width >= 88), `${viewport.width}px language label is clipped: ${JSON.stringify(languageLayout)}`);
     report.responsive[`${viewport.width}x${viewport.height}`] = await allKorean(page);
   }
 

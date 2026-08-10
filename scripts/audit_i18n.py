@@ -39,6 +39,36 @@ def main():
     require(not invalid_names, f"invalid English exercise names: {invalid_names[:5]}")
     require(not invalid_instructions, f"invalid English instructions: {invalid_instructions[:5]}")
 
+    source_names = {
+        str(exercise.get("sourceId") or exercise.get("id")): str(exercise.get("name") or "").strip()
+        for exercise in exercises
+    }
+    pronunciation_payload = json.loads(
+        (exercise_path.parent / "ko_exercise_pronunciation_map.json").read_text(encoding="utf-8")
+    )
+    pronunciation_items = pronunciation_payload.get("items") or {}
+    common_items = json.loads(
+        (exercise_path.parent / "ko_exercise_common_map.json").read_text(encoding="utf-8")
+    )
+    missing_pronunciation_sources = sorted(set(pronunciation_items) - set(source_names))
+    missing_common_sources = sorted(set(common_items) - set(source_names))
+    require(
+        not missing_pronunciation_sources,
+        f"pronunciation aliases without source exercises: {missing_pronunciation_sources[:5]}",
+    )
+    require(
+        not missing_common_sources,
+        f"common aliases without source exercises: {missing_common_sources[:5]}",
+    )
+    require(
+        source_names.get("Tricep_Dumbbell_Kickback") == "Tricep Dumbbell Kickback",
+        "legacy Tricep Dumbbell Kickback mapping is missing",
+    )
+    require(
+        source_names.get("Seated_Triceps_Press") == "Seated Triceps Press",
+        "legacy Seated Triceps Press mapping is missing",
+    )
+
     i18n_source = (ROOT / "static" / "js" / "i18n.js").read_text(encoding="utf-8")
     app_source = (ROOT / "static" / "js" / "app.js").read_text(encoding="utf-8")
     main_template = (ROOT / "templates" / "main.html").read_text(encoding="utf-8")
@@ -58,6 +88,10 @@ def main():
         "invalidEnglishNames": len(invalid_names),
         "invalidEnglishInstructions": len(invalid_instructions),
         "emptySourceInstructionsSkipped": missing_instructions,
+        "pronunciationAliases": len(pronunciation_items),
+        "commonExerciseAliases": len(common_items),
+        "unresolvedExerciseAliasSources": 0,
+        "legacyExerciseNameChecks": 2,
         "plansWithEnglishCopy": 4,
         "languageSelector": True,
         "legalPagesLocalized": True,

@@ -329,6 +329,8 @@ function exerciseDisplayName(exercise) {
   if (window.SetCounterI18n?.isEnglish()) {
     const original = exercise.englishName || exercise.freeDbName || exercise.originalName;
     if (original) return original;
+    const mappedEnglishAlias = mappedExerciseEntry(exercise).aliases?.find((alias) => /[A-Za-z]/.test(alias));
+    if (mappedEnglishAlias) return mappedEnglishAlias;
     return window.SetCounterI18n.exerciseName(exercise.name || exercise.displayName || "");
   }
   return mappedExerciseEntry(exercise).displayName || exercise.displayName || exercise.name || "";
@@ -367,6 +369,9 @@ function translateMuscle(value) {
       "어깨": "Shoulders", "후면 어깨": "Rear delts", "삼두": "Triceps", "이두": "Biceps", "팔": "Arms",
       "전신": "Full body", "하체": "Lower body", "허벅지": "Quads", "둔근": "Glutes", "햄스트링": "Hamstrings",
       "고관절": "Hips", "흉추": "Thoracic spine", "가동성": "Mobility", "회복": "Recovery", "심폐": "Cardio",
+      "하부 등": "Lower back", "허리": "Lower back", "복근": "Abs", "코어": "Core", "전완근": "Forearms",
+      "대퇴사두근": "Quads", "종아리": "Calves", "내전근": "Adductors", "승모근": "Traps", "목": "Neck",
+      "기타": "Other",
     };
     return englishMuscles[value] || String(value || "-").replaceAll("_", " ");
   }
@@ -1756,25 +1761,26 @@ function bindAcceleratingWeightStepper(button) {
 
 function buildRecordTable(rows, options = {}) {
   const repsOnly = Boolean(options.repsOnly);
+  const isEnglish = window.SetCounterI18n?.isEnglish();
   const table = document.createElement("table");
   table.className = "record-table";
   table.classList.toggle("is-reps-only", repsOnly);
   table.innerHTML = repsOnly
-    ? `<thead><tr><th>세트</th><th>횟수</th></tr></thead>`
-    : `<thead><tr><th>세트</th><th>무게</th><th>횟수</th><th>볼륨</th></tr></thead>`;
+    ? `<thead><tr><th>${isEnglish ? "Set" : "세트"}</th><th>${isEnglish ? "Reps" : "횟수"}</th></tr></thead>`
+    : `<thead><tr><th>${isEnglish ? "Set" : "세트"}</th><th>${isEnglish ? "Weight" : "무게"}</th><th>${isEnglish ? "Reps" : "횟수"}</th><th>${isEnglish ? "Volume" : "볼륨"}</th></tr></thead>`;
   const body = document.createElement("tbody");
   rows.forEach((row, index) => {
     const tr = document.createElement("tr");
     tr.innerHTML = repsOnly
-      ? `<td>${index + 1}</td><td>${row.reps}회</td>`
-      : `<td>${index + 1}</td><td>${weightLabel(row.weightKg)}</td><td>${row.reps}회</td><td>${Math.round(row.weightKg * row.reps)}kg</td>`;
+      ? `<td>${index + 1}</td><td>${row.reps}${isEnglish ? " reps" : "회"}</td>`
+      : `<td>${index + 1}</td><td>${weightLabel(row.weightKg)}</td><td>${row.reps}${isEnglish ? " reps" : "회"}</td><td>${Math.round(row.weightKg * row.reps)}kg</td>`;
     body.append(tr);
   });
   table.append(body);
   const foot = document.createElement("tfoot");
   foot.innerHTML = repsOnly
-    ? `<tr><td>합계</td><td>${totalReps(rows)}회</td></tr>`
-    : `<tr><td>합계</td><td>-</td><td>${totalReps(rows)}회</td><td>${Math.round(totalVolume(rows))}kg</td></tr>`;
+    ? `<tr><td>${isEnglish ? "Total" : "합계"}</td><td>${totalReps(rows)}${isEnglish ? " reps" : "회"}</td></tr>`
+    : `<tr><td>${isEnglish ? "Total" : "합계"}</td><td>-</td><td>${totalReps(rows)}${isEnglish ? " reps" : "회"}</td><td>${Math.round(totalVolume(rows))}kg</td></tr>`;
   table.append(foot);
   return table;
 }
@@ -4096,13 +4102,14 @@ function muscleSummaryForLogs(logs) {
 function buildDayMuscleSummary(logs) {
   const data = muscleSummaryForLogs(logs);
   if (!data.rows.length) return null;
+  const isEnglish = window.SetCounterI18n?.isEnglish();
 
   const section = document.createElement("section");
   section.className = "day-muscle-summary";
   section.innerHTML = `
     <div class="day-muscle-summary-head">
-      <div><span>TRAINING MAP</span><h3>근육 사용 분포</h3></div>
-      <small>완료 세트 기준</small>
+      <div><span>TRAINING MAP</span><h3>${isEnglish ? "Muscle distribution" : "근육 사용 분포"}</h3></div>
+      <small>${isEnglish ? "Based on completed sets" : "완료 세트 기준"}</small>
     </div>
     <div class="exercise-muscle-map" data-day-muscle-map aria-live="polite"></div>
     <div class="day-muscle-chart">
@@ -4188,7 +4195,7 @@ function buildDayMuscleSummary(logs) {
   const list = section.querySelector(".day-muscle-list");
   data.rows.forEach((row, index) => {
     const item = document.createElement("div");
-    item.innerHTML = `<i class="day-muscle-key color-${index + 1}"></i><strong>${escapeHtml(row.label)}</strong><span>${row.score % 1 ? row.score.toFixed(1) : row.score}세트</span>`;
+    item.innerHTML = `<i class="day-muscle-key color-${index + 1}"></i><strong>${escapeHtml(isEnglish ? translateMuscle(row.label) : row.label)}</strong><span>${row.score % 1 ? row.score.toFixed(1) : row.score}${isEnglish ? " sets" : "세트"}</span>`;
     list.append(item);
   });
   const distribution = data.rows.map((row, index) => ({ muscles: row.muscles, colorIndex: index + 1 }));
@@ -4281,23 +4288,27 @@ function renderDayDetail() {
       const label = document.createElement("strong");
       label.textContent = displayName;
       const meta = document.createElement("span");
-      meta.textContent = coreExercise
-        ? `${formatNumber(log.completedSets || rows.length)}세트 · 총 ${formatNumber(log.totalReps)}회`
-        : `${formatNumber(log.completedSets || rows.length)}세트 · 최고 ${formatNumber(maxWeight)}kg × ${formatNumber(maxReps)}회`;
+      meta.textContent = window.SetCounterI18n?.isEnglish()
+        ? (coreExercise
+          ? `${formatNumber(log.completedSets || rows.length)} sets · ${formatNumber(log.totalReps)} total reps`
+          : `${formatNumber(log.completedSets || rows.length)} sets · Best ${formatNumber(maxWeight)}kg × ${formatNumber(maxReps)} reps`)
+        : (coreExercise
+          ? `${formatNumber(log.completedSets || rows.length)}세트 · 총 ${formatNumber(log.totalReps)}회`
+          : `${formatNumber(log.completedSets || rows.length)}세트 · 최고 ${formatNumber(maxWeight)}kg × ${formatNumber(maxReps)}회`);
       copy.append(label, meta);
 
       const remove = document.createElement("button");
       remove.className = "delete-button";
       remove.type = "button";
       remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg>';
-      remove.setAttribute("aria-label", `${displayName} 기록 삭제`);
+      remove.setAttribute("aria-label", window.SetCounterI18n?.isEnglish() ? `Delete ${displayName} workout` : `${displayName} 기록 삭제`);
       remove.addEventListener("click", () => openWorkoutDeleteConfirm(log, displayName));
       top.append(image, copy, remove);
 
       const setDetails = document.createElement("details");
       setDetails.className = "day-log-sets";
       const setSummary = document.createElement("summary");
-      setSummary.innerHTML = '<span>세트 상세</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+      setSummary.innerHTML = `<span>${window.SetCounterI18n?.isEnglish() ? "Set details" : "세트 상세"}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
       setDetails.append(setSummary, buildRecordTable(rows, { repsOnly: coreExercise }));
       item.append(top, setDetails);
       workoutList.append(item);
@@ -5006,7 +5017,7 @@ function renderHistory() {
       body.append(title, meta);
       const open = document.createElement("span");
       open.className = "history-open";
-      open.textContent = "보기";
+      open.textContent = window.SetCounterI18n?.isEnglish() ? "View" : "보기";
       item.append(body, open);
       item.addEventListener("click", () => chooseDate(day.date));
       els.historyList.append(item);
