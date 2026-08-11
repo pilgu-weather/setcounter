@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "setcounterLanguage";
-  const SUPPORTED = new Set(["ko", "en", "ja", "es"]);
+  const SUPPORTED = new Set(["ko", "en", "ja", "es", "zh", "ru"]);
   const saved = window.localStorage.getItem(STORAGE_KEY);
   const browserLanguage = (navigator.language || "ko").toLowerCase().split("-")[0];
   let current = SUPPORTED.has(saved) ? saved : (SUPPORTED.has(browserLanguage) ? browserLanguage : "en");
@@ -421,7 +421,7 @@
     isEnglish: () => current !== "ko",
     isKorean: () => current === "ko",
     isInternational: () => current !== "ko",
-    dateLocale: () => ({ ko: "ko-KR", en: "en-US", ja: "ja-JP", es: "es-ES" }[current] || "en-US"),
+    dateLocale: () => ({ ko: "ko-KR", en: "en-US", ja: "ja-JP", es: "es-ES", zh: "zh-CN", ru: "ru-RU" }[current] || "en-US"),
     t: translateText,
     exerciseName: (value) => current === "ko" ? value : translateText(EXERCISES[value] || value),
     setLocale,

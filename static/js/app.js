@@ -329,7 +329,7 @@ function exerciseDisplayName(exercise) {
   if (!exercise) return "";
   const locale = window.SetCounterI18n?.locale?.() || "ko";
   const sourceId = exercise.freeDbSourceId || exercise.sourceId;
-  if (locale === "ja" || locale === "es") {
+  if (["ja", "es", "zh", "ru"].includes(locale)) {
     const localizedName = localizedExerciseMap[sourceId]?.name;
     if (localizedName) return localizedName;
     const originalName = exercise.englishName || exercise.freeDbName || exercise.originalName;
@@ -535,7 +535,7 @@ const koreanExerciseInstructions = {
 function exerciseInstructionsForDetail(exercise) {
   const locale = window.SetCounterI18n?.locale?.() || "ko";
   const sourceId = exercise.freeDbSourceId || exercise.sourceId;
-  if (locale === "ja" || locale === "es") {
+  if (["ja", "es", "zh", "ru"].includes(locale)) {
     return localizedExerciseMap[sourceId]?.instructions?.filter(Boolean) || [];
   }
   if (window.SetCounterI18n?.isEnglish()) return exercise.instructions?.filter(Boolean) || [];
@@ -673,8 +673,8 @@ function replacePrimaryExercises(defaultExercises) {
 async function loadFreeExerciseDb() {
   try {
     const locale = window.SetCounterI18n?.locale?.() || "ko";
-    const localizedUrl = ["ja", "es"].includes(locale)
-      ? `/static/data/free-exercise-db/localized_exercises_${locale}.json?v=1`
+    const localizedUrl = ["ja", "es", "zh", "ru"].includes(locale)
+      ? `/static/data/free-exercise-db/localized_exercises_${locale}.json?v=2`
       : null;
     const [exerciseResponse, mapResponse, commonMapResponse, pronunciationMapResponse, muscleResponse, equipmentResponse, localizedResponse] = await Promise.all([
       fetch("/static/data/free-exercise-db/exercises.json"),

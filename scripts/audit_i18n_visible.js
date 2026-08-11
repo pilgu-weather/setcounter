@@ -2,6 +2,8 @@ const { chromium } = require("playwright");
 
 const baseUrl = process.env.SETCOUNTER_QA_URL || "http://127.0.0.1:5068";
 const chromePath = process.env.CHROME_PATH || "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
+const language = process.env.SETCOUNTER_QA_LANG || "ja";
+const locale = { ja: "ja-JP", zh: "zh-CN", ru: "ru-RU" }[language] || "en-US";
 
 async function collectLatin(page, selector = "body") {
   return page.locator(selector).evaluate((root) => {
@@ -27,12 +29,12 @@ async function collectLatin(page, selector = "body") {
 
 (async () => {
   const browser = await chromium.launch({ headless: true, executablePath: chromePath });
-  const context = await browser.newContext({ locale: "ja-JP", viewport: { width: 390, height: 844 } });
-  const userKey = "i18n-latin-audit-20260811";
-  await context.addInitScript((key) => {
-    localStorage.setItem("setcounterLanguage", "ja");
+  const context = await browser.newContext({ locale, viewport: { width: 390, height: 844 } });
+  const userKey = `i18n-latin-audit-${language}-20260811`;
+  await context.addInitScript(({ key, selectedLanguage }) => {
+    localStorage.setItem("setcounterLanguage", selectedLanguage);
     localStorage.setItem("healthUserKey", key);
-  }, userKey);
+  }, { key: userKey, selectedLanguage: language });
   await context.request.get(`${baseUrl}/api/auth/status`, { headers: { "X-User-Key": userKey } });
   const page = await context.newPage();
   await page.goto(`${baseUrl}/main`, { waitUntil: "domcontentloaded" });
@@ -44,9 +46,9 @@ async function collectLatin(page, selector = "body") {
 
   const report = {};
   report.probes = await page.evaluate(() => ({
-    patternCount: Object.keys(window.SetCounterLocaleData.ja.patterns).length,
-    warmPattern: window.SetCounterLocaleData.ja.patterns["Warm-up $1"],
-    addPattern: window.SetCounterLocaleData.ja.patterns["Add $1"],
+    patternCount: Object.keys(window.SetCounterLocaleData[document.documentElement.lang].patterns).length,
+    warmPattern: window.SetCounterLocaleData[document.documentElement.lang].patterns["Warm-up $1"],
+    addPattern: window.SetCounterLocaleData[document.documentElement.lang].patterns["Add $1"],
     translations: Object.fromEntries([
       "Warm-up 3",
       "Add test",
@@ -86,9 +88,9 @@ async function collectLatin(page, selector = "body") {
 
   const allowedLatin = new Set([
     "SET", "COUNTER", "Set", "Counter", "SetCounter", "North", "Star", "Labs",
-    "SOS", "XP", "kg", "KO", "EN", "JA", "ES", "English", "Español", "EZ", "SMR",
+    "SOS", "XP", "FAQ", "kg", "KO", "EN", "JA", "ES", "ZH", "RU", "English", "Español", "EZ", "SMR",
     "SDK", "Web", "ID", "IP", "HMAC", "Render", "Services", "Inc", "Discord",
-    "HttpOnly", "HTTPS", "CSRF", "gmail", "com", "v", "aria", "label",
+    "HttpOnly", "HTTPS", "CSRF", "Neon", "Cookie", "cookie", "gmail", "com", "v", "aria", "label",
     "Espa", "ol", "northstarlabshelp",
   ]);
   const visibleStrings = Object.entries(report)
@@ -97,9 +99,14 @@ async function collectLatin(page, selector = "body") {
   const unexpectedLatinTokens = [...new Set(visibleStrings.flatMap((value) => value.match(/[A-Za-z]+/g) || []))]
     .filter((token) => !allowedLatin.has(token));
   report.unexpectedLatinTokens = unexpectedLatinTokens;
+  report.unexpectedTargetScript = visibleStrings.filter((value) => {
+    if (language === "zh") return /[\u0400-\u04ff]/.test(value);
+    if (language === "ru") return /[\u3400-\u9fff]/.test(value);
+    return false;
+  });
   console.log(JSON.stringify(report, null, 2));
   await browser.close();
-  if (unexpectedLatinTokens.length) process.exitCode = 1;
+  if (unexpectedLatinTokens.length || report.unexpectedTargetScript.length) process.exitCode = 1;
 })().catch((error) => {
   console.error(error);
   process.exit(1);

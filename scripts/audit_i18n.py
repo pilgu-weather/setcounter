@@ -6,6 +6,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 HANGUL = re.compile(r"[가-힣]")
 MOJIBAKE = re.compile(r"(?:\ufffd|Ã.|Â.)")
+CJK = re.compile(r"[\u3400-\u9fff]")
+CYRILLIC = re.compile(r"[\u0400-\u04ff]")
 
 
 def require(condition, message):
@@ -82,7 +84,8 @@ def main():
     locale_data = json.loads(locale_json)
 
     require("\ufffd" not in i18n_source + app_source, "replacement characters found in JavaScript")
-    for locale in ("ko", "en", "ja", "es"):
+    supported_locales = ("ko", "en", "ja", "es", "zh", "ru")
+    for locale in supported_locales:
         require(f'data-language="{locale}"' in main_template, f"{locale} language selector is missing")
     require(
         all("js/i18n-locales.js" in template and "js/i18n.js" in template for template in (main_template, legal_template)),
@@ -94,13 +97,23 @@ def main():
     require('`${draft} workouts`' in app_source, "weekly goal must use workout terminology in English")
 
     locale_report = {}
-    for locale in ("ja", "es"):
+    expected_core = {
+        "ja": {"View": "表示", "Reps": "回数", "Sets": "セット"},
+        "es": {"View": "Ver", "Reps": "Repeticiones", "Sets": "Series"},
+        "zh": {"View": "查看", "Reps": "次数", "Sets": "组数"},
+        "ru": {"View": "Просмотр", "Reps": "Повторения", "Sets": "Подходы"},
+    }
+    for locale in ("ja", "es", "zh", "ru"):
         require(locale in locale_data, f"missing {locale} UI locale")
         strings = locale_data[locale].get("strings") or {}
         patterns = locale_data[locale].get("patterns") or {}
         require(len(strings) >= 600, f"{locale} UI dictionary is incomplete: {len(strings)}")
         require(len(patterns) >= 50, f"{locale} pattern dictionary is incomplete: {len(patterns)}")
         require(not any(HANGUL.search(str(value)) for value in (*strings.values(), *patterns.values())), f"Hangul remains in {locale} UI translations")
+        if locale == "zh":
+            require(not any(CYRILLIC.search(str(value)) for value in (*strings.values(), *patterns.values())), "Cyrillic remains in zh UI translations")
+        if locale == "ru":
+            require(not any(CJK.search(str(value)) for value in (*strings.values(), *patterns.values())), "CJK remains in ru UI translations")
         require(not any(not str(value).strip() for value in (*strings.values(), *patterns.values())), f"blank {locale} UI translation")
 
         localized_payload = json.loads(
@@ -119,13 +132,19 @@ def main():
             require(name and not HANGUL.search(name), f"invalid {locale} exercise name: {source_id}")
             require(len(instructions) == len(exercise.get("instructions") or []), f"{locale} instruction count mismatch: {source_id}")
             require(not any(HANGUL.search(str(value)) for value in instructions), f"Hangul remains in {locale} exercise instructions: {source_id}")
+            if locale == "zh":
+                require(not CYRILLIC.search(name), f"Cyrillic remains in zh exercise name: {source_id}")
+                require(not any(CYRILLIC.search(str(value)) for value in instructions), f"Cyrillic remains in zh exercise instructions: {source_id}")
+            if locale == "ru":
+                require(not CJK.search(name), f"CJK remains in ru exercise name: {source_id}")
+                require(not any(CJK.search(str(value)) for value in instructions), f"CJK remains in ru exercise instructions: {source_id}")
             localized_instruction_count += len(instructions)
             if name == exercise["name"]:
                 untranslated_names.append(source_id)
-        require(len(untranslated_names) <= (0 if locale == "ja" else 4), f"too many untranslated {locale} exercise names: {untranslated_names[:10]}")
-        require(strings["View"] == ("表示" if locale == "ja" else "Ver"), f"{locale} View translation regressed")
-        require(strings["Reps"] == ("回数" if locale == "ja" else "Repeticiones"), f"{locale} Reps translation regressed")
-        require(strings["Sets"] == ("セット" if locale == "ja" else "Series"), f"{locale} Sets translation regressed")
+        allowed_unchanged = 4 if locale == "es" else 0
+        require(len(untranslated_names) <= allowed_unchanged, f"too many untranslated {locale} exercise names: {untranslated_names[:10]}")
+        for key, expected in expected_core[locale].items():
+            require(strings[key] == expected, f"{locale} {key} translation regressed: {strings[key]}")
         locale_report[locale] = {
             "uiStrings": len(strings),
             "patterns": len(patterns),
@@ -145,7 +164,7 @@ def main():
         "unresolvedExerciseAliasSources": 0,
         "legacyExerciseNameChecks": 2,
         "plansWithEnglishCopy": 4,
-        "languageSelector": ["ko", "en", "ja", "es"],
+        "languageSelector": list(supported_locales),
         "legalPagesLocalized": True,
         "locales": locale_report,
     }, ensure_ascii=False, indent=2))

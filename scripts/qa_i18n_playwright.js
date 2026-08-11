@@ -7,6 +7,8 @@ const EXPECTED = {
   en: { locale: "en-US", home: "Home", view: "View", muscleBasis: "Based on completed sets", sets: /sets/i, reps: /reps/i },
   ja: { locale: "ja-JP", home: "ホーム", view: "表示", muscleBasis: "完了したセットに基づく", sets: /セット/, reps: /回/ },
   es: { locale: "es-ES", home: "Inicio", view: "Ver", muscleBasis: "Basado en series completadas", sets: /series/i, reps: /repeticiones/i },
+  zh: { locale: "zh-CN", home: "首页", view: "查看", muscleBasis: "按已完成组数计算", sets: /组/, reps: /次/ },
+  ru: { locale: "ru-RU", home: "Главная", view: "Просмотр", muscleBasis: "По завершённым подходам", sets: /подход/i, reps: /повтор/i },
 };
 const expected = EXPECTED[LANG];
 if (!expected) throw new Error(`Unsupported QA language: ${LANG}`);
