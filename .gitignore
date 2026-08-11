@@ -21,3 +21,4 @@ android/*.jks
 android/*.keystore
 play-store/private/
 play-store/screenshots/raw/
+.tmp-argos/

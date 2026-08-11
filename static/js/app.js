@@ -205,6 +205,7 @@ let koMuscleMap = {};
 let koEquipmentMap = {};
 let koInstructionsMap = {};
 let koInstructionsLoadPromise = null;
+let localizedExerciseMap = {};
 let setCounterDefaultExercises = [];
 const defaultApiNameOverrides = {
   Barbell_Hip_Thrust: "바벨 힙 쓰러스트",
@@ -326,6 +327,14 @@ function mappedExerciseEntry(exercise) {
 
 function exerciseDisplayName(exercise) {
   if (!exercise) return "";
+  const locale = window.SetCounterI18n?.locale?.() || "ko";
+  const sourceId = exercise.freeDbSourceId || exercise.sourceId;
+  if (locale === "ja" || locale === "es") {
+    const localizedName = localizedExerciseMap[sourceId]?.name;
+    if (localizedName) return localizedName;
+    const originalName = exercise.englishName || exercise.freeDbName || exercise.originalName;
+    if (originalName) return window.SetCounterI18n.exerciseName(originalName);
+  }
   if (window.SetCounterI18n?.isEnglish()) {
     const original = exercise.englishName || exercise.freeDbName || exercise.originalName;
     if (original) return original;
@@ -524,8 +533,12 @@ const koreanExerciseInstructions = {
 };
 
 function exerciseInstructionsForDetail(exercise) {
-  if (window.SetCounterI18n?.isEnglish()) return exercise.instructions?.filter(Boolean) || [];
+  const locale = window.SetCounterI18n?.locale?.() || "ko";
   const sourceId = exercise.freeDbSourceId || exercise.sourceId;
+  if (locale === "ja" || locale === "es") {
+    return localizedExerciseMap[sourceId]?.instructions?.filter(Boolean) || [];
+  }
+  if (window.SetCounterI18n?.isEnglish()) return exercise.instructions?.filter(Boolean) || [];
   if (koreanExerciseInstructions[sourceId]) return koreanExerciseInstructions[sourceId];
   if (koInstructionsMap[sourceId]?.length) return koInstructionsMap[sourceId];
   if (exercise.instructionsKo?.length) return exercise.instructionsKo;
@@ -659,13 +672,18 @@ function replacePrimaryExercises(defaultExercises) {
 
 async function loadFreeExerciseDb() {
   try {
-    const [exerciseResponse, mapResponse, commonMapResponse, pronunciationMapResponse, muscleResponse, equipmentResponse] = await Promise.all([
+    const locale = window.SetCounterI18n?.locale?.() || "ko";
+    const localizedUrl = ["ja", "es"].includes(locale)
+      ? `/static/data/free-exercise-db/localized_exercises_${locale}.json?v=1`
+      : null;
+    const [exerciseResponse, mapResponse, commonMapResponse, pronunciationMapResponse, muscleResponse, equipmentResponse, localizedResponse] = await Promise.all([
       fetch("/static/data/free-exercise-db/exercises.json"),
       fetch("/static/data/free-exercise-db/ko_exercise_map.json?v=5"),
       fetch("/static/data/free-exercise-db/ko_exercise_common_map.json?v=1"),
       fetch("/static/data/free-exercise-db/ko_exercise_pronunciation_map.json?v=1"),
       fetch("/static/data/free-exercise-db/ko_muscle_map.json"),
       fetch("/static/data/free-exercise-db/ko_equipment_map.json"),
+      localizedUrl ? fetch(localizedUrl) : Promise.resolve(null),
     ]);
     if (!exerciseResponse.ok) throw new Error("free exercise db load failed");
     const rawExercises = await exerciseResponse.json();
@@ -694,6 +712,8 @@ async function loadFreeExerciseDb() {
     }));
     koMuscleMap = muscleResponse.ok ? await muscleResponse.json() : {};
     koEquipmentMap = equipmentResponse.ok ? await equipmentResponse.json() : {};
+    const localizedPayload = localizedResponse?.ok ? await localizedResponse.json() : { items: {} };
+    localizedExerciseMap = localizedPayload.items || {};
     setCounterDefaultExercises = koMapPayload.setCounterDefaults || [];
     const freeExercises = rawExercises.map((item) => normalizeFreeDbExercise(item, koExerciseMap));
     const defaultExercises = mergeSetCounterDefaults(freeExercises);
@@ -1934,7 +1954,7 @@ function renderProfile(profile = state.profile) {
     const isEnglish = window.SetCounterI18n?.isEnglish();
     const availableLabel = availableAt && !Number.isNaN(availableAt.getTime())
       ? (isEnglish
-        ? `Available ${availableAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+        ? `Available ${availableAt.toLocaleDateString(window.SetCounterI18n?.dateLocale?.() || "en-US", { month: "short", day: "numeric" })}`
         : `${availableAt.toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 변경 가능`)
       : (isEnglish ? "Change once every 7 days" : "7일에 한 번 변경");
     els.menuNicknameAvailability.textContent = state.profile?.canChangeNickname === false
@@ -1981,7 +2001,7 @@ function openNicknameModal(required = false) {
   const availableAt = state.profile?.nextNicknameChangeAt ? new Date(state.profile.nextNicknameChangeAt) : null;
   els.nicknameAvailabilityNote.textContent = state.profile?.canChangeNickname === false && availableAt
     ? (isEnglish
-      ? `Available again ${availableAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.`
+      ? `Available again ${availableAt.toLocaleString(window.SetCounterI18n?.dateLocale?.() || "en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.`
       : `${availableAt.toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}부터 다시 변경할 수 있습니다.`)
     : (isEnglish ? "You can change your nickname once every 7 days." : "닉네임은 7일에 한 번 변경할 수 있습니다.");
   syncNicknameInput();
@@ -1993,7 +2013,7 @@ function openNicknameModal(required = false) {
 function formatLevelHistoryDate(value) {
   const date = dateFromKey(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString(window.SetCounterI18n?.isEnglish() ? "en-US" : "ko-KR", { year: "numeric", month: "short", day: "numeric" });
+  return date.toLocaleDateString(window.SetCounterI18n?.dateLocale?.() || "ko-KR", { year: "numeric", month: "short", day: "numeric" });
 }
 
 function renderLevelHistory() {
@@ -2784,7 +2804,7 @@ function menuSelectedDateText() {
   if (state.selectedDate === todayKey) return window.SetCounterI18n?.isEnglish() ? "Today" : "오늘";
   const date = new Date(`${state.selectedDate}T00:00:00`);
   if (Number.isNaN(date.getTime())) return state.selectedDate;
-  return date.toLocaleDateString(window.SetCounterI18n?.isEnglish() ? "en-US" : "ko-KR", { month: "long", day: "numeric", weekday: "short" });
+  return date.toLocaleDateString(window.SetCounterI18n?.dateLocale?.() || "ko-KR", { month: "long", day: "numeric", weekday: "short" });
 }
 
 function syncSosReasonInput() {
@@ -3987,7 +4007,7 @@ function renderCalendar() {
   const excusesByDate = new Map(state.excuses.map((excuse) => [excuse.date, excuse]));
 
   els.calendarTitle.textContent = window.SetCounterI18n?.isEnglish()
-    ? new Date(year, month, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    ? new Date(year, month, 1).toLocaleDateString(window.SetCounterI18n?.dateLocale?.() || "en-US", { month: "long", year: "numeric" })
     : `${year}년 ${month + 1}월`;
   els.calendarGrid.replaceChildren();
 

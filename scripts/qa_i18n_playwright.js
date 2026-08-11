@@ -2,7 +2,18 @@ const { chromium } = require("playwright");
 
 const BASE_URL = process.env.SETCOUNTER_QA_URL || "http://127.0.0.1:5065";
 const CHROME = process.env.CHROME_PATH || "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
+const LANG = process.env.SETCOUNTER_QA_LANG || "en";
+const EXPECTED = {
+  en: { locale: "en-US", home: "Home", view: "View", muscleBasis: "Based on completed sets", sets: /sets/i, reps: /reps/i },
+  ja: { locale: "ja-JP", home: "ホーム", view: "表示", muscleBasis: "完了したセットに基づく", sets: /セット/, reps: /回/ },
+  es: { locale: "es-ES", home: "Inicio", view: "Ver", muscleBasis: "Basado en series completadas", sets: /series/i, reps: /repeticiones/i },
+};
+const expected = EXPECTED[LANG];
+if (!expected) throw new Error(`Unsupported QA language: ${LANG}`);
 const hangul = /[\uac00-\ud7a3]/;
+const localizedExercises = LANG === "en"
+  ? null
+  : require(`../static/data/free-exercise-db/localized_exercises_${LANG}.json`).items;
 
 async function visibleKorean(page, selector) {
   return page.locator(selector).evaluateAll((elements) => {
@@ -67,16 +78,16 @@ function assert(condition, message) {
 
 (async () => {
   const browser = await chromium.launch({ headless: true, executablePath: CHROME });
-  const context = await browser.newContext({ locale: "en-US", viewport: { width: 390, height: 844 } });
-  const qaKey = "i18n-qa-user-20260810-000000000001";
-  await context.addInitScript(() => {
-    localStorage.setItem("setcounterLanguage", "en");
-    localStorage.setItem("healthUserKey", "i18n-qa-user-20260810-000000000001");
-  });
+  const context = await browser.newContext({ locale: expected.locale, viewport: { width: 390, height: 844 } });
+  const qaKey = `i18n-qa-${LANG}-20260811-000000000001`;
+  await context.addInitScript(({ language, userKey }) => {
+    localStorage.setItem("setcounterLanguage", language);
+    localStorage.setItem("healthUserKey", userKey);
+  }, { language: LANG, userKey: qaKey });
   const authStatus = await context.request.get(`${BASE_URL}/api/auth/status`, { headers: { "X-User-Key": qaKey } });
   assert(authStatus.ok(), `Could not initialize QA guest: ${authStatus.status()}`);
   const csrfToken = (await authStatus.json()).csrfToken;
-  for (const [exercise, reps] of [["트라이셉 덤벨 킥백", 7], ["시티드 트라이셉스 프레스", 10]]) {
+  for (const [exercise, reps] of [["Tricep Dumbbell Kickback", 7], ["Seated Triceps Press", 10]]) {
     const created = await context.request.post(`${BASE_URL}/api/logs`, {
       headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken, "X-User-Key": qaKey },
       data: { exercise, date: "2026-08-06", weightKg: 8, completedSets: 3, targetSets: 3, setWeights: [8, 8, 8], setReps: [reps, reps, reps], restSeconds: 90 },
@@ -126,11 +137,13 @@ function assert(condition, message) {
     details: [...document.querySelectorAll(".day-log-item")].map((item) => item.innerText),
     muscleBasis: document.querySelector(".day-muscle-summary-head small")?.textContent?.trim(),
   }));
-  assert(calendarSemantics.historyAction === "View", `Unexpected calendar action: ${calendarSemantics.historyAction}`);
-  assert(calendarSemantics.details.some((text) => /Tricep Dumbbell Kickback/.test(text)), `Kickback name was not restored to English: ${JSON.stringify(calendarSemantics)}`);
-  assert(calendarSemantics.details.some((text) => /Seated Triceps Press/.test(text)), `Seated Triceps Press was not restored to English: ${JSON.stringify(calendarSemantics)}`);
-  assert(calendarSemantics.details.every((text) => /sets · Best \d+kg × \d+ reps/.test(text)), `Calendar metadata was not fully translated: ${calendarSemantics.details.join(" | ")}`);
-  assert(calendarSemantics.muscleBasis === "Based on completed sets", `Unexpected muscle basis: ${calendarSemantics.muscleBasis}`);
+  const kickbackName = LANG === "en" ? "Tricep Dumbbell Kickback" : localizedExercises.Tricep_Dumbbell_Kickback.name;
+  const seatedPressName = LANG === "en" ? "Seated Triceps Press" : localizedExercises.Seated_Triceps_Press.name;
+  assert(calendarSemantics.historyAction === expected.view, `Unexpected calendar action: ${calendarSemantics.historyAction}`);
+  assert(calendarSemantics.details.some((text) => text.includes(kickbackName)), `Kickback name was not localized: ${JSON.stringify(calendarSemantics)}`);
+  assert(calendarSemantics.details.some((text) => text.includes(seatedPressName)), `Seated Triceps Press was not localized: ${JSON.stringify(calendarSemantics)}`);
+  assert(calendarSemantics.details.every((text) => expected.sets.test(text) && expected.reps.test(text)), `Calendar metadata was not fully translated: ${calendarSemantics.details.join(" | ")}`);
+  assert(calendarSemantics.muscleBasis === expected.muscleBasis, `Unexpected muscle basis: ${calendarSemantics.muscleBasis}`);
 
   const planCardCount = await page.locator(".workout-plan-card").count();
   assert(planCardCount > 0, "No workout plan cards rendered");
@@ -176,10 +189,10 @@ function assert(condition, message) {
     firstPlanMeta: document.querySelector(".plan-workout-row small")?.textContent?.trim(),
     libraryCount: document.querySelector("#exerciseLibraryCount")?.textContent?.trim(),
   }));
-  assert(semantics.lang === "en", `Unexpected document language: ${semantics.lang}`);
-  assert(semantics.homeNav === "Home", `Unexpected Home label: ${semantics.homeNav}`);
+  assert(semantics.lang === LANG, `Unexpected document language: ${semantics.lang}`);
+  assert(semantics.homeNav === expected.home, `Unexpected Home label: ${semantics.homeNav}`);
   assert(Boolean(semantics.planHeading) && !hangul.test(semantics.planHeading), `Unexpected plan heading: ${semantics.planHeading}`);
-  assert(/sets|\d{2}:\d{2}/i.test(semantics.firstPlanMeta || ""), `Unclear plan metadata: ${semantics.firstPlanMeta}`);
+  assert(expected.sets.test(semantics.firstPlanMeta || "") || /\d{2}:\d{2}/i.test(semantics.firstPlanMeta || ""), `Unclear plan metadata: ${semantics.firstPlanMeta}`);
   report.semanticAssertions = [];
 
   for (const route of ["privacy", "terms", "account-deletion"]) {
@@ -188,7 +201,7 @@ function assert(condition, message) {
   }
 
   report.responsive = {};
-  for (const viewport of [{ width: 360, height: 800 }, { width: 430, height: 932 }]) {
+  for (const viewport of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
     await page.setViewportSize(viewport);
     await page.goto(`${BASE_URL}/main`, { waitUntil: "domcontentloaded" });
     await page.locator(".workout-plan-card").first().waitFor({ state: "attached", timeout: 12000 });
@@ -234,7 +247,7 @@ function assert(condition, message) {
     ? value.flatMap(flatten)
     : (value && typeof value === "object" ? Object.values(value).flatMap(flatten) : [value]);
   const remaining = flatten(report).filter((value) => hangul.test(String(value || "")));
-  console.log(JSON.stringify({ report, remainingCount: remaining.length, consoleErrors }, null, 2));
+  console.log(JSON.stringify({ language: LANG, report, remainingCount: remaining.length, consoleErrors }, null, 2));
   await browser.close();
   if (remaining.length || consoleErrors.length) process.exitCode = 1;
 })().catch((error) => {

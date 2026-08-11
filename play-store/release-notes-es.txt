@@ -1,0 +1,7 @@
+Primera versión de Set Counter.
+
+- Registro de series, peso, repeticiones y descanso por ejercicio
+- Historial, calendario, estadísticas y niveles
+- Rutinas recomendadas con varios ejercicios
+- Uso como invitado y vinculación posterior de una cuenta por correo electrónico
+- Denuncias y bloqueo de usuarios en la comunidad

@@ -2,9 +2,10 @@
   "use strict";
 
   const STORAGE_KEY = "setcounterLanguage";
-  const SUPPORTED = new Set(["ko", "en"]);
+  const SUPPORTED = new Set(["ko", "en", "ja", "es"]);
   const saved = window.localStorage.getItem(STORAGE_KEY);
-  let current = SUPPORTED.has(saved) ? saved : ((navigator.language || "ko").toLowerCase().startsWith("ko") ? "ko" : "en");
+  const browserLanguage = (navigator.language || "ko").toLowerCase().split("-")[0];
+  let current = SUPPORTED.has(saved) ? saved : (SUPPORTED.has(browserLanguage) ? browserLanguage : "en");
 
   const EN = {
     "앱 데이터를 불러오는 중입니다.": "Loading your workout data.",
@@ -277,19 +278,70 @@
     ".board-post-content", ".board-comment-body", ".nickname-text", ".account-email", ".calendar-excuse-item p", "#sosStatus", "[data-user-content]"
   ].join(",");
 
+  const TARGET_LOCALE = window.SetCounterLocaleData?.[current] || { strings: {}, patterns: {} };
+  const patternRegexCache = new Map();
+
+  function escapeRegex(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function translatedPatternRegex(template) {
+    if (patternRegexCache.has(template)) return patternRegexCache.get(template);
+    let cursor = 0;
+    let source = "^";
+    for (const match of template.matchAll(/\$(\d+)/g)) {
+      source += escapeRegex(template.slice(cursor, match.index));
+      source += "(.+?)";
+      cursor = match.index + match[0].length;
+    }
+    source += `${escapeRegex(template.slice(cursor))}$`;
+    const regex = new RegExp(source);
+    patternRegexCache.set(template, regex);
+    return regex;
+  }
+
+  function translateTarget(value) {
+    if (current === "en") return value;
+    const direct = TARGET_LOCALE.strings?.[value];
+    if (direct) return direct;
+    if (value.includes(" · ")) {
+      const parts = value.split(" · ");
+      const translated = parts.map((part) => translateTarget(part));
+      if (translated.some((part, index) => part !== parts[index])) return translated.join(" · ");
+    }
+    const patterns = Object.entries(TARGET_LOCALE.patterns || {}).sort((left, right) => right[0].length - left[0].length);
+    for (const [template, replacement] of patterns) {
+      const pattern = translatedPatternRegex(template);
+      const match = value.match(pattern);
+      if (!match) continue;
+      const translated = replacement.replace(/\$(\d+)/g, (token, index) => {
+        const captured = match[Number(index)];
+        if (captured == null || captured === value) return captured ?? token;
+        return translateTarget(captured);
+      });
+      if (translated !== value) return translated;
+    }
+    if (value.includes(", ")) {
+      const parts = value.split(", ");
+      const translated = parts.map((part) => translateTarget(part));
+      if (translated.every((part, index) => part !== parts[index])) return translated.join(", ");
+    }
+    return value;
+  }
+
   function translateText(value) {
     const text = String(value ?? "");
-    if (current !== "en" || !text) return text;
-    if (EN[text]) return EN[text];
-    if (EXERCISES[text]) return EXERCISES[text];
+    if (current === "ko" || !text) return text;
+    if (EN[text]) return translateTarget(EN[text]);
+    if (EXERCISES[text]) return translateTarget(EXERCISES[text]);
     for (const [pattern, replacement] of PATTERNS) {
-      if (pattern.test(text)) return text.replace(pattern, replacement);
+      if (pattern.test(text)) return translateTarget(text.replace(pattern, replacement));
     }
     if (text.includes(" · ")) {
       const translatedParts = text.split(" · ").map((part) => EN[part] || EXERCISES[part] || part);
-      if (translatedParts.some((part, index) => part !== text.split(" · ")[index])) return translatedParts.join(" · ");
+      if (translatedParts.some((part, index) => part !== text.split(" · ")[index])) return translateTarget(translatedParts.join(" · "));
     }
-    return text;
+    return translateTarget(text);
   }
 
   function translateTextNode(node) {
@@ -321,7 +373,7 @@
   }
 
   function translateTree(root = document.body) {
-    if (current !== "en" || !root) return;
+    if (current === "ko" || !root) return;
     if (root.nodeType === Node.TEXT_NODE) translateTextNode(root);
     else translateElement(root);
   }
@@ -343,15 +395,10 @@
 
   function init() {
     document.documentElement.lang = current;
-    if (current === "en") {
-      document.title = document.title
-        .replace("개인정보 처리방침", "Privacy Policy")
-        .replace("이용약관", "Terms of Service")
-        .replace("계정 삭제", "Account Deletion");
-    }
+    document.title = translateText(document.title);
     bindControls();
     translateTree(document.body);
-    if (current !== "en") return;
+    if (current === "ko") return;
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         if (mutation.type === "characterData") translateTextNode(mutation.target);
@@ -369,9 +416,14 @@
 
   window.SetCounterI18n = {
     locale: () => current,
-    isEnglish: () => current === "en",
+    // Dynamic renderers use their complete English copy as the source for every
+    // non-Korean locale; the DOM translator then applies the selected language.
+    isEnglish: () => current !== "ko",
+    isKorean: () => current === "ko",
+    isInternational: () => current !== "ko",
+    dateLocale: () => ({ ko: "ko-KR", en: "en-US", ja: "ja-JP", es: "es-ES" }[current] || "en-US"),
     t: translateText,
-    exerciseName: (value) => current === "en" ? (EXERCISES[value] || value) : value,
+    exerciseName: (value) => current === "ko" ? value : translateText(EXERCISES[value] || value),
     setLocale,
     translateTree,
   };
