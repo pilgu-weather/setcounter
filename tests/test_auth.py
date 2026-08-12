@@ -691,8 +691,8 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.get_json())
         with app.app_context():
             account = db.session.query(AuthAccount).filter_by(email=email).one()
-            self.assertEqual(account.terms_version, "2026-08-08")
-            self.assertEqual(account.privacy_version, "2026-08-08")
+            self.assertEqual(account.terms_version, "2026-08-12")
+            self.assertEqual(account.privacy_version, "2026-08-12")
             self.assertIsNotNone(account.terms_accepted_at)
             self.assertIsNotNone(account.privacy_accepted_at)
 

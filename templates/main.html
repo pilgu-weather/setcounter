@@ -321,6 +321,10 @@
               <textarea id="boardInput" rows="4" maxlength="180" placeholder="오늘 운동 인증, 한 줄 다짐"></textarea>
               <span class="board-char-count" id="boardPostCounter">0 / 180</span>
             </label>
+            <label class="board-policy-consent" for="boardTermsInput">
+              <input id="boardTermsInput" type="checkbox">
+              <span><a href="/terms" target="_blank" rel="noopener">이용약관 및 커뮤니티 운영원칙</a><span class="board-policy-agree">에 동의합니다.</span></span>
+            </label>
             <div class="board-compose-actions">
               <span>운동 기록은 본문에 자동으로 추가되지 않습니다.</span>
               <button class="confirm-button" id="boardSubmitButton" type="submit">작성하기</button>
@@ -869,8 +873,9 @@
         </div>
       </section>
     </div>
-    <script src="{{ url_for('static', filename='js/i18n-locales.js') }}?v=4"></script>
-    <script src="{{ url_for('static', filename='js/i18n.js') }}?v=7"></script>
+    <script src="{{ url_for('static', filename='js/i18n-locales.js') }}?v=5"></script>
+    <script src="{{ url_for('static', filename='js/i18n-legal-locales.js') }}?v=2"></script>
+    <script src="{{ url_for('static', filename='js/i18n.js') }}?v=8"></script>
     <script src="{{ url_for('static', filename='vendor/gsap.min.js') }}?v=3.15.0"></script>
     <script src="{{ url_for('static', filename='js/motion.js') }}?v=8"></script>
     <script src="{{ url_for('static', filename='js/body-highlighter.js') }}?v=3"></script>

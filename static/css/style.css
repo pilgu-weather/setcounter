@@ -6786,6 +6786,39 @@ body:has([data-screen="calendar"].is-active) .bottom-nav button:active {
   gap: 12px;
 }
 
+[data-screen="board"] .board-policy-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-height: 32px;
+  padding: 2px 2px 0;
+  color: var(--sc-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+[data-screen="board"] .board-policy-consent input {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--sc-primary);
+}
+
+[data-screen="board"] .board-policy-consent a {
+  color: #8db5ff;
+  text-underline-offset: 2px;
+}
+
+[data-screen="board"] .board-policy-agree {
+  margin-inline-start: 4px;
+}
+
+[data-screen="board"] .board-policy-consent:focus-within {
+  color: var(--sc-text-primary);
+}
+
 [data-screen="board"] .board-compose-actions > span {
   color: var(--sc-text-tertiary);
   font-size: 10px;

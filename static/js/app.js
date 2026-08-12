@@ -80,6 +80,8 @@ const exerciseLibraryGroups = {
 const USER_KEY_STORAGE = "healthUserKey";
 const BOARD_STORAGE = "setCounterBoardPosts";
 const BOARD_MIGRATED_STORAGE = "setCounterBoardPostsMigrated";
+const COMMUNITY_TERMS_STORAGE = "setCounterCommunityTermsVersion";
+const COMMUNITY_TERMS_VERSION = "2026-08-12";
 const MY_EXERCISES_STORAGE = "setCounterMyExercises";
 const HIDDEN_EXERCISES_STORAGE = "setCounterHiddenExercises";
 const EXERCISE_DETAIL_COLLAPSED_STORAGE = "setCounterExerciseDetailCollapsed";
@@ -251,6 +253,7 @@ function replaceHealthUserKey() {
   const nextKey = createUserKey();
   window.localStorage.setItem(USER_KEY_STORAGE, nextKey);
   healthUserKey = nextKey;
+  syncCommunityTermsConsent();
   return nextKey;
 }
 
@@ -1053,6 +1056,7 @@ const els = {
   boardInput: document.querySelector("#boardInput"),
   boardPostCounter: document.querySelector("#boardPostCounter"),
   boardSubmitButton: document.querySelector("#boardSubmitButton"),
+  boardTermsInput: document.querySelector("#boardTermsInput"),
   boardAuthor: document.querySelector("#boardAuthor"),
   boardWorkoutSummary: document.querySelector("#boardWorkoutSummary"),
   boardList: document.querySelector("#boardList"),
@@ -4453,8 +4457,27 @@ function syncBoardPostCounter() {
   const length = els.boardInput.value.length;
   els.boardPostCounter.textContent = `${length} / 180`;
   els.boardPostCounter.classList.toggle("is-limit", length >= 180);
-  els.boardSubmitButton.disabled = state.boardPosting || !els.boardInput.value.trim() || length > 180;
+  els.boardSubmitButton.disabled = state.boardPosting || !els.boardInput.value.trim() || length > 180 || !hasAcceptedCommunityTerms();
   els.boardSubmitButton.textContent = state.boardPosting ? "작성 중..." : "작성하기";
+}
+
+function hasAcceptedCommunityTerms() {
+  const userKey = window.localStorage.getItem(USER_KEY_STORAGE) || "device";
+  return window.localStorage.getItem(`${COMMUNITY_TERMS_STORAGE}:${userKey}`) === COMMUNITY_TERMS_VERSION;
+}
+
+function syncCommunityTermsConsent() {
+  if (!els.boardTermsInput) return;
+  els.boardTermsInput.checked = hasAcceptedCommunityTerms();
+  syncBoardPostCounter();
+}
+
+function requireCommunityTermsConsent() {
+  if (hasAcceptedCommunityTerms()) return true;
+  showToast("게시글과 댓글을 작성하려면 이용약관 및 커뮤니티 운영원칙에 동의해주세요.");
+  els.boardTermsInput?.scrollIntoView({ behavior: "smooth", block: "center" });
+  els.boardTermsInput?.focus({ preventScroll: true });
+  return false;
 }
 
 function renderBoardWorkoutSummary() {
@@ -4827,6 +4850,7 @@ function renderBlockedUsers(blockedUsers) {
 
 async function submitBoardComment(event, postId) {
   event.preventDefault();
+  if (!requireCommunityTermsConsent()) return;
   const postKey = String(postId);
   if (state.boardPendingComments.has(postKey)) return;
   const input = event.currentTarget.querySelector("input");
@@ -4968,6 +4992,7 @@ async function submitBoardReport(event) {
 async function submitBoardPost(event) {
   event.preventDefault();
   if (state.boardPosting) return;
+  if (!requireCommunityTermsConsent()) return;
   const content = els.boardInput.value.trim();
   if (!content) {
     showToast("게시글 내용을 입력해주세요.");
@@ -5490,6 +5515,13 @@ function bindEvents() {
   els.sosButton.addEventListener("click", () => saveSosExcuse().catch((error) => showToast(error.message)));
   els.boardForm.addEventListener("submit", submitBoardPost);
   els.boardInput.addEventListener("input", syncBoardPostCounter);
+  els.boardTermsInput?.addEventListener("change", () => {
+    const userKey = window.localStorage.getItem(USER_KEY_STORAGE) || "device";
+    const storageKey = `${COMMUNITY_TERMS_STORAGE}:${userKey}`;
+    if (els.boardTermsInput.checked) window.localStorage.setItem(storageKey, COMMUNITY_TERMS_VERSION);
+    else window.localStorage.removeItem(storageKey);
+    syncBoardPostCounter();
+  });
   els.boardSortButtons.forEach((button) => {
     button.addEventListener("click", () => {
       if (state.boardSortLoading || button.dataset.boardSort === state.boardSort) return;
@@ -5671,6 +5703,7 @@ async function init() {
   renderExerciseCards();
   koreanInstructionsPromise.then(() => renderExerciseDetail(state.selectedExercise));
   bindEvents();
+  syncCommunityTermsConsent();
   bindAuthEvents();
   syncWeightControls();
   syncRestTimerUi();
