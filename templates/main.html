@@ -449,7 +449,7 @@
             <button class="account-delete-button" id="openDeleteAccountButton" type="button">계정 삭제</button>
           </div>
         </section>
-        <button class="menu-version" type="button" id="versionButton"><span>SetCounter</span><b>Version 1.0.0</b></button>
+        <button class="menu-version" type="button" id="versionButton"><span>SetCounter</span><b>Version 1.0.2</b></button>
       </section>
 
       <section class="app-screen level-up-screen" data-screen="level-up" aria-labelledby="levelUpTitle">
@@ -543,6 +543,22 @@
           <div class="level-history-xp-track" role="progressbar" aria-label="레벨 경험치" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="levelHistoryXpBar"></span></div>
           <p id="levelHistoryXpDetail">누적 경험치 0</p>
         </div>
+        <div class="level-history-ledger" id="levelHistoryLedger" aria-label="경험치 변동 요약" data-i18n-skip>
+          <article class="level-history-ledger-card is-up">
+            <span class="level-history-ledger-icon" aria-hidden="true"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></span>
+            <span><small>경험치 획득</small><strong id="levelHistoryGainCount">0회</strong></span>
+            <em id="levelHistoryGainXp">+0 XP</em>
+          </article>
+          <article class="level-history-ledger-card is-down">
+            <span class="level-history-ledger-icon" aria-hidden="true"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+            <span><small>경험치 차감</small><strong id="levelHistoryLossCount">0회</strong></span>
+            <em id="levelHistoryLossXp">-0 XP</em>
+          </article>
+        </div>
+        <section class="level-history-reasons" id="levelHistoryReasons" aria-labelledby="levelHistoryReasonsTitle" data-i18n-skip>
+          <div class="level-history-reasons-head"><h3 id="levelHistoryReasonsTitle">변동 사유</h3><span>최근 내역 기준</span></div>
+          <div class="level-history-reason-list" id="levelHistoryReasonList"></div>
+        </section>
         <div class="level-history-list-head"><h3>레벨 및 경험치 내역</h3><span id="levelHistoryCount">0건</span></div>
         <div class="level-history-list" id="levelHistoryList"></div>
       </section>

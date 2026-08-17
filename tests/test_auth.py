@@ -568,6 +568,28 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(result["penalty"], 1)
         self.assertEqual(result["failedWeeks"][0]["missing"], 1)
 
+    def test_weekly_goal_penalty_scales_with_every_missing_session(self):
+        week_start = date(2026, 7, 13)
+        started_on = date(2026, 7, 6)
+        as_of = date(2026, 7, 20)
+
+        for completed, expected_penalty in ((2, 1), (1, 2), (0, 3)):
+            with self.subTest(completed=completed):
+                logs = [
+                    {"date": (week_start + timedelta(days=offset)).isoformat()}
+                    for offset in range(completed)
+                ]
+                result = weekly_challenge_penalty(
+                    logs,
+                    set(),
+                    target=3,
+                    started_on=started_on,
+                    as_of=as_of,
+                )
+
+                self.assertEqual(result["penalty"], expected_penalty)
+                self.assertEqual(result["failedWeeks"][0]["missing"], expected_penalty)
+
     def test_weekly_goal_uses_sos_reason_for_current_week_progress(self):
         today = date(2026, 7, 16)
         week_start = start_of_week(today)
@@ -1394,8 +1416,10 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(history[0]["levelBefore"], 3)
         self.assertEqual(history[0]["levelAfter"], 2)
         self.assertEqual(history[0]["experienceDelta"], -1)
+        self.assertEqual(history[0]["reason"], "이전 기록보다 낮은 운동량")
         self.assertEqual(history[1]["type"], "level_up")
         self.assertEqual(history[1]["exercise"], "Bench Press")
+        self.assertEqual(history[1]["reason"], "신기록 달성")
         self.assertEqual(history[1]["date"], workout_date)
         self.assertEqual(history[2]["exercise"], "첫 운동 기록")
         self.assertFalse(history[2]["preserved"])
@@ -1440,6 +1464,10 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertEqual(len(bonuses), 1)
             self.assertEqual(bonuses[0].reason, "누적 볼륨 10,000kg 달성")
             self.assertEqual(bonuses[0].experience_delta, 1)
+
+        milestone_history = self.client.get("/api/stats", headers=self.headers(key)).get_json()["levelHistory"]
+        milestone_event = next(item for item in milestone_history if item.get("sourceKey") == "volume-milestone-10000")
+        self.assertEqual(milestone_event["reason"], "누적 볼륨 10,000kg 달성")
 
         follow_up = self.client.post(
             "/api/logs",
@@ -1503,6 +1531,43 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(after["levelHistory"][0]["type"], expected_type)
         self.assertEqual(after["levelDowns"], 1 if after["level"] < before["level"] else 0)
         self.assertAlmostEqual(after["levelHistory"][0]["experienceDelta"], -latest_award, places=2)
+
+    def test_experience_gain_is_recorded_even_when_level_is_maintained(self):
+        logs = [
+            {
+                "exercise": "Bench Press",
+                "date": "2026-07-26",
+                "createdAt": "2026-07-26T00:00:00+00:00",
+                "volume": 100,
+                "totalReps": 10,
+                "completedSets": 1,
+                "suspicionScore": 0,
+            },
+            {
+                "exercise": "Bench Press",
+                "date": "2026-07-27",
+                "createdAt": "2026-07-27T00:00:00+00:00",
+                "volume": 110,
+                "totalReps": 10,
+                "completedSets": 1,
+                "suspicionScore": 0,
+            },
+        ]
+
+        stats = stats_from_logs(
+            logs,
+            set(),
+            weekly_target=3,
+            weekly_target_started_on=date.today(),
+            starting_experience=19.1,
+        )
+
+        self.assertEqual(stats["level"], 20)
+        self.assertEqual(stats["levelHistory"][0]["type"], "experience_up")
+        self.assertEqual(stats["levelHistory"][0]["reason"], "신기록 달성")
+        self.assertEqual(stats["levelHistory"][0]["levelBefore"], 20)
+        self.assertEqual(stats["levelHistory"][0]["levelAfter"], 20)
+        self.assertAlmostEqual(stats["levelHistory"][0]["experienceDelta"], 0.5, places=2)
 
     def test_breakthrough_after_penalty_advances_from_current_level_only(self):
         workout_date = date.today().isoformat()

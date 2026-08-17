@@ -1576,20 +1576,20 @@ def stats_from_logs(
                 earned_awards.append(xp_delta)
                 ups += 1
                 level = level_for_experience(xp)
-                if level > before_level:
-                    level_history.append(
-                        {
-                            "type": "level_up",
-                            "date": log["date"],
-                            "createdAt": log["createdAt"],
-                            "exercise": log["exercise"],
-                            "levelBefore": before_level,
-                            "levelAfter": level,
-                            "experienceDelta": round(xp_delta, 2),
-                            "volume": log["volume"],
-                            "previousVolume": previous,
-                        }
-                    )
+                level_history.append(
+                    {
+                        "type": "level_up" if level > before_level else "experience_up",
+                        "date": log["date"],
+                        "createdAt": log["createdAt"],
+                        "exercise": log["exercise"],
+                        "reason": "신기록 달성",
+                        "levelBefore": before_level,
+                        "levelAfter": level,
+                        "experienceDelta": round(xp_delta, 2),
+                        "volume": log["volume"],
+                        "previousVolume": previous,
+                    }
+                )
             elif log["volume"] < previous:
                 before_level = level
                 last_award = earned_awards.pop() if earned_awards else breakthrough_rate_for_level(level)
@@ -1607,6 +1607,7 @@ def stats_from_logs(
                             "date": log["date"],
                             "createdAt": log["createdAt"],
                             "exercise": log["exercise"],
+                            "reason": "이전 기록보다 낮은 운동량",
                             "levelBefore": before_level,
                             "levelAfter": level,
                             "experienceDelta": round(xp_delta, 2),
@@ -1657,6 +1658,7 @@ def stats_from_logs(
                 "date": max(penalty_dates) if penalty_dates else today_kst().isoformat(),
                 "createdAt": None,
                 "exercise": penalty_label,
+                "reason": penalty_label,
                 "levelBefore": before_level,
                 "levelAfter": level,
                 "experienceDelta": round(-penalty_deduction, 2),
@@ -1749,6 +1751,8 @@ def volume_stats(user_id):
                     "date": event.event_date.isoformat(),
                     "createdAt": event.created_at.isoformat() if event.created_at else None,
                     "exercise": event.reason,
+                    "reason": event.reason,
+                    "sourceKey": event.source_key,
                     "levelBefore": event.level_before,
                     "levelAfter": event.level_after,
                     "experienceDelta": round(event.experience_delta, 2),

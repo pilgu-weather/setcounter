@@ -845,6 +845,13 @@ const els = {
   levelHistoryXpBar: document.querySelector("#levelHistoryXpBar"),
   levelHistoryXpTrack: document.querySelector(".level-history-xp-track"),
   levelHistoryXpDetail: document.querySelector("#levelHistoryXpDetail"),
+  levelHistoryLedger: document.querySelector("#levelHistoryLedger"),
+  levelHistoryGainCount: document.querySelector("#levelHistoryGainCount"),
+  levelHistoryGainXp: document.querySelector("#levelHistoryGainXp"),
+  levelHistoryLossCount: document.querySelector("#levelHistoryLossCount"),
+  levelHistoryLossXp: document.querySelector("#levelHistoryLossXp"),
+  levelHistoryReasons: document.querySelector("#levelHistoryReasons"),
+  levelHistoryReasonList: document.querySelector("#levelHistoryReasonList"),
   levelHistoryCount: document.querySelector("#levelHistoryCount"),
   levelHistoryList: document.querySelector("#levelHistoryList"),
   menuUserBadge: document.querySelector("#menuUserBadge"),
@@ -2020,6 +2027,93 @@ function formatLevelHistoryDate(value) {
   return date.toLocaleDateString(window.SetCounterI18n?.dateLocale?.() || "ko-KR", { year: "numeric", month: "short", day: "numeric" });
 }
 
+const LEVEL_HISTORY_COPY = {
+  ko: { gain: "경험치 획득", loss: "경험치 차감", reasons: "변동 사유", recent: "최근 내역 기준", times: "회", levelUp: "레벨 상승", levelDown: "레벨 하락", levelKeep: "레벨 유지", personalBest: "신기록 달성", lowerVolume: "이전 기록보다 낮은 운동량", weeklyMiss: "주간 운동 목표 미달", previousMiss: "이전 운동 목표 미달", recordPenalty: "기록 패널티", xpLevelDown: "경험치 차감으로 레벨 하락", adjustment: "경험치 조정", firstWorkout: "첫 운동 기록", volumeMilestone: "누적 볼륨 {value}kg 달성" },
+  en: { gain: "XP gained", loss: "XP deducted", reasons: "Why XP changed", recent: "Recent history", times: " times", levelUp: "Level up", levelDown: "Level down", levelKeep: "Level maintained", personalBest: "New personal best", lowerVolume: "Lower volume than the previous record", weeklyMiss: "Weekly workout goal missed", previousMiss: "Previous workout goal missed", recordPenalty: "Record penalty", xpLevelDown: "Level down after XP deduction", adjustment: "XP adjustment", firstWorkout: "First workout recorded", volumeMilestone: "{value}kg cumulative volume milestone" },
+  ja: { gain: "XP獲得", loss: "XP減少", reasons: "変動理由", recent: "最近の履歴", times: "回", levelUp: "レベルアップ", levelDown: "レベルダウン", levelKeep: "レベル維持", personalBest: "自己ベスト更新", lowerVolume: "前回より低いトレーニング量", weeklyMiss: "週間目標未達", previousMiss: "以前の運動目標未達", recordPenalty: "記録ペナルティ", xpLevelDown: "XP減少によるレベルダウン", adjustment: "XP調整", firstWorkout: "初回ワークアウト記録", volumeMilestone: "累積ボリューム{value}kg達成" },
+  es: { gain: "XP ganado", loss: "XP descontado", reasons: "Motivos del cambio", recent: "Historial reciente", times: " veces", levelUp: "Subida de nivel", levelDown: "Bajada de nivel", levelKeep: "Nivel mantenido", personalBest: "Nuevo récord personal", lowerVolume: "Volumen inferior al registro anterior", weeklyMiss: "Objetivo semanal no cumplido", previousMiss: "Objetivo anterior no cumplido", recordPenalty: "Penalización de registro", xpLevelDown: "Bajada de nivel por pérdida de XP", adjustment: "Ajuste de XP", firstWorkout: "Primer entrenamiento registrado", volumeMilestone: "Hito de {value}kg de volumen acumulado" },
+  zh: { gain: "获得经验值", loss: "扣除经验值", reasons: "变动原因", recent: "近期记录", times: "次", levelUp: "等级提升", levelDown: "等级下降", levelKeep: "等级保持", personalBest: "刷新个人纪录", lowerVolume: "训练量低于上次记录", weeklyMiss: "未完成每周训练目标", previousMiss: "未完成之前的训练目标", recordPenalty: "记录处罚", xpLevelDown: "经验值扣除导致等级下降", adjustment: "经验值调整", firstWorkout: "首次训练记录", volumeMilestone: "累计训练量达到{value}kg" },
+  ru: { gain: "Получено XP", loss: "Списано XP", reasons: "Причины изменений", recent: "Недавняя история", times: " раз", levelUp: "Повышение уровня", levelDown: "Снижение уровня", levelKeep: "Уровень сохранён", personalBest: "Новый личный рекорд", lowerVolume: "Объём ниже предыдущего результата", weeklyMiss: "Недельная цель не выполнена", previousMiss: "Предыдущая цель не выполнена", recordPenalty: "Штраф за запись", xpLevelDown: "Снижение уровня после списания XP", adjustment: "Корректировка XP", firstWorkout: "Первая тренировка записана", volumeMilestone: "Достигнут суммарный объём {value}kg" },
+};
+
+function levelHistoryCopy() {
+  return LEVEL_HISTORY_COPY[window.SetCounterI18n?.locale?.() || "ko"] || LEVEL_HISTORY_COPY.en;
+}
+
+function formatLevelHistoryCount(value) {
+  const count = Math.max(Math.round(Number(value) || 0), 0);
+  const locale = window.SetCounterI18n?.locale?.() || "ko";
+  if (locale === "en") return `${count} ${count === 1 ? "time" : "times"}`;
+  if (locale === "es") return `${count} ${count === 1 ? "vez" : "veces"}`;
+  if (locale === "ru") {
+    const ending = count % 10 === 1 && count % 100 !== 11
+      ? "раз"
+      : [2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100) ? "раза" : "раз";
+    return `${count} ${ending}`;
+  }
+  return `${count}${levelHistoryCopy().times}`;
+}
+
+function localizeLevelHistoryReason(reason) {
+  const copy = levelHistoryCopy();
+  const value = String(reason || "");
+  const direct = {
+    "신기록 달성": copy.personalBest,
+    "이전 기록보다 낮은 운동량": copy.lowerVolume,
+    "운동 목표 미달": copy.weeklyMiss,
+    "주간 운동 목표 미달": copy.weeklyMiss,
+    "이전 운동 목표 미달": copy.previousMiss,
+    "기록 패널티": copy.recordPenalty,
+    "경험치 차감으로 레벨 하락": copy.xpLevelDown,
+    "경험치 차감": copy.loss,
+    "경험치 조정": copy.adjustment,
+    "첫 운동 기록": copy.firstWorkout,
+  }[value];
+  if (direct) return direct;
+  const milestone = value.match(/^누적 볼륨 ([\d,]+)kg 달성$/);
+  if (milestone) return copy.volumeMilestone.replace("{value}", milestone[1]);
+  return value;
+}
+
+function levelHistoryDirection(event) {
+  const delta = Number(event?.experienceDelta) || 0;
+  if (delta > 0 || String(event?.type || "").endsWith("_up")) return "up";
+  if (delta < 0 || String(event?.type || "").endsWith("_down")) return "down";
+  return "neutral";
+}
+
+function levelHistoryReason(event) {
+  if (event?.reason) return String(event.reason);
+  const direction = levelHistoryDirection(event);
+  if (direction === "up") return "신기록 달성";
+  if (event?.type === "level_down") return "경험치 차감으로 레벨 하락";
+  if (direction === "down") return "경험치 차감";
+  return "경험치 조정";
+}
+
+function renderLevelHistoryReasons(history) {
+  if (!els.levelHistoryReasonList || !els.levelHistoryReasons) return;
+  const grouped = new Map();
+  history.forEach((event) => {
+    const direction = levelHistoryDirection(event);
+    if (direction === "neutral") return;
+    const reason = levelHistoryReason(event);
+    const key = `${direction}:${reason}`;
+    const current = grouped.get(key) || { direction, reason, count: 0 };
+    current.count += 1;
+    grouped.set(key, current);
+  });
+  const rows = [...grouped.values()].sort((left, right) => right.count - left.count || left.reason.localeCompare(right.reason));
+  els.levelHistoryReasons.hidden = rows.length === 0;
+  els.levelHistoryReasonList.replaceChildren();
+  rows.forEach(({ direction, reason, count }) => {
+    const row = document.createElement("div");
+    row.className = `level-history-reason is-${direction}`;
+    row.innerHTML = `<i aria-hidden="true"></i><span>${escapeHtml(localizeLevelHistoryReason(reason))}</span><strong>${formatLevelHistoryCount(count)}</strong>`;
+    els.levelHistoryReasonList.append(row);
+  });
+}
+
 function renderLevelHistory() {
   if (!els.levelHistoryAthlete || !els.levelHistoryList) return;
   const stats = state.stats || {};
@@ -2027,6 +2121,11 @@ function renderLevelHistory() {
   const nickname = displayNickname(state.profile?.nickname);
   const percent = Math.min(Math.max(Number(stats.experiencePercent) || 0, 0), 100);
   const history = Array.isArray(stats.levelHistory) ? stats.levelHistory : [];
+  const copy = levelHistoryCopy();
+  const gainedEvents = history.filter((event) => levelHistoryDirection(event) === "up");
+  const lostEvents = history.filter((event) => levelHistoryDirection(event) === "down");
+  const gainedExperience = gainedEvents.reduce((sum, event) => sum + Math.max(Number(event.experienceDelta) || 0, 0), 0);
+  const lostExperience = lostEvents.reduce((sum, event) => sum + Math.abs(Math.min(Number(event.experienceDelta) || 0, 0)), 0);
   const historyLevelDowns = history.reduce((total, event) => {
     if (event.type !== "level_down") return total;
     return total + Math.max((Number(event.levelBefore) || 0) - (Number(event.levelAfter) || 0), 1);
@@ -2047,38 +2146,66 @@ function renderLevelHistory() {
     ? `최고 레벨 달성 · 누적 ${displayExperience(stats.experience)} XP`
     : `누적 ${displayExperience(stats.experience)} XP · 신기록 ${stats.levelUps || 0}회 · 레벨다운 ${levelDowns}회`;
   els.levelHistoryCount.textContent = `${history.length}건`;
+  els.levelHistoryLedger.querySelector(".is-up small").textContent = copy.gain;
+  els.levelHistoryLedger.querySelector(".is-down small").textContent = copy.loss;
+  els.levelHistoryReasons.querySelector("h3").textContent = copy.reasons;
+  els.levelHistoryReasons.querySelector(".level-history-reasons-head span").textContent = copy.recent;
+  els.levelHistoryGainCount.textContent = formatLevelHistoryCount(0);
+  els.levelHistoryLossCount.textContent = formatLevelHistoryCount(0);
+  els.levelHistoryGainXp.textContent = "+0 XP";
+  els.levelHistoryLossXp.textContent = "-0 XP";
+  renderLevelHistoryReasons(history);
   els.levelHistoryList.replaceChildren();
   if (!history.length) {
     const empty = document.createElement("div");
     empty.className = "level-history-empty";
     empty.innerHTML = `<strong>아직 레벨·경험치 변동이 없습니다.</strong><span>같은 운동의 이전 볼륨을 넘으면 첫 레벨업이 기록됩니다.</span>`;
     els.levelHistoryList.append(empty);
+    window.requestAnimationFrame(() => window.SetCounterMotion?.animateLevelHistory?.(els.levelHistoryModal));
     return;
   }
   history.forEach((event) => {
-    const up = event.type === "level_up";
-    const down = event.type === "level_down";
+    const direction = levelHistoryDirection(event);
+    const up = direction === "up";
+    const down = direction === "down";
+    const levelUp = event.type === "level_up" && Number(event.levelAfter) > Number(event.levelBefore);
+    const levelDown = event.type === "level_down" && Number(event.levelAfter) < Number(event.levelBefore);
     const experienceDelta = Math.abs(Number(event.experienceDelta) || 0);
     const displayedExperienceDelta = displayExperience(experienceDelta);
-    const resultMarkup = up
+    const resultMarkup = levelUp
       ? `<small>LV.${event.levelBefore}</small><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg><strong>LV.${event.levelAfter}</strong>`
-      : down
+      : levelDown
         ? `<small>LV.${event.levelBefore}</small><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg><strong>LV.${event.levelAfter}</strong>`
-        : `<strong>-${displayedExperienceDelta} XP</strong>`;
+        : `<strong>${up ? "+" : "-"}${displayedExperienceDelta} XP</strong>`;
+    const reason = levelHistoryReason(event);
+    const displayedReason = localizeLevelHistoryReason(reason);
+    const subject = event.exercise && event.exercise !== reason ? String(event.exercise) : "";
+    const displayedSubject = subject ? (window.SetCounterI18n?.exerciseName?.(subject) || subject) : "";
+    const outcome = levelUp ? copy.levelUp : levelDown ? copy.levelDown : copy.levelKeep;
     const item = document.createElement("article");
-    item.className = `level-history-item ${up ? "is-up" : "is-down"}`;
+    item.className = `level-history-item is-${direction}`;
+    item.dataset.motionKey = `level-history:${event.date || ""}:${event.createdAt || ""}:${reason}`;
+    item.setAttribute("data-i18n-skip", "");
     item.innerHTML = `
       <span class="level-history-direction" aria-hidden="true"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${up ? "m18 15-6-6-6 6" : "m6 9 6 6 6-6"}"/></svg></span>
-      <span class="level-history-copy"><small>${escapeHtml(formatLevelHistoryDate(event.date))}</small><strong>${escapeHtml(event.exercise || (up ? "레벨업" : down ? "레벨다운" : "경험치 차감"))}</strong><em>${up ? `신기록 달성 · +${displayedExperienceDelta} XP` : down ? `${displayedExperienceDelta} XP 차감 · 레벨 하락` : `${displayedExperienceDelta} XP 차감 · 레벨 유지`}</em></span>
+      <span class="level-history-copy"><small>${escapeHtml(formatLevelHistoryDate(event.date))}</small><strong>${escapeHtml(displayedReason)}</strong><em>${displayedSubject ? `${escapeHtml(displayedSubject)} · ` : ""}${up ? "+" : "-"}${displayedExperienceDelta} XP · ${outcome}</em></span>
       <span class="level-history-level">${resultMarkup}</span>
     `;
     els.levelHistoryList.append(item);
+  });
+  window.requestAnimationFrame(() => {
+    window.SetCounterMotion?.animateCounter(els.levelHistoryGainCount, gainedEvents.length, formatLevelHistoryCount, { duration: 0.5, from: 0 });
+    window.SetCounterMotion?.animateCounter(els.levelHistoryLossCount, lostEvents.length, formatLevelHistoryCount, { duration: 0.5, from: 0 });
+    window.SetCounterMotion?.animateCounter(els.levelHistoryGainXp, gainedExperience, (value) => `+${displayExperience(value)} XP`, { duration: 0.62, from: 0 });
+    window.SetCounterMotion?.animateCounter(els.levelHistoryLossXp, lostExperience, (value) => `-${displayExperience(value)} XP`, { duration: 0.62, from: 0 });
+    window.SetCounterMotion?.animateLevelHistory?.(els.levelHistoryModal);
   });
 }
 
 function renderLevelHistoryLoading() {
   if (!els.levelHistoryAthlete || !els.levelHistoryList) return;
   const stats = state.stats || {};
+  const copy = levelHistoryCopy();
   const level = stats.level || state.profile?.level || 1;
   const nickname = displayNickname(state.profile?.nickname);
   els.levelHistoryAthlete.innerHTML = `
@@ -2089,6 +2216,14 @@ function renderLevelHistoryLoading() {
   els.levelHistoryXpBar.style.transform = "scaleX(0)";
   els.levelHistoryXpTrack.setAttribute("aria-valuenow", "0");
   els.levelHistoryXpDetail.textContent = "레벨 기록 불러오는 중...";
+  els.levelHistoryLedger.querySelector(".is-up small").textContent = copy.gain;
+  els.levelHistoryLedger.querySelector(".is-down small").textContent = copy.loss;
+  els.levelHistoryGainCount.textContent = formatLevelHistoryCount(0);
+  els.levelHistoryLossCount.textContent = formatLevelHistoryCount(0);
+  els.levelHistoryGainXp.textContent = "+0 XP";
+  els.levelHistoryLossXp.textContent = "-0 XP";
+  els.levelHistoryReasons.hidden = true;
+  els.levelHistoryReasonList.replaceChildren();
   els.levelHistoryCount.textContent = "";
   els.levelHistoryList.replaceChildren();
   const loading = document.createElement("div");
@@ -5574,7 +5709,7 @@ function bindEvents() {
   els.blockedUsersModal.addEventListener("click", (event) => {
     if (event.target === els.blockedUsersModal) closeSupportModal(els.blockedUsersModal);
   });
-  els.versionButton.addEventListener("click", () => showToast("Set Counter v1.0.0"));
+  els.versionButton.addEventListener("click", () => showToast("Set Counter v1.0.2"));
   els.cancelWorkoutDeleteButton.addEventListener("click", closeWorkoutDeleteConfirm);
   els.confirmWorkoutDeleteButton.addEventListener("click", () => confirmWorkoutDelete());
   els.workoutDeleteModal.addEventListener("click", (event) => {

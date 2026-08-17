@@ -321,7 +321,9 @@
   function animateCounter(element, target, formatter = String, options = {}) {
     if (!element) return;
     const next = Number(target) || 0;
-    const previous = counterValues.has(element) ? counterValues.get(element) : next;
+    const previous = Number.isFinite(Number(options.from))
+      ? Number(options.from)
+      : counterValues.has(element) ? counterValues.get(element) : next;
     counterValues.set(element, next);
     if (!canAnimate() || previous === next) {
       element.textContent = formatter(next);
@@ -618,6 +620,36 @@
     gsap.to(element, { autoAlpha: 0, duration: 0.2, delay: 0.06, ease: "power1.in", onComplete });
   }
 
+  function animateLevelHistory(modal) {
+    if (!modal) return;
+    const panel = modal.querySelector(".level-history-dialog");
+    const summary = modal.querySelector(".level-history-summary");
+    const athlete = modal.querySelector(".level-history-athlete");
+    const progressBar = modal.querySelector(".level-history-xp-track span");
+    const ledgerCards = modal.querySelectorAll(".level-history-ledger-card");
+    const reasonPanel = modal.querySelector(".level-history-reasons:not([hidden])");
+    const reasonRows = modal.querySelectorAll(".level-history-reason");
+    const historyRows = modal.querySelectorAll(".level-history-item, .level-history-empty");
+    const progress = Math.min(Math.max(Number(modal.querySelector(".level-history-xp-track")?.getAttribute("aria-valuenow")) || 0, 0), 100) / 100;
+    if (!canAnimate() || !panel) return;
+
+    const targets = [summary, athlete, progressBar, ...ledgerCards, reasonPanel, ...reasonRows, ...historyRows].filter(Boolean);
+    gsap.killTweensOf(targets);
+    const timeline = gsap.timeline({ defaults: { overwrite: "auto" } });
+    timeline
+      .fromTo(summary, { autoAlpha: 0, y: 12, scale: 0.985 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.34, ease: "power3.out" }, 0)
+      .fromTo(athlete, { autoAlpha: 0, x: -10 }, { autoAlpha: 1, x: 0, duration: 0.3, ease: "power2.out" }, 0.07)
+      .fromTo(progressBar, { scaleX: 0 }, { scaleX: progress, duration: 0.72, ease: "power3.out" }, 0.13)
+      .fromTo(ledgerCards, { autoAlpha: 0, y: 14, scale: 0.96 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.36, stagger: 0.07, ease: "back.out(1.45)" }, 0.17)
+      .fromTo(reasonPanel, { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.28, ease: "power2.out" }, 0.29)
+      .fromTo(reasonRows, { autoAlpha: 0, x: -8 }, { autoAlpha: 1, x: 0, duration: 0.24, stagger: 0.045, ease: "power2.out" }, 0.34)
+      .fromTo(historyRows, { autoAlpha: 0, y: 9 }, { autoAlpha: 1, y: 0, duration: 0.26, stagger: 0.04, ease: "power2.out", clearProps: "transform,opacity,visibility" }, 0.42);
+
+    ledgerCards.forEach((card, index) => {
+      timeline.fromTo(card, { "--ledger-sheen-x": "-180%" }, { "--ledger-sheen-x": "360%", duration: 0.65, ease: "power2.inOut" }, 0.3 + index * 0.08);
+    });
+  }
+
   function cleanupScreenAnimations(screen) {
     if (!screen || !gsap) return;
     gsap.killTweensOf([screen, ...screen.querySelectorAll("[data-motion-key]")]);
@@ -676,6 +708,7 @@
     animateRestComplete,
     animateSeasonMoment,
     closeSeasonMoment,
+    animateLevelHistory,
     animateBottomNavIndicator,
     cleanupScreenAnimations,
     reduced: () => reducedQuery.matches,

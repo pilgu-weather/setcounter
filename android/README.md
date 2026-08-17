@@ -8,7 +8,7 @@ This module packages the Set Counter PWA as a Trusted Web Activity (TWA).
 - Start URL: `https://setcounter.onrender.com/main`
 - Minimum SDK: 23
 - Target SDK: 36
-- Version: `1.0.0` (`versionCode 1`)
+- Version: `1.0.2` (`versionCode 3`)
 
 The application ID cannot be changed after the first Play Store release.
 
