@@ -86,6 +86,7 @@ const MY_EXERCISES_STORAGE = "setCounterMyExercises";
 const HIDDEN_EXERCISES_STORAGE = "setCounterHiddenExercises";
 const EXERCISE_DETAIL_COLLAPSED_STORAGE = "setCounterExerciseDetailCollapsed";
 const REST_TIMER_DURATION_STORAGE = "setCounterRestTimerSeconds";
+const HAPTIC_FEEDBACK_STORAGE = "setCounterHapticEnabled";
 const SEASON_MOMENT_STORAGE_PREFIX = "setCounterSeasonMomentV3";
 const ROUTINE_PROGRESS_STORAGE_PREFIX = "setCounterRoutineProgressV1";
 const XP_DISPLAY_SCALE = 100;
@@ -1034,6 +1035,7 @@ const els = {
   restDurationValue: document.querySelector("#restDurationValue"),
   restTimerToggleButton: document.querySelector("#restTimerToggleButton"),
   restTimeStepButtons: document.querySelectorAll("[data-rest-step]"),
+  hapticToggleButton: document.querySelector("#hapticToggleButton"),
   plannedRecord: document.querySelector("#plannedRecord"),
   setTableBody: document.querySelector("#setTableBody"),
   lastRecord: document.querySelector("#lastRecord"),
@@ -5264,6 +5266,7 @@ async function saveWorkout() {
     method: "POST",
     body: JSON.stringify(log),
   });
+  triggerHaptic([45, 45, 80]);
   showToast(`${state.selectedDate} 운동 기록을 저장했습니다.`);
   resetSession(true);
   const data = await loadBootstrap({ deferStats: true });
@@ -5327,6 +5330,7 @@ function countSet() {
   }
   const completedIndex = state.setRows.length;
   state.setRows.push({ weightKg, reps: currentReps() });
+  triggerHaptic(35);
   applyNextSetFromLatestRecord();
   syncCounter();
   window.SetCounterMotion?.animateRecordSetComplete(els.countSetButton, state.setRows.length, targetSets());
@@ -5398,8 +5402,36 @@ function clearRestTimerInterval() {
   }
 }
 
+function hapticFeedbackEnabled() {
+  return window.localStorage.getItem(HAPTIC_FEEDBACK_STORAGE) !== "0";
+}
+
+function triggerHaptic(pattern) {
+  if (!hapticFeedbackEnabled() || typeof navigator.vibrate !== "function") return false;
+  try {
+    return navigator.vibrate(pattern);
+  } catch (_error) {
+    return false;
+  }
+}
+
+function syncHapticToggleUi() {
+  if (!els.hapticToggleButton) return;
+  const enabled = hapticFeedbackEnabled();
+  els.hapticToggleButton.setAttribute("aria-checked", String(enabled));
+  els.hapticToggleButton.classList.toggle("is-active", enabled);
+}
+
+function toggleHapticFeedback() {
+  const enabled = !hapticFeedbackEnabled();
+  window.localStorage.setItem(HAPTIC_FEEDBACK_STORAGE, enabled ? "1" : "0");
+  syncHapticToggleUi();
+  if (enabled) triggerHaptic(45);
+  showToast(enabled ? "진동 피드백을 켰습니다." : "진동 피드백을 껐습니다.");
+}
+
 function playRestTimerSignal() {
-  navigator.vibrate?.([100, 70, 140]);
+  triggerHaptic([100, 70, 140]);
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return;
@@ -5624,6 +5656,7 @@ function bindEvents() {
     if (restTimerState.running) pauseRestTimer();
     else startRestTimer(restTimerState.finished);
   });
+  els.hapticToggleButton?.addEventListener("click", toggleHapticFeedback);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && restTimerState.running) updateRestTimer();
   });
@@ -5842,6 +5875,7 @@ async function init() {
   bindAuthEvents();
   syncWeightControls();
   syncRestTimerUi();
+  syncHapticToggleUi();
   normalizedWeight(true);
   syncCounter();
   setActiveScreen("record");

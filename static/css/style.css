@@ -8146,6 +8146,10 @@ body:has([data-screen="level-up"].is-active) .app-shell {
   border-top: 1px solid rgba(255, 255, 255, 0.075);
 }
 
+[data-screen="menu"] .support-menu > .menu-language-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.075);
+}
+
 [data-screen="menu"] .menu-list button:active,
 [data-screen="menu"] .support-menu button:active {
   transform: scale(0.993);
@@ -8174,6 +8178,40 @@ body:has([data-screen="level-up"].is-active) .app-shell {
 [data-screen="menu"] .menu-row-copy strong { color: var(--sc-text); font-size: 14px; font-weight: 850; line-height: 1.2; }
 [data-screen="menu"] .menu-row-copy small { color: var(--sc-muted); font-size: 11px; line-height: 1.35; }
 [data-screen="menu"] .menu-chevron { width: 18px; height: 18px; color: #596273; }
+
+[data-screen="menu"] .setting-switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  border: 1px solid rgba(140, 154, 176, 0.25);
+  border-radius: 999px;
+  background: #252b35;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.36);
+  transition: 170ms var(--sc-ease);
+}
+
+[data-screen="menu"] .setting-switch i {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #939cab;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: 170ms var(--sc-ease);
+}
+
+[data-screen="menu"] #hapticToggleButton.is-active .setting-switch {
+  border-color: rgba(91, 151, 255, 0.62);
+  background: linear-gradient(145deg, #347fe9, #205bbb);
+  box-shadow: 0 0 14px rgba(46, 124, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+[data-screen="menu"] #hapticToggleButton.is-active .setting-switch i {
+  transform: translateX(18px);
+  background: #f5f8ff;
+}
 
 [data-screen="menu"] .account-panel {
   gap: 12px;
@@ -10902,6 +10940,10 @@ body:has([data-screen="board"].is-active) .bottom-nav button {
 }
 
 [data-screen="menu"] .language-segmented button:active { transform: scale(0.96); }
+
+[data-screen="menu"] .support-menu #hapticToggleButton {
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+}
 
 @media (max-width: 370px) {
   [data-screen="menu"] .language-segmented button { gap: 6px; padding-inline: 8px; }

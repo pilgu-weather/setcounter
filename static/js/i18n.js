@@ -36,6 +36,8 @@
     "감기": "Cold", "몸살": "Flu-like symptoms", "야근": "Worked late", "가족 일정": "Family commitment", "출장": "Business trip", "회복 필요": "Recovery needed",
     "회복 사유": "Reason for rest", "SOS 저장": "Save SOS", "앱 설정 및 고객지원": "App settings & support",
     "피드백 보내기": "Send feedback", "불편한 점이나 제안을 운영자에게 보냅니다.": "Send an issue or suggestion to the admin.",
+    "진동 피드백": "Haptic feedback", "세트 완료와 휴식 종료를 진동으로 알려줍니다.": "Vibrate when a set is completed or rest ends.",
+    "진동 피드백을 켰습니다.": "Haptic feedback enabled.", "진동 피드백을 껐습니다.": "Haptic feedback disabled.",
     "언어": "Language", "앱 표시 언어": "App language", "한국어": "Korean",
     "자주 묻는 질문": "FAQ", "기록, 레벨, SOS 사용법을 확인합니다.": "Learn about logging, levels, and SOS.",
     "개인정보 처리방침": "Privacy Policy", "수집 및 보관되는 정보를 확인합니다.": "Review what data is collected and stored.",
