@@ -5742,7 +5742,7 @@ function bindEvents() {
   els.blockedUsersModal.addEventListener("click", (event) => {
     if (event.target === els.blockedUsersModal) closeSupportModal(els.blockedUsersModal);
   });
-  els.versionButton.addEventListener("click", () => showToast("Set Counter v1.0.2"));
+  els.versionButton.addEventListener("click", () => showToast("Set Counter v1.0.3"));
   els.cancelWorkoutDeleteButton.addEventListener("click", closeWorkoutDeleteConfirm);
   els.confirmWorkoutDeleteButton.addEventListener("click", () => confirmWorkoutDelete());
   els.workoutDeleteModal.addEventListener("click", (event) => {

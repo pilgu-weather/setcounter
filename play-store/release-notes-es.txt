@@ -1,7 +1,5 @@
-Primera versión de Set Counter.
+Se añadió respuesta háptica durante el entrenamiento.
 
-- Registro de series, peso, repeticiones y descanso por ejercicio
-- Historial, calendario, estadísticas y niveles
-- Rutinas recomendadas con varios ejercicios
-- Uso como invitado y vinculación posterior de una cuenta por correo electrónico
-- Denuncias y bloqueo de usuarios en la comunidad
+- Vibración al completar series, finalizar descansos y guardar registros
+- Opción para activar o desactivar la vibración desde el menú
+- Mejoras de uso y estabilidad
