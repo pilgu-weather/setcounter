@@ -813,6 +813,7 @@ const restTimerState = {
   running: false,
   paused: false,
   finished: false,
+  fiveSecondWarningSent: false,
 };
 
 const els = {
@@ -5478,12 +5479,19 @@ function updateRestTimer() {
     finishRestTimer();
     return;
   }
+  if (restTimerState.remaining <= 5 && !restTimerState.fiveSecondWarningSent) {
+    restTimerState.fiveSecondWarningSent = true;
+    triggerHaptic(55);
+  }
   syncRestTimerUi();
 }
 
 function startRestTimer(restart = false) {
   clearRestTimerInterval();
-  if (restart || restTimerState.remaining <= 0) restTimerState.remaining = restTimerState.duration;
+  if (restart || restTimerState.remaining <= 0) {
+    restTimerState.remaining = restTimerState.duration;
+    restTimerState.fiveSecondWarningSent = false;
+  }
   restTimerState.deadline = Date.now() + restTimerState.remaining * 1000;
   restTimerState.running = true;
   restTimerState.paused = false;
@@ -5507,6 +5515,7 @@ function resetRestTimer() {
   restTimerState.running = false;
   restTimerState.paused = false;
   restTimerState.finished = false;
+  restTimerState.fiveSecondWarningSent = false;
   syncRestTimerUi();
 }
 

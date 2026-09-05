@@ -1,5 +1,1 @@
-Se añadió respuesta háptica durante el entrenamiento.
-
-- Vibración al completar series, finalizar descansos y guardar registros
-- Opción para activar o desactivar la vibración desde el menú
-- Mejoras de uso y estabilidad
+Se añadió una alerta por vibración 5 segundos antes de que termine el descanso y se mejoró la usabilidad.
