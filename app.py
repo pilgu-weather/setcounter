@@ -982,7 +982,6 @@ def send_discord_complaint(user, message, stats, category="complaint"):
             title,
             f"닉네임: {nickname}",
             f"레벨: {stats.get('level')}",
-            f"부정 페널티: {stats.get('cheatPenalty', 0)}",
             f"의심 기록 수: {stats.get('cheatSuspicionCount', 0)}",
             f"사용자 ID: {user.id}",
             f"내용: {message}",
@@ -1347,8 +1346,7 @@ def suspicious_training_flags(candidate, previous_logs):
 
 
 def cheat_penalty_from_logs(logs):
-    suspicious_count = sum(1 for log in logs if log.get("suspicionScore", 0) > 0)
-    return suspicious_count if suspicious_count >= CHEAT_PENALTY_THRESHOLD else 0
+    return 0
 
 
 def iso_date_range(start_key, end_key):
@@ -1360,30 +1358,7 @@ def iso_date_range(start_key, end_key):
 
 
 def daily_challenge_penalty(logs, excuse_dates):
-    if not logs:
-        return {"penalty": 0, "failedDates": [], "passedDates": []}
-    first_date = min(log["date"] for log in logs)
-    last_checked = (datetime.now(KST).date() - timedelta(days=1)).isoformat()
-    if first_date > last_checked:
-        return {"penalty": 0, "failedDates": [], "passedDates": []}
-    logs_by_date = {}
-    for log in logs:
-        logs_by_date.setdefault(log["date"], []).append(log)
-    previous_by_exercise = {}
-    failed_dates = []
-    passed_dates = []
-    for day_key in iso_date_range(first_date, last_checked):
-        day_passed = False
-        for log in sorted(logs_by_date.get(day_key, []), key=lambda item: item["createdAt"]):
-            previous_volume = previous_by_exercise.get(log["exercise"])
-            if previous_volume is None or log["volume"] >= previous_volume:
-                day_passed = True
-            previous_by_exercise[log["exercise"]] = log["volume"]
-        if day_passed:
-            passed_dates.append(day_key)
-        elif day_key not in excuse_dates:
-            failed_dates.append(day_key)
-    return {"penalty": len(failed_dates), "failedDates": failed_dates, "passedDates": passed_dates}
+    return {"penalty": 0, "failedDates": [], "passedDates": []}
 
 
 def start_of_week(day):
@@ -1396,84 +1371,24 @@ def weekly_challenge_penalty(logs, excuse_dates, target, started_on, as_of=None)
     current_week_start = start_of_week(today)
     current_week_end = current_week_start + timedelta(days=6)
     workout_dates = {date.fromisoformat(item["date"]) for item in logs if item.get("date")}
-    recovery_dates = {date.fromisoformat(item) for item in excuse_dates}
-
     current_workouts = {item for item in workout_dates if current_week_start <= item <= today}
-    current_recovery = {item for item in recovery_dates if current_week_start <= item <= today}
     first_eligible_week = start_of_week(started_on or today) + timedelta(days=7)
-    failed_dates = []
-    failed_weeks = []
-    passed_dates = []
-    week_start = first_eligible_week
-    penalty = 0
-    while week_start < current_week_start:
-        week_end = week_start + timedelta(days=6)
-        week_workouts = {item for item in workout_dates if week_start <= item <= week_end}
-        week_recovery = {item for item in recovery_dates if week_start <= item <= week_end}
-        covered_days = week_workouts | week_recovery
-        missing = max(target - len(covered_days), 0)
-        passed_dates.extend(item.isoformat() for item in sorted(week_workouts))
-        if missing:
-            penalty += missing
-            available_dates = [
-                week_start + timedelta(days=offset)
-                for offset in range(7)
-                if week_start + timedelta(days=offset) not in covered_days
-            ]
-            failed_dates.extend(item.isoformat() for item in available_dates[-missing:])
-            failed_weeks.append(
-                {
-                    "weekStart": week_start.isoformat(),
-                    "weekEnd": week_end.isoformat(),
-                    "workouts": len(week_workouts),
-                    "recoveryDays": len(week_recovery),
-                    "missing": missing,
-                }
-            )
-        week_start += timedelta(days=7)
-
     return {
-        "penalty": penalty,
-        "failedDates": failed_dates,
-        "passedDates": passed_dates,
-        "failedWeeks": failed_weeks,
+        "penalty": 0,
+        "failedDates": [],
+        "passedDates": [item.isoformat() for item in sorted(current_workouts)],
+        "failedWeeks": [],
         "currentWeekStart": current_week_start.isoformat(),
         "currentWeekEnd": current_week_end.isoformat(),
         "currentWorkouts": len(current_workouts),
-        "currentRecoveryDays": len(current_recovery),
-        "currentRemaining": max(target - len(current_workouts | current_recovery), 0),
+        "currentRecoveryDays": 0,
+        "currentRemaining": max(target - len(current_workouts), 0),
         "evaluatesFrom": first_eligible_week.isoformat(),
     }
 
 
 def attendance_penalty_snapshot(user):
-    if user is None:
-        return 0
-    workouts = load_workouts(
-        workout_query(user.id).order_by(
-            HealthWorkout.workout_date.asc(),
-            HealthWorkout.created_at.asc(),
-            HealthWorkout.id.asc(),
-        )
-    )
-    logs = [workout_to_log(workout) for workout in workouts]
-    excuse_dates = {
-        item.excuse_date.isoformat()
-        for item in db.session.scalars(
-            select(HealthExcuse).where(HealthExcuse.user_id == user.id)
-        ).all()
-    }
-    carryover = weekly_penalty_carryover_for_user(user)
-    target = weekly_target_for_user(user)
-    if target is None:
-        return daily_challenge_penalty(logs, excuse_dates)["penalty"]
-    current_weekly = weekly_challenge_penalty(
-        logs,
-        excuse_dates,
-        target,
-        weekly_target_start_date(user),
-    )["penalty"]
-    return carryover + current_weekly
+    return 0
 
 
 def breakthrough_rate_for_level(level):
@@ -1562,8 +1477,7 @@ def stats_from_logs(
     previous_by_exercise = {}
     xp = max(float(starting_experience or 0), 0)
     level = level_for_experience(xp)
-    ups = level_downs = experience_downs = 0
-    earned_awards = [xp] if xp > 0 else []
+    ups = 0
     level_history = []
     for log in logs:
         previous = previous_by_exercise.get(log["exercise"])
@@ -1573,7 +1487,6 @@ def stats_from_logs(
             if log["volume"] > previous:
                 xp_delta = breakthrough_rate_for_level(before_level)
                 xp += xp_delta
-                earned_awards.append(xp_delta)
                 ups += 1
                 level = level_for_experience(xp)
                 level_history.append(
@@ -1590,31 +1503,6 @@ def stats_from_logs(
                         "previousVolume": previous,
                     }
                 )
-            elif log["volume"] < previous:
-                before_level = level
-                last_award = earned_awards.pop() if earned_awards else breakthrough_rate_for_level(level)
-                deducted_xp = min(last_award, xp)
-                if deducted_xp > 0:
-                    xp_delta = -deducted_xp
-                    xp -= deducted_xp
-                    level = level_for_experience(xp)
-                    experience_downs += 1
-                    if level < before_level:
-                        level_downs += before_level - level
-                    level_history.append(
-                        {
-                            "type": "level_down" if level < before_level else "experience_down",
-                            "date": log["date"],
-                            "createdAt": log["createdAt"],
-                            "exercise": log["exercise"],
-                            "reason": "이전 기록보다 낮은 운동량",
-                            "levelBefore": before_level,
-                            "levelAfter": level,
-                            "experienceDelta": round(xp_delta, 2),
-                            "volume": log["volume"],
-                            "previousVolume": previous,
-                        }
-                    )
         previous_by_exercise[log["exercise"]] = log["volume"]
     weekly_goal_active = weekly_target is not None
     challenge = (
@@ -1622,79 +1510,36 @@ def stats_from_logs(
         if weekly_goal_active
         else daily_challenge_penalty(logs, excuse_dates)
     )
-    weekly_recovery_notes = []
-    if weekly_goal_active and excuse_notes:
-        week_start = challenge.get("currentWeekStart")
-        week_end = challenge.get("currentWeekEnd")
-        weekly_recovery_notes = [
-            {"date": day_key, "reason": str(reason).strip()}
-            for day_key, reason in sorted(excuse_notes.items())
-            if week_start <= day_key <= week_end and str(reason).strip()
-        ]
     suspicious_count = sum(1 for log in logs if log.get("suspicionScore", 0) > 0)
-    cheat_penalty = cheat_penalty_from_logs(logs)
-    carryover_penalty = max(int(attendance_penalty_carryover or 0), 0)
-    attendance_penalty = carryover_penalty + challenge["penalty"]
-    total_penalty = attendance_penalty + cheat_penalty
-    total_xp = max(xp - total_penalty, 0)
-    penalty_deduction = min(total_penalty, xp)
-    if penalty_deduction > 0:
-        before_level = level
-        level = level_for_experience(total_xp)
-        if level < before_level:
-            level_downs += before_level - level
-        penalty_dates = challenge["failedDates"] or [log["date"] for log in logs if log.get("suspicionScore", 0) > 0]
-        if not penalty_dates and carryover_penalty and logs:
-            penalty_dates = [logs[0]["date"]]
-        if challenge["penalty"]:
-            penalty_label = "주간 운동 목표 미달" if weekly_goal_active else "기록 패널티"
-        elif carryover_penalty:
-            penalty_label = "이전 운동 목표 미달"
-        else:
-            penalty_label = "기록 패널티"
-        level_history.append(
-            {
-                "type": "level_down" if level < before_level else "experience_down",
-                "date": max(penalty_dates) if penalty_dates else today_kst().isoformat(),
-                "createdAt": None,
-                "exercise": penalty_label,
-                "reason": penalty_label,
-                "levelBefore": before_level,
-                "levelAfter": level,
-                "experienceDelta": round(-penalty_deduction, 2),
-                "volume": None,
-                "previousVolume": None,
-            }
-        )
-    else:
-        level = level_for_experience(total_xp)
+    total_xp = xp
+    level = level_for_experience(total_xp)
     progress = 1 if level >= 99 else min(max(total_xp - (level - 1), 0), 1)
     level_history.sort(key=lambda item: (item["date"], item.get("createdAt") or ""))
     return {
         "level": level,
-        "rule": "experience_driven_level_with_reversible_latest_award",
+        "rule": "experience_driven_level_without_deductions",
         "levelUps": ups,
-        "levelDowns": level_downs,
-        "experienceDowns": experience_downs + (1 if penalty_deduction > 0 else 0),
+        "levelDowns": 0,
+        "experienceDowns": 0,
         "experience": round(total_xp, 2),
         "experiencePercent": round(progress * 100, 1),
         "nextBreakthroughRate": breakthrough_rate_for_level(level),
-        "dailyPenalty": 0 if weekly_goal_active else challenge["penalty"],
-        "attendancePenalty": attendance_penalty,
-        "attendancePenaltyCarryover": carryover_penalty,
-        "penaltyMode": "weekly" if weekly_goal_active else "daily",
+        "dailyPenalty": 0,
+        "attendancePenalty": 0,
+        "attendancePenaltyCarryover": 0,
+        "penaltyMode": "none",
         "weeklyWorkoutTarget": weekly_target if weekly_goal_active else None,
         "weeklyWorkoutCompleted": challenge.get("currentWorkouts", 0),
         "weeklyWorkoutRemaining": challenge.get("currentRemaining", 0),
         "weeklyRecoveryDays": challenge.get("currentRecoveryDays", 0),
-        "weeklyRecoveryNotes": weekly_recovery_notes,
+        "weeklyRecoveryNotes": [],
         "weeklyGoalWeekStart": challenge.get("currentWeekStart"),
         "weeklyGoalWeekEnd": challenge.get("currentWeekEnd"),
         "weeklyGoalEvaluatesFrom": challenge.get("evaluatesFrom"),
         "weeklyFailedWeeks": challenge.get("failedWeeks", []),
         "cheatWarnings": min(suspicious_count, CHEAT_WARNING_LIMIT),
         "cheatSuspicionCount": suspicious_count,
-        "cheatPenalty": cheat_penalty,
+        "cheatPenalty": 0,
         "cheatPenaltyThreshold": CHEAT_PENALTY_THRESHOLD,
         "complaintEmail": COMPLAINT_EMAIL,
         "failedDates": challenge["failedDates"],
@@ -1722,7 +1567,6 @@ def volume_stats(user_id):
         )
     )
     logs = [workout_to_log(workout) for workout in workouts]
-    excuses = db.session.scalars(select(HealthExcuse).where(HealthExcuse.user_id == user_id)).all()
     user = db.session.get(HealthUser, user_id)
     level_events = db.session.scalars(
         select(HealthLevelEvent)
@@ -1734,17 +1578,18 @@ def volume_stats(user_id):
     )
     stats = stats_from_logs(
         logs,
-        {item.excuse_date.isoformat() for item in excuses},
-        {item.excuse_date.isoformat(): item.excuse_text for item in excuses},
+        set(),
+        {},
         weekly_target_for_user(user),
         weekly_target_start_date(user),
-        weekly_penalty_carryover_for_user(user),
+        0,
         active_experience,
     )
-    recorded_level_downs = 0
     if level_events:
         history = list(stats["levelHistory"])
         for event in level_events:
+            if event.experience_delta < 0 or event.event_type.endswith("_down"):
+                continue
             history.append(
                 {
                     "type": event.event_type,
@@ -1761,12 +1606,9 @@ def volume_stats(user_id):
                     "preserved": not event.affects_current,
                 }
             )
-            if not event.affects_current and event.event_type == "level_down":
-                recorded_level_downs += max(event.level_before - event.level_after, 0)
-        stats["levelDowns"] += recorded_level_downs
         history.sort(key=lambda item: (item["date"], item.get("createdAt") or ""), reverse=True)
         stats["levelHistory"] = history[:50]
-    stats["recordedLevelDowns"] = recorded_level_downs
+    stats["recordedLevelDowns"] = 0
     return stats
 
 
@@ -2306,17 +2148,8 @@ def bootstrap():
         )
     )
     logs = [workout_to_log(workout) for workout in workouts]
-    excuses = db.session.scalars(
-        select(HealthExcuse)
-        .where(HealthExcuse.user_id == user.id)
-        .order_by(HealthExcuse.excuse_date.asc())
-    ).all()
-    excuse_rows = [excuse_to_dict(item) for item in excuses]
     month = request.args.get("month", "").strip()
     month_logs = [item for item in logs if not month or item["date"].startswith(f"{month}-")]
-    month_excuses = [
-        item for item in excuse_rows if not month or item["date"].startswith(f"{month}-")
-    ]
     before = None
     before_value = request.args.get("before", "").strip()
     if before_value:
@@ -2331,8 +2164,8 @@ def bootstrap():
         latest_by_exercise[item["exercise"]] = item
     stats_data = stats_from_logs(
         logs,
-        {item["date"] for item in excuse_rows},
-        {item["date"]: item["reason"] for item in excuse_rows},
+        set(),
+        {},
         weekly_target_for_user(user),
         weekly_target_start_date(user),
         weekly_penalty_carryover_for_user(user),
@@ -2341,7 +2174,7 @@ def bootstrap():
         {
             "claimedLegacy": claimed,
             "logs": list(reversed(month_logs)),
-            "excuses": list(reversed(month_excuses)),
+            "excuses": [],
             "latestByExercise": latest_by_exercise,
             "stats": stats_data,
             "profile": profile_to_dict(user, stats_data),
@@ -2609,43 +2442,12 @@ def send_daily_reminders():
 
 @app.route("/api/excuses", methods=["GET"])
 def list_excuses():
-    user = request_user()
-    query = select(HealthExcuse).where(HealthExcuse.user_id == user.id)
-    month = request.args.get("month", "").strip()
-    if month:
-        try:
-            start = date.fromisoformat(f"{month}-01")
-            end = date(start.year + (start.month == 12), (start.month % 12) + 1, 1)
-        except ValueError:
-            return jsonify({"error": "month must use YYYY-MM"}), 400
-        query = query.where(HealthExcuse.excuse_date >= start, HealthExcuse.excuse_date < end)
-    excuses = db.session.scalars(query.order_by(HealthExcuse.excuse_date.desc())).all()
-    return jsonify([excuse_to_dict(item) for item in excuses])
+    return jsonify({"error": "SOS records are no longer supported"}), 410
 
 
 @app.route("/api/excuses", methods=["POST"])
 def create_excuse():
-    user = request_user()
-    payload = request.get_json(silent=True) or {}
-    reason = str(payload.get("reason", "")).strip()[:MAX_MEMO_LENGTH]
-    if not reason:
-        return jsonify({"error": "reason is required"}), 400
-    try:
-        excuse_date = parse_date(payload.get("date") or today_kst().isoformat())
-    except ValueError as error:
-        return jsonify({"error": str(error)}), 400
-    excuse = db.session.scalar(
-        select(HealthExcuse).where(
-            HealthExcuse.user_id == user.id, HealthExcuse.excuse_date == excuse_date
-        )
-    )
-    if excuse is None:
-        excuse = HealthExcuse(user_id=user.id, excuse_date=excuse_date)
-        db.session.add(excuse)
-    excuse.excuse_text = reason
-    excuse.created_at = utc_now()
-    db.session.commit()
-    return jsonify(excuse_to_dict(excuse)), 201
+    return jsonify({"error": "SOS records are no longer supported"}), 410
 
 
 def normalized_set_data(payload, exercise):

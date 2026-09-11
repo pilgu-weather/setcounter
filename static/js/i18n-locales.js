@@ -2,6 +2,14 @@ window.SetCounterLocaleData = {
   "ja": {
     "language": "Japanese",
     "strings": {
+      "Complete your target on any days from Monday through Sunday. The weekly goal is only used to track your plan and progress.": "月曜日から日曜日までの好きな日に目標回数を達成してください。週間目標は計画と進捗の確認にのみ使用されます。",
+      "Learn about logging and levels.": "記録とレベルの使い方を確認します。",
+      "Workouts, sets, levels, posts, comments, likes, and push subscriptions will be permanently deleted.": "ワークアウト、セット、レベル、投稿、コメント、いいね、プッシュ通知の購読は完全に削除されます。",
+      "We process your user key, nickname, gender used to set workout-plan starting weights, account email and password hash, workout dates, exercises, sets, weights, reps and rest times, weekly goals, level and XP history and statistics, posts, comments, likes, reports, blocked-user relationships, moderation actions, security hashes, and notification subscriptions.": "ユーザーキー、ニックネーム、ワークアウトプランの開始重量設定に使用する性別、アカウントのメールアドレスとパスワードハッシュ、ワークアウトの日付・種目・セット・重量・回数・休憩時間、週間目標、レベルとXPの履歴・統計、投稿、コメント、いいね、通報、ブロック関係、運営措置、セキュリティ用ハッシュ、通知購読情報を処理します。",
+      "Service use: workout dates, exercises, sets, weights, reps, rest times, weekly goals, level and XP history, and statistics": "サービス利用時：ワークアウトの日付、種目、セット、重量、回数、休憩時間、週間目標、レベルとXPの履歴、統計",
+      "Set Counter is a personal workout log that provides set tracking, statistics, a calendar, and Community features.": "Set Counterは、セット記録、統計、カレンダー、コミュニティ機能を提供する個人向けワークアウト記録サービスです。",
+      "Workout records, Community activity, and push subscriptions linked to the email account have been deleted. Deleted data cannot be recovered.": "メールアカウントに紐づくワークアウト記録、コミュニティ活動、プッシュ通知の購読を削除しました。削除したデータは復元できません。",
+      "Email account, nickname, workout and set history, levels and statistics, posts, comments, likes, reports, blocks, and push subscriptions": "メールアカウント、ニックネーム、ワークアウトとセットの履歴、レベルと統計、投稿、コメント、いいね、通報、ブロック、プッシュ通知の購読",
       "Loading your workout data.": "ワークアウトデータを読み込み中です。",
       "Loading Set Counter": "セットカウンターを読み込み中",
       "Nickname": "ニックネーム",
@@ -776,6 +784,14 @@ window.SetCounterLocaleData = {
   "es": {
     "language": "Spanish",
     "strings": {
+      "Complete your target on any days from Monday through Sunday. The weekly goal is only used to track your plan and progress.": "Completa tu objetivo en los días que prefieras de lunes a domingo. El objetivo semanal solo sirve para consultar tu plan y progreso.",
+      "Learn about logging and levels.": "Consulta cómo usar los registros y niveles.",
+      "Workouts, sets, levels, posts, comments, likes, and push subscriptions will be permanently deleted.": "Los entrenamientos, series, niveles, publicaciones, comentarios, Me gusta y suscripciones push se eliminarán de forma permanente.",
+      "We process your user key, nickname, gender used to set workout-plan starting weights, account email and password hash, workout dates, exercises, sets, weights, reps and rest times, weekly goals, level and XP history and statistics, posts, comments, likes, reports, blocked-user relationships, moderation actions, security hashes, and notification subscriptions.": "Tratamos tu clave de usuario, apodo, sexo usado para establecer los pesos iniciales de los planes, correo electrónico y hash de contraseña, fechas y ejercicios, series, pesos, repeticiones y descansos, objetivos semanales, historial y estadísticas de nivel y XP, publicaciones, comentarios, Me gusta, denuncias, bloqueos, medidas de moderación, hashes de seguridad y suscripciones de notificaciones.",
+      "Service use: workout dates, exercises, sets, weights, reps, rest times, weekly goals, level and XP history, and statistics": "Uso del servicio: fechas, ejercicios, series, pesos, repeticiones, descansos, objetivos semanales, historial de nivel y XP y estadísticas",
+      "Set Counter is a personal workout log that provides set tracking, statistics, a calendar, and Community features.": "Set Counter es un registro personal de entrenamiento con seguimiento de series, estadísticas, calendario y funciones de Comunidad.",
+      "Workout records, Community activity, and push subscriptions linked to the email account have been deleted. Deleted data cannot be recovered.": "Se han eliminado los entrenamientos, la actividad de Comunidad y las suscripciones push vinculadas a la cuenta. Los datos eliminados no se pueden recuperar.",
+      "Email account, nickname, workout and set history, levels and statistics, posts, comments, likes, reports, blocks, and push subscriptions": "Cuenta de correo, apodo, historial de entrenamientos y series, niveles y estadísticas, publicaciones, comentarios, Me gusta, denuncias, bloqueos y suscripciones push",
       "Loading your workout data.": "Cargando tus datos de entrenamiento.",
       "Loading Set Counter": "Cargando contador de series",
       "Nickname": "Apodo",
@@ -1550,6 +1566,14 @@ window.SetCounterLocaleData = {
   "zh": {
     "language": "Simplified Chinese",
     "strings": {
+      "Complete your target on any days from Monday through Sunday. The weekly goal is only used to track your plan and progress.": "可在周一至周日的任意日期完成目标。每周目标仅用于查看计划和进度。",
+      "Learn about logging and levels.": "了解训练记录和等级的使用方法。",
+      "Workouts, sets, levels, posts, comments, likes, and push subscriptions will be permanently deleted.": "训练、组数、等级、帖子、评论、点赞和推送订阅将被永久删除。",
+      "We process your user key, nickname, gender used to set workout-plan starting weights, account email and password hash, workout dates, exercises, sets, weights, reps and rest times, weekly goals, level and XP history and statistics, posts, comments, likes, reports, blocked-user relationships, moderation actions, security hashes, and notification subscriptions.": "我们会处理用户密钥、昵称、用于设置训练计划初始重量的性别、账户邮箱和密码哈希、训练日期、动作、组数、重量、次数和休息时间、每周目标、等级与经验值历史和统计、帖子、评论、点赞、举报、屏蔽关系、管理措施、安全哈希和通知订阅信息。",
+      "Service use: workout dates, exercises, sets, weights, reps, rest times, weekly goals, level and XP history, and statistics": "使用服务时：训练日期、动作、组数、重量、次数、休息时间、每周目标、等级与经验值历史和统计",
+      "Set Counter is a personal workout log that provides set tracking, statistics, a calendar, and Community features.": "Set Counter 是提供组数记录、统计、日历和社区功能的个人训练记录服务。",
+      "Workout records, Community activity, and push subscriptions linked to the email account have been deleted. Deleted data cannot be recovered.": "已删除与邮箱账户关联的训练记录、社区活动和推送订阅。已删除的数据无法恢复。",
+      "Email account, nickname, workout and set history, levels and statistics, posts, comments, likes, reports, blocks, and push subscriptions": "邮箱账户、昵称、训练和组数记录、等级和统计、帖子、评论、点赞、举报、屏蔽关系和推送订阅",
       "Loading your workout data.": "正在加载训练数据。",
       "Loading Set Counter": "正在加载 Set Counter",
       "Nickname": "昵称",
@@ -2324,6 +2348,14 @@ window.SetCounterLocaleData = {
   "ru": {
     "language": "Russian",
     "strings": {
+      "Complete your target on any days from Monday through Sunday. The weekly goal is only used to track your plan and progress.": "Выполняйте цель в любые удобные дни с понедельника по воскресенье. Недельная цель используется только для отслеживания плана и прогресса.",
+      "Learn about logging and levels.": "Узнайте, как пользоваться журналом и уровнями.",
+      "Workouts, sets, levels, posts, comments, likes, and push subscriptions will be permanently deleted.": "Тренировки, подходы, уровни, публикации, комментарии, отметки «Нравится» и push-подписки будут удалены без возможности восстановления.",
+      "We process your user key, nickname, gender used to set workout-plan starting weights, account email and password hash, workout dates, exercises, sets, weights, reps and rest times, weekly goals, level and XP history and statistics, posts, comments, likes, reports, blocked-user relationships, moderation actions, security hashes, and notification subscriptions.": "Мы обрабатываем ключ пользователя, никнейм, пол для настройки начального веса в планах, электронную почту и хеш пароля, даты тренировок, упражнения, подходы, вес, повторения и время отдыха, недельные цели, историю и статистику уровней и XP, публикации, комментарии, отметки «Нравится», жалобы, блокировки, меры модерации, защитные хеши и подписки на уведомления.",
+      "Service use: workout dates, exercises, sets, weights, reps, rest times, weekly goals, level and XP history, and statistics": "При использовании сервиса: даты тренировок, упражнения, подходы, вес, повторения, время отдыха, недельные цели, история уровней и XP и статистика",
+      "Set Counter is a personal workout log that provides set tracking, statistics, a calendar, and Community features.": "Set Counter — это персональный журнал тренировок с учётом подходов, статистикой, календарём и функциями сообщества.",
+      "Workout records, Community activity, and push subscriptions linked to the email account have been deleted. Deleted data cannot be recovered.": "Записи тренировок, активность в сообществе и push-подписки, связанные с аккаунтом, удалены. Восстановить удалённые данные невозможно.",
+      "Email account, nickname, workout and set history, levels and statistics, posts, comments, likes, reports, blocks, and push subscriptions": "Аккаунт электронной почты, никнейм, история тренировок и подходов, уровни и статистика, публикации, комментарии, отметки «Нравится», жалобы, блокировки и push-подписки",
       "Loading your workout data.": "Загрузка данных тренировки.",
       "Loading Set Counter": "Загрузка Set Counter",
       "Nickname": "Никнейм",

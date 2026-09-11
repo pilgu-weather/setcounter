@@ -269,7 +269,7 @@
         <header class="screen-header">
           <button class="back-button" type="button" data-go-screen="home" aria-label="홈으로"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
           <h1>달력</h1>
-          <button class="calendar-sos-button" id="calendarSosButton" type="button">SOS</button>
+          <span aria-hidden="true"></span>
         </header>
         <section class="calendar-section" id="calendar" aria-labelledby="calendarTitle">
           <div class="section-head calendar-nav">
@@ -283,7 +283,6 @@
           <div class="calendar-grid" id="calendarGrid"></div>
           <div class="calendar-muscle-detail" id="calendarMuscleDetail" aria-live="polite"></div>
           <div class="calendar-day-detail" id="calendarDayDetail" aria-live="polite"></div>
-          <div class="calendar-excuses" id="calendarExcuseList" aria-live="polite"></div>
         </section>
         <section class="history-section" aria-labelledby="historyTitle">
           <div class="section-head plain">
@@ -383,22 +382,7 @@
             </div>
             <button class="weekly-goal-save" id="weeklyGoalSaveButton" type="submit">적용</button>
           </form>
-          <p class="weekly-goal-help" id="weeklyGoalHelp">월요일부터 일요일 사이 원하는 3일에 운동하면 됩니다. 나머지 4일은 쉬어도 경험치가 차감되지 않습니다. 설정한 주는 안내 기간이며 다음 완료 주부터 판정합니다.</p>
-        </section>
-
-        <section class="sos-section" id="menuSosSection" aria-labelledby="sosTitle">
-          <div class="sos-section-head">
-            <span class="menu-row-icon is-warning"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span>
-            <div><p class="menu-section-kicker is-warning">RECOVERY LOG</p><h2 id="sosTitle">쉬는 날도 계획의 일부</h2></div>
-            <span class="sos-date" id="sosSelectedDate">오늘</span>
-          </div>
-          <p class="sos-copy">쉬어야 하는 이유를 기록해두세요. SOS를 저장하면 해당 날짜는 주간 운동 목표에서 운동한 날로 반영됩니다.</p>
-          <div class="sos-reason-chips" aria-label="빠른 사유 선택">
-            <button type="button" data-sos-reason="감기">감기</button><button type="button" data-sos-reason="몸살">몸살</button><button type="button" data-sos-reason="야근">야근</button><button type="button" data-sos-reason="가족 일정">가족 일정</button><button type="button" data-sos-reason="출장">출장</button><button type="button" data-sos-reason="회복 필요">회복 필요</button>
-          </div>
-          <label class="sos-input-wrap"><span>회복 사유</span><textarea id="sosReasonInput" rows="4" maxlength="500" placeholder="직접 사유를 입력하거나 위 항목을 선택하세요."></textarea><small id="sosReasonCounter">0 / 500</small></label>
-          <div class="sos-status" id="sosStatus" role="status" hidden></div>
-          <button class="sos-button" id="sosButton" type="button"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg><span>SOS 저장</span></button>
+          <p class="weekly-goal-help" id="weeklyGoalHelp">월요일부터 일요일 사이 원하는 3일에 운동하면 됩니다. 주간 목표는 운동 계획과 진행 상황을 확인하는 용도로만 사용됩니다.</p>
         </section>
 
         <section class="menu-hub-section" aria-labelledby="menuSupportTitle">
@@ -423,7 +407,7 @@
             <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M8 9h8"/><path d="M8 13h6"/></svg></span><span class="menu-row-copy"><strong>피드백 보내기</strong><small>불편한 점이나 제안을 운영자에게 보냅니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </button>
           <button type="button" id="openFaqButton">
-            <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 1 1 5.83 1c0 2-3 2-3 4"/><path d="M12 18h.01"/></svg></span><span class="menu-row-copy"><strong>자주 묻는 질문</strong><small>기록, 레벨, SOS 사용법을 확인합니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 1 1 5.83 1c0 2-3 2-3 4"/><path d="M12 18h.01"/></svg></span><span class="menu-row-copy"><strong>자주 묻는 질문</strong><small>기록과 레벨 사용법을 확인합니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </button>
           <button type="button" id="openPrivacyButton">
             <span class="menu-row-icon"><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/></svg></span><span class="menu-row-copy"><strong>개인정보 처리방침</strong><small>수집 및 보관되는 정보를 확인합니다.</small></span><svg class="menu-chevron lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -551,11 +535,6 @@
             <span class="level-history-ledger-icon" aria-hidden="true"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></span>
             <span><small>경험치 획득</small><strong id="levelHistoryGainCount">0회</strong></span>
             <em id="levelHistoryGainXp">+0 XP</em>
-          </article>
-          <article class="level-history-ledger-card is-down">
-            <span class="level-history-ledger-icon" aria-hidden="true"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
-            <span><small>경험치 차감</small><strong id="levelHistoryLossCount">0회</strong></span>
-            <em id="levelHistoryLossXp">-0 XP</em>
           </article>
         </div>
         <section class="level-history-reasons" id="levelHistoryReasons" aria-labelledby="levelHistoryReasonsTitle" data-i18n-skip>
@@ -693,7 +672,7 @@
       <form class="profile-dialog auth-dialog delete-account-dialog" id="deleteAccountForm">
         <p class="eyebrow danger">DELETE ACCOUNT</p>
         <h2 id="deleteAccountTitle">계정과 기록을 삭제할까요?</h2>
-        <p>운동·세트 기록, SOS, 레벨, 게시글, 댓글, 좋아요와 푸시 구독이 모두 삭제되며 복구할 수 없습니다.</p>
+        <p>운동·세트 기록, 레벨, 게시글, 댓글, 좋아요와 푸시 구독이 모두 삭제되며 복구할 수 없습니다.</p>
         <label><span>확인을 위해 비밀번호 입력</span><input id="deleteAccountPasswordInput" type="password" autocomplete="current-password" minlength="8" required></label>
         <label class="terms-check"><input id="deleteAccountConfirmInput" type="checkbox" required><span>계정과 연결 데이터의 영구 삭제를 확인했습니다.</span></label>
         <p class="profile-error" id="deleteAccountError" role="alert"></p>
@@ -751,10 +730,6 @@
             <p>달력에서 날짜를 선택하면 해당 날짜의 운동 종목, 세트, 횟수와 볼륨을 확인할 수 있습니다.</p>
           </details>
           <details>
-            <summary>SOS 기록은 무엇인가요?</summary>
-            <p>아프거나 바빠 운동하지 못한 날을 면제 처리하는 기능입니다. 달력에서 날짜를 고른 뒤 메뉴의 SOS 기록에 사유를 남기세요.</p>
-          </details>
-          <details>
             <summary>운동 알림을 설정할 수 있나요?</summary>
             <p>홈 화면의 운동 알림에서 알림을 켤 수 있습니다. iPhone은 홈 화면에 추가한 앱에서 알림 권한을 허용해야 합니다.</p>
           </details>
@@ -785,7 +760,7 @@
         <div class="privacy-content">
           <p class="policy-date">시행일: 2026년 8월 8일</p>
           <h3>수집하는 정보</h3>
-          <p>사용자 식별 키, 닉네임, 묶음 운동 시작 중량 설정을 위한 성별, 계정 이메일과 비밀번호 해시, 운동 날짜·종목·세트·무게·횟수·휴식시간, SOS 사유, 주간 운동 목표, 레벨·경험치 이력과 통계, 게시글·댓글·좋아요·신고·차단 관계, 운영 조치 내역, 보안용 해시 식별값 및 알림 구독 정보를 처리합니다.</p>
+          <p>사용자 식별 키, 닉네임, 묶음 운동 시작 중량 설정을 위한 성별, 계정 이메일과 비밀번호 해시, 운동 날짜·종목·세트·무게·횟수·휴식시간, 주간 운동 목표, 레벨·경험치 이력과 통계, 게시글·댓글·좋아요·신고·차단 관계, 운영 조치 내역, 보안용 해시 식별값 및 알림 구독 정보를 처리합니다.</p>
           <h3>이용 목적</h3>
           <p>운동 기록 저장과 조회, 휴식 설정 복원, 주간 목표 확인, 레벨·경험치 계산, 게시판 운영, 신고 처리와 이용 제한, 운동 알림 제공, 부정 이용 방지 및 사용자 문의 처리를 위해 사용합니다.</p>
           <h3>동의 거부</h3>

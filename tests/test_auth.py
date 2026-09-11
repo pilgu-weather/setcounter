@@ -246,7 +246,7 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertIsNotNone(consent["terms_accepted_at"])
             self.assertIsNotNone(consent["privacy_accepted_at"])
 
-    def test_preserved_level_down_history_does_not_change_current_progress(self):
+    def test_preserved_level_down_history_is_hidden_and_does_not_change_progress(self):
         with app.app_context():
             user = HealthUser(user_key="preserved-level-event-user", is_anonymous=True)
             db.session.add(user)
@@ -270,11 +270,9 @@ class AuthSystemTestCase(unittest.TestCase):
 
             self.assertEqual(after["level"], before["level"])
             self.assertEqual(after["experience"], before["experience"])
-            self.assertEqual(after["levelDowns"], 6)
-            self.assertEqual(after["recordedLevelDowns"], 6)
-            self.assertEqual(after["levelHistory"][0]["levelBefore"], 10)
-            self.assertEqual(after["levelHistory"][0]["levelAfter"], 4)
-            self.assertTrue(after["levelHistory"][0]["preserved"])
+            self.assertEqual(after["levelDowns"], 0)
+            self.assertEqual(after["recordedLevelDowns"], 0)
+            self.assertEqual(after["levelHistory"], [])
 
     def test_level_event_migration_is_idempotent(self):
         migration_path = Path(tempfile.gettempdir()) / "setcounter-level-events.sqlite3"
@@ -307,7 +305,7 @@ class AuthSystemTestCase(unittest.TestCase):
             self.assertIsNotNone(user.account_id)
             self.assertEqual(user.weekly_workout_target, 3)
             self.assertIsNotNone(user.weekly_target_updated_at)
-            self.assertGreater(user.weekly_penalty_carryover, 0)
+            self.assertEqual(user.weekly_penalty_carryover, 0)
             self.assertEqual(db.session.query(HealthWorkout).filter_by(user_id=before_id).count(), 1)
             identity = db.session.query(AuthIdentity).filter_by(account_id=user.account_id).one()
             account = db.session.get(AuthAccount, user.account_id)
@@ -335,12 +333,6 @@ class AuthSystemTestCase(unittest.TestCase):
             },
         )
         self.assertEqual(workout.status_code, 201, workout.get_json())
-        excuse = self.client.post(
-            "/api/excuses",
-            headers=self.csrf_headers(self.client, key),
-            json={"date": "2026-08-02", "reason": "야근"},
-        )
-        self.assertEqual(excuse.status_code, 201, excuse.get_json())
         own_post = self.client.post(
             "/api/board/posts",
             headers=self.csrf_headers(self.client, key),
@@ -557,7 +549,7 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(result["penalty"], 0)
         self.assertEqual(result["failedWeeks"], [])
 
-    def test_weekly_goal_penalizes_only_missing_sessions_in_completed_weeks(self):
+    def test_weekly_goal_never_penalizes_missing_sessions(self):
         result = weekly_challenge_penalty(
             [{"date": day} for day in ("2026-07-13", "2026-07-15")],
             set(),
@@ -565,15 +557,15 @@ class AuthSystemTestCase(unittest.TestCase):
             started_on=date(2026, 7, 6),
             as_of=date(2026, 7, 20),
         )
-        self.assertEqual(result["penalty"], 1)
-        self.assertEqual(result["failedWeeks"][0]["missing"], 1)
+        self.assertEqual(result["penalty"], 0)
+        self.assertEqual(result["failedWeeks"], [])
 
-    def test_weekly_goal_penalty_scales_with_every_missing_session(self):
+    def test_weekly_goal_missing_sessions_never_reduce_experience(self):
         week_start = date(2026, 7, 13)
         started_on = date(2026, 7, 6)
         as_of = date(2026, 7, 20)
 
-        for completed, expected_penalty in ((2, 1), (1, 2), (0, 3)):
+        for completed in (2, 1, 0):
             with self.subTest(completed=completed):
                 logs = [
                     {"date": (week_start + timedelta(days=offset)).isoformat()}
@@ -587,10 +579,10 @@ class AuthSystemTestCase(unittest.TestCase):
                     as_of=as_of,
                 )
 
-                self.assertEqual(result["penalty"], expected_penalty)
-                self.assertEqual(result["failedWeeks"][0]["missing"], expected_penalty)
+                self.assertEqual(result["penalty"], 0)
+                self.assertEqual(result["failedWeeks"], [])
 
-    def test_weekly_goal_uses_sos_reason_for_current_week_progress(self):
+    def test_weekly_goal_ignores_legacy_sos_records(self):
         today = date(2026, 7, 16)
         week_start = start_of_week(today)
         workout_days = [week_start.isoformat(), (week_start + timedelta(days=1)).isoformat()]
@@ -614,8 +606,8 @@ class AuthSystemTestCase(unittest.TestCase):
                 weekly_target_started_on=week_start,
             )
         self.assertEqual(result["weeklyWorkoutCompleted"], 2)
-        self.assertEqual(result["weeklyWorkoutRemaining"], 0)
-        self.assertEqual(result["weeklyRecoveryNotes"], [{"date": sos_day, "reason": "야근"}])
+        self.assertEqual(result["weeklyWorkoutRemaining"], 1)
+        self.assertEqual(result["weeklyRecoveryNotes"], [])
 
     def test_weekly_goal_is_login_only_and_can_be_changed(self):
         key = "weekly-goal-key-0001"
@@ -643,7 +635,7 @@ class AuthSystemTestCase(unittest.TestCase):
             user = db.session.query(HealthUser).filter_by(user_key=key).one()
             self.assertEqual(user.weekly_workout_target, 4)
 
-    def test_weekly_goal_change_preserves_existing_penalty_carryover(self):
+    def test_weekly_goal_change_ignores_existing_penalty_carryover(self):
         key = "weekly-carryover-key-0001"
         registered = self.register(key)
         self.assertEqual(registered.status_code, 201, registered.get_json())
@@ -658,10 +650,10 @@ class AuthSystemTestCase(unittest.TestCase):
             json={"target": 5},
         )
         self.assertEqual(changed.status_code, 200, changed.get_json())
-        self.assertEqual(changed.get_json()["stats"]["attendancePenaltyCarryover"], 2)
+        self.assertEqual(changed.get_json()["stats"]["attendancePenaltyCarryover"], 0)
         with app.app_context():
             user = db.session.query(HealthUser).filter_by(user_key=key).one()
-            self.assertEqual(user.weekly_penalty_carryover, 2)
+            self.assertEqual(user.weekly_penalty_carryover, 0)
 
     def test_auth_status_issues_csrf_and_register_requires_it(self):
         key = "csrf-register-key-0001"
@@ -1273,19 +1265,12 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(created_log["volume"], 578.0)
         self.assertEqual(created_log["restSeconds"], 105)
 
-        excuse_headers = self.csrf_headers(self.client, key)
-        first_excuse = self.client.post(
+        retired_excuse = self.client.post(
             "/api/excuses",
-            headers=excuse_headers,
+            headers=self.csrf_headers(self.client, key),
             json={"date": "2026-07-21", "reason": "회복 필요"},
         )
-        self.assertEqual(first_excuse.status_code, 201, first_excuse.get_json())
-        updated_excuse = self.client.post(
-            "/api/excuses",
-            headers=excuse_headers,
-            json={"date": "2026-07-21", "reason": "몸살"},
-        )
-        self.assertEqual(updated_excuse.status_code, 201, updated_excuse.get_json())
+        self.assertEqual(retired_excuse.status_code, 410, retired_excuse.get_json())
 
         day_logs = self.client.get("/api/logs/day?date=2026-07-20", headers=self.headers(key))
         month_logs = self.client.get("/api/logs?month=2026-07", headers=self.headers(key))
@@ -1307,8 +1292,7 @@ class AuthSystemTestCase(unittest.TestCase):
         bootstrap_data = bootstrap.get_json()
         self.assertEqual(bootstrap_data["profile"]["nickname"], "기록검증")
         self.assertEqual(bootstrap_data["latestByExercise"]["Bench Press"]["id"], created_log["id"])
-        self.assertEqual(len(bootstrap_data["excuses"]), 1)
-        self.assertEqual(bootstrap_data["excuses"][0]["reason"], "몸살")
+        self.assertEqual(bootstrap_data["excuses"], [])
 
         with app.app_context():
             user = db.session.query(HealthUser).filter_by(user_key=key).one()
@@ -1319,7 +1303,7 @@ class AuthSystemTestCase(unittest.TestCase):
                 [float(row.weight) for row in db.session.query(HealthSet).order_by(HealthSet.set_index)],
                 [17.0, 18.0, 19.0],
             )
-            self.assertEqual(db.session.query(HealthExcuse).filter_by(user_id=user.id).count(), 1)
+            self.assertEqual(db.session.query(HealthExcuse).filter_by(user_id=user.id).count(), 0)
 
         other_bootstrap = self.client.get("/api/bootstrap?month=2026-07", headers=self.headers(other_key))
         self.assertEqual(other_bootstrap.status_code, 200)
@@ -1364,7 +1348,7 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(latest.status_code, 200, latest.get_json())
         self.assertEqual(latest.get_json()["setWeights"], [0.0, 0.0, 0.0])
 
-    def test_level_history_deducts_latest_experience_and_recalculates_level(self):
+    def test_lower_record_does_not_reduce_experience_or_level(self):
         key = "level-history-key-0001"
         workout_date = date.today().isoformat()
 
@@ -1398,31 +1382,26 @@ class AuthSystemTestCase(unittest.TestCase):
 
         lower_record = save(9)
         self.assertEqual(lower_record.status_code, 201, lower_record.get_json())
-        self.assertTrue(lower_record.get_json()["leveledDown"])
-        self.assertTrue(lower_record.get_json()["experienceReduced"])
+        self.assertFalse(lower_record.get_json()["leveledDown"])
+        self.assertFalse(lower_record.get_json()["experienceReduced"])
         self.assertEqual(lower_record.get_json()["levelBefore"], 3)
-        self.assertEqual(lower_record.get_json()["levelAfter"], 2)
+        self.assertEqual(lower_record.get_json()["levelAfter"], 3)
         self.assertEqual(lower_record.get_json()["experienceBefore"], 2)
-        self.assertEqual(lower_record.get_json()["experienceAfter"], 1)
+        self.assertEqual(lower_record.get_json()["experienceAfter"], 2)
 
         stats = self.client.get("/api/stats", headers=self.headers(key))
         self.assertEqual(stats.status_code, 200, stats.get_json())
         history = stats.get_json()["levelHistory"]
-        self.assertEqual(len(history), 3)
-        self.assertEqual(stats.get_json()["level"], 2)
-        self.assertEqual(stats.get_json()["levelDowns"], 1)
-        self.assertEqual(stats.get_json()["experienceDowns"], 1)
-        self.assertEqual(history[0]["type"], "level_down")
-        self.assertEqual(history[0]["levelBefore"], 3)
-        self.assertEqual(history[0]["levelAfter"], 2)
-        self.assertEqual(history[0]["experienceDelta"], -1)
-        self.assertEqual(history[0]["reason"], "이전 기록보다 낮은 운동량")
-        self.assertEqual(history[1]["type"], "level_up")
-        self.assertEqual(history[1]["exercise"], "Bench Press")
-        self.assertEqual(history[1]["reason"], "신기록 달성")
-        self.assertEqual(history[1]["date"], workout_date)
-        self.assertEqual(history[2]["exercise"], "첫 운동 기록")
-        self.assertFalse(history[2]["preserved"])
+        self.assertEqual(len(history), 2)
+        self.assertEqual(stats.get_json()["level"], 3)
+        self.assertEqual(stats.get_json()["levelDowns"], 0)
+        self.assertEqual(stats.get_json()["experienceDowns"], 0)
+        self.assertEqual(history[0]["type"], "level_up")
+        self.assertEqual(history[0]["exercise"], "Bench Press")
+        self.assertEqual(history[0]["reason"], "신기록 달성")
+        self.assertEqual(history[0]["date"], workout_date)
+        self.assertEqual(history[1]["exercise"], "첫 운동 기록")
+        self.assertFalse(history[1]["preserved"])
         with app.app_context():
             bonuses = db.session.scalars(
                 select(HealthLevelEvent).where(
@@ -1492,7 +1471,7 @@ class AuthSystemTestCase(unittest.TestCase):
                 1,
             )
 
-    def test_high_level_loss_removes_latest_fractional_award_and_recalculates_level(self):
+    def test_high_level_lower_record_keeps_fractional_experience(self):
         workout_date = date.today().isoformat()
         logs = []
         for index in range(32):
@@ -1511,7 +1490,7 @@ class AuthSystemTestCase(unittest.TestCase):
         before_last_gain = stats_from_logs(logs[:-1], set())
         before = stats_from_logs(logs, set())
         self.assertGreaterEqual(before["level"], 20)
-        latest_award = before["experience"] - before_last_gain["experience"]
+        self.assertGreater(before["experience"], before_last_gain["experience"])
         logs.append(
             {
                 "exercise": "Bench Press",
@@ -1525,12 +1504,11 @@ class AuthSystemTestCase(unittest.TestCase):
         )
 
         after = stats_from_logs(logs, set())
-        self.assertAlmostEqual(after["experience"], before["experience"] - latest_award, places=2)
-        self.assertEqual(after["level"], level_for_experience(after["experience"]))
-        expected_type = "level_down" if after["level"] < before["level"] else "experience_down"
-        self.assertEqual(after["levelHistory"][0]["type"], expected_type)
-        self.assertEqual(after["levelDowns"], 1 if after["level"] < before["level"] else 0)
-        self.assertAlmostEqual(after["levelHistory"][0]["experienceDelta"], -latest_award, places=2)
+        self.assertAlmostEqual(after["experience"], before["experience"], places=2)
+        self.assertEqual(after["level"], before["level"])
+        self.assertEqual(after["levelDowns"], 0)
+        self.assertEqual(after["experienceDowns"], 0)
+        self.assertEqual(after["levelHistory"], before["levelHistory"])
 
     def test_experience_gain_is_recorded_even_when_level_is_maintained(self):
         logs = [
@@ -1569,7 +1547,7 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(stats["levelHistory"][0]["levelAfter"], 20)
         self.assertAlmostEqual(stats["levelHistory"][0]["experienceDelta"], 0.5, places=2)
 
-    def test_breakthrough_after_penalty_advances_from_current_level_only(self):
+    def test_breakthrough_ignores_legacy_penalty_carryover(self):
         workout_date = date.today().isoformat()
         logs = [
             {
@@ -1590,8 +1568,8 @@ class AuthSystemTestCase(unittest.TestCase):
             weekly_target_started_on=date.today(),
             attendance_penalty_carryover=6,
         )
-        self.assertEqual(before["level"], 4)
-        self.assertAlmostEqual(before["experience"], 3.7, places=2)
+        self.assertEqual(before["level"], 10)
+        self.assertAlmostEqual(before["experience"], 9.7, places=2)
 
         logs.append(
             {
@@ -1611,11 +1589,11 @@ class AuthSystemTestCase(unittest.TestCase):
             weekly_target_started_on=date.today(),
             attendance_penalty_carryover=6,
         )
-        self.assertEqual(after["level"], 5)
+        self.assertEqual(after["level"], 11)
         self.assertLessEqual(after["level"] - before["level"], 1)
-        self.assertAlmostEqual(after["experience"], 4.4, places=2)
+        self.assertAlmostEqual(after["experience"], 10.4, places=2)
 
-    def test_experience_loss_keeps_level_when_xp_remains_above_level_floor(self):
+    def test_lower_record_keeps_experience_at_high_level(self):
         workout_date = date.today().isoformat()
         logs = [
             {
@@ -1648,10 +1626,10 @@ class AuthSystemTestCase(unittest.TestCase):
         )
         after = stats_from_logs(logs, set())
         self.assertEqual(after["level"], 10)
-        self.assertAlmostEqual(after["experience"], 9, places=2)
+        self.assertAlmostEqual(after["experience"], 9.7, places=2)
         self.assertEqual(after["levelDowns"], 0)
-        self.assertEqual(after["levelHistory"][0]["type"], "experience_down")
-        self.assertAlmostEqual(after["levelHistory"][0]["experienceDelta"], -0.7, places=2)
+        self.assertEqual(after["experienceDowns"], 0)
+        self.assertEqual(after["levelHistory"], before["levelHistory"])
 
     def test_breakthrough_experience_schedule_matches_confirmed_balance(self):
         expected_rates = {

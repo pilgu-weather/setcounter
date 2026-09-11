@@ -774,7 +774,6 @@ const state = {
   complaintSubmitting: false,
   editingExercises: false,
   exercisePickerExpanded: false,
-  excuses: [],
   lastRecord: null,
   logs: [],
   recommendationLogs: [],
@@ -789,7 +788,6 @@ const state = {
   selectedExercise: exercises[0],
   selectedExercisesForDelete: new Set(),
   serviceWorkerReady: null,
-  sosSubmitting: false,
   menuOverlayTrigger: null,
   levelUpContinuation: null,
   seasonMomentContinuation: null,
@@ -850,8 +848,6 @@ const els = {
   levelHistoryLedger: document.querySelector("#levelHistoryLedger"),
   levelHistoryGainCount: document.querySelector("#levelHistoryGainCount"),
   levelHistoryGainXp: document.querySelector("#levelHistoryGainXp"),
-  levelHistoryLossCount: document.querySelector("#levelHistoryLossCount"),
-  levelHistoryLossXp: document.querySelector("#levelHistoryLossXp"),
   levelHistoryReasons: document.querySelector("#levelHistoryReasons"),
   levelHistoryReasonList: document.querySelector("#levelHistoryReasonList"),
   levelHistoryCount: document.querySelector("#levelHistoryCount"),
@@ -1044,14 +1040,6 @@ const els = {
   undoSetButton: document.querySelector("#undoSetButton"),
   confirmWorkoutButton: document.querySelector("#confirmWorkoutButton"),
   recordCompare: document.querySelector("#recordCompare"),
-  calendarSosButton: document.querySelector("#calendarSosButton"),
-  sosReasonInput: document.querySelector("#sosReasonInput"),
-  sosReasonCounter: document.querySelector("#sosReasonCounter"),
-  sosReasonButtons: document.querySelectorAll("[data-sos-reason]"),
-  sosSelectedDate: document.querySelector("#sosSelectedDate"),
-  sosStatus: document.querySelector("#sosStatus"),
-  sosButton: document.querySelector("#sosButton"),
-  menuSosSection: document.querySelector("#menuSosSection"),
   workoutDeleteModal: document.querySelector("#workoutDeleteModal"),
   workoutDeleteMessage: document.querySelector("#workoutDeleteMessage"),
   cancelWorkoutDeleteButton: document.querySelector("#cancelWorkoutDeleteButton"),
@@ -1086,7 +1074,6 @@ const els = {
   calendarGrid: document.querySelector("#calendarGrid"),
   calendarMuscleDetail: document.querySelector("#calendarMuscleDetail"),
   calendarDayDetail: document.querySelector("#calendarDayDetail"),
-  calendarExcuseList: document.querySelector("#calendarExcuseList"),
   prevMonthButton: document.querySelector("#prevMonthButton"),
   nextMonthButton: document.querySelector("#nextMonthButton"),
   historyList: document.querySelector("#historyList"),
@@ -1115,7 +1102,6 @@ function setActiveScreen(screenName) {
     button.classList.toggle("is-active", button.dataset.tab === screenName);
   });
   if (screenName === "record") syncCounter();
-  if (screenName === "menu") renderMenuSos();
   const direction = previousNavIndex >= 0 && nextNavIndex >= 0 ? Math.sign(nextNavIndex - previousNavIndex) : 0;
   window.SetCounterMotion?.transitionScreen(previousScreen, nextScreen, direction);
   window.scrollTo({ top: 0, behavior: reducedMotionPreferred() ? "auto" : "smooth" });
@@ -1205,17 +1191,15 @@ function renderWeeklyGoal(resetDraft = false) {
   if (resetDraft || state.weeklyGoalDraft === null) state.weeklyGoalDraft = target;
   const draft = Math.min(Math.max(Number(state.weeklyGoalDraft) || target, 1), 7);
   const completed = Math.max(Number(state.stats?.weeklyWorkoutCompleted) || 0, 0);
-  const recoveryNotes = Array.isArray(state.stats?.weeklyRecoveryNotes) ? state.stats.weeklyRecoveryNotes : [];
   const remaining = Math.max(Number(state.stats?.weeklyWorkoutRemaining) || 0, 0);
-  const covered = Math.min(completed + recoveryNotes.length, target);
+  const covered = Math.min(completed, target);
   const ratio = target > 0 ? Math.min(covered / target, 1) : 0;
-  const reasons = recoveryNotes.map((item) => String(item?.reason || "").trim()).filter(Boolean);
   const isEnglish = window.SetCounterI18n?.isEnglish();
   els.weeklyGoalBadge.textContent = isEnglish ? `${target}x/week` : `주 ${target}회`;
   const weeklyProgressLabel = isEnglish
     ? `${completed} workouts this week`
     : `이번 주 ${completed}회 운동`;
-  els.weeklyGoalProgress.textContent = `${weeklyProgressLabel}${reasons.length ? ` · ${reasons.join(" · ")}` : ""}`;
+  els.weeklyGoalProgress.textContent = weeklyProgressLabel;
   els.weeklyGoalRemaining.textContent = remaining > 0
     ? (isEnglish ? `${remaining} to goal` : `목표까지 ${remaining}회`)
     : (isEnglish ? "Weekly goal complete" : "이번 주 목표 충족");
@@ -1227,8 +1211,8 @@ function renderWeeklyGoal(resetDraft = false) {
   els.weeklyGoalIncrease.disabled = draft >= 7;
   els.weeklyGoalSaveButton.disabled = draft === target;
   els.weeklyGoalHelp.textContent = isEnglish
-    ? `Train on any ${draft} days from Monday through Sunday. Resting on the other ${7 - draft} days will not reduce XP. This week is a grace period; evaluation begins after the next full week.`
-    : `월요일부터 일요일 사이 원하는 ${draft}일에 운동하면 됩니다. 나머지 ${7 - draft}일은 쉬어도 경험치가 차감되지 않습니다. 설정한 주는 안내 기간이며 다음 완료 주부터 판정합니다.`;
+    ? `Train on any ${draft} days from Monday through Sunday. The weekly goal only tracks your plan and progress.`
+    : `월요일부터 일요일 사이 원하는 ${draft}일에 운동하면 됩니다. 주간 목표는 운동 계획과 진행 상황을 확인하는 용도로만 사용됩니다.`;
 }
 
 function changeWeeklyGoalDraft(offset) {
@@ -1432,7 +1416,6 @@ async function resetToAnonymousUser() {
   replaceHealthUserKey();
   state.logs = [];
   state.recommendationLogs = [];
-  state.excuses = [];
   state.boardPosts = [];
   state.profile = null;
   state.stats = null;
@@ -1977,7 +1960,6 @@ function renderProfile(profile = state.profile) {
     els.menuNicknameButton.disabled = state.profile?.canChangeNickname === false;
   }
   renderWeeklyGoal(previousWeeklyTarget !== state.profile?.weeklyWorkoutTarget);
-  renderMenuSos();
   renderBoard();
   renderLevelHistory();
   if (state.profile?.nicknameRequired || state.profile?.genderRequired) {
@@ -2031,12 +2013,12 @@ function formatLevelHistoryDate(value) {
 }
 
 const LEVEL_HISTORY_COPY = {
-  ko: { gain: "경험치 획득", loss: "경험치 차감", reasons: "변동 사유", recent: "최근 내역 기준", times: "회", levelUp: "레벨 상승", levelDown: "레벨 하락", levelKeep: "레벨 유지", personalBest: "신기록 달성", lowerVolume: "이전 기록보다 낮은 운동량", weeklyMiss: "주간 운동 목표 미달", previousMiss: "이전 운동 목표 미달", recordPenalty: "기록 패널티", xpLevelDown: "경험치 차감으로 레벨 하락", adjustment: "경험치 조정", firstWorkout: "첫 운동 기록", volumeMilestone: "누적 볼륨 {value}kg 달성" },
-  en: { gain: "XP gained", loss: "XP deducted", reasons: "Why XP changed", recent: "Recent history", times: " times", levelUp: "Level up", levelDown: "Level down", levelKeep: "Level maintained", personalBest: "New personal best", lowerVolume: "Lower volume than the previous record", weeklyMiss: "Weekly workout goal missed", previousMiss: "Previous workout goal missed", recordPenalty: "Record penalty", xpLevelDown: "Level down after XP deduction", adjustment: "XP adjustment", firstWorkout: "First workout recorded", volumeMilestone: "{value}kg cumulative volume milestone" },
-  ja: { gain: "XP獲得", loss: "XP減少", reasons: "変動理由", recent: "最近の履歴", times: "回", levelUp: "レベルアップ", levelDown: "レベルダウン", levelKeep: "レベル維持", personalBest: "自己ベスト更新", lowerVolume: "前回より低いトレーニング量", weeklyMiss: "週間目標未達", previousMiss: "以前の運動目標未達", recordPenalty: "記録ペナルティ", xpLevelDown: "XP減少によるレベルダウン", adjustment: "XP調整", firstWorkout: "初回ワークアウト記録", volumeMilestone: "累積ボリューム{value}kg達成" },
-  es: { gain: "XP ganado", loss: "XP descontado", reasons: "Motivos del cambio", recent: "Historial reciente", times: " veces", levelUp: "Subida de nivel", levelDown: "Bajada de nivel", levelKeep: "Nivel mantenido", personalBest: "Nuevo récord personal", lowerVolume: "Volumen inferior al registro anterior", weeklyMiss: "Objetivo semanal no cumplido", previousMiss: "Objetivo anterior no cumplido", recordPenalty: "Penalización de registro", xpLevelDown: "Bajada de nivel por pérdida de XP", adjustment: "Ajuste de XP", firstWorkout: "Primer entrenamiento registrado", volumeMilestone: "Hito de {value}kg de volumen acumulado" },
-  zh: { gain: "获得经验值", loss: "扣除经验值", reasons: "变动原因", recent: "近期记录", times: "次", levelUp: "等级提升", levelDown: "等级下降", levelKeep: "等级保持", personalBest: "刷新个人纪录", lowerVolume: "训练量低于上次记录", weeklyMiss: "未完成每周训练目标", previousMiss: "未完成之前的训练目标", recordPenalty: "记录处罚", xpLevelDown: "经验值扣除导致等级下降", adjustment: "经验值调整", firstWorkout: "首次训练记录", volumeMilestone: "累计训练量达到{value}kg" },
-  ru: { gain: "Получено XP", loss: "Списано XP", reasons: "Причины изменений", recent: "Недавняя история", times: " раз", levelUp: "Повышение уровня", levelDown: "Снижение уровня", levelKeep: "Уровень сохранён", personalBest: "Новый личный рекорд", lowerVolume: "Объём ниже предыдущего результата", weeklyMiss: "Недельная цель не выполнена", previousMiss: "Предыдущая цель не выполнена", recordPenalty: "Штраф за запись", xpLevelDown: "Снижение уровня после списания XP", adjustment: "Корректировка XP", firstWorkout: "Первая тренировка записана", volumeMilestone: "Достигнут суммарный объём {value}kg" },
+  ko: { gain: "경험치 획득", reasons: "획득 사유", recent: "최근 내역 기준", times: "회", levelUp: "레벨 상승", levelKeep: "레벨 유지", personalBest: "신기록 달성", adjustment: "경험치 조정", firstWorkout: "첫 운동 기록", volumeMilestone: "누적 볼륨 {value}kg 달성" },
+  en: { gain: "XP gained", reasons: "Why XP was earned", recent: "Recent history", times: " times", levelUp: "Level up", levelKeep: "Level maintained", personalBest: "New personal best", adjustment: "XP adjustment", firstWorkout: "First workout recorded", volumeMilestone: "{value}kg cumulative volume milestone" },
+  ja: { gain: "XP獲得", reasons: "獲得理由", recent: "最近の履歴", times: "回", levelUp: "レベルアップ", levelKeep: "レベル維持", personalBest: "自己ベスト更新", adjustment: "XP調整", firstWorkout: "初回ワークアウト記録", volumeMilestone: "累積ボリューム{value}kg達成" },
+  es: { gain: "XP ganado", reasons: "Motivos de obtención", recent: "Historial reciente", times: " veces", levelUp: "Subida de nivel", levelKeep: "Nivel mantenido", personalBest: "Nuevo récord personal", adjustment: "Ajuste de XP", firstWorkout: "Primer entrenamiento registrado", volumeMilestone: "Hito de {value}kg de volumen acumulado" },
+  zh: { gain: "获得经验值", reasons: "获得原因", recent: "近期记录", times: "次", levelUp: "等级提升", levelKeep: "等级保持", personalBest: "刷新个人纪录", adjustment: "经验值调整", firstWorkout: "首次训练记录", volumeMilestone: "累计训练量达到{value}kg" },
+  ru: { gain: "Получено XP", reasons: "Причины получения", recent: "Недавняя история", times: " раз", levelUp: "Повышение уровня", levelKeep: "Уровень сохранён", personalBest: "Новый личный рекорд", adjustment: "Корректировка XP", firstWorkout: "Первая тренировка записана", volumeMilestone: "Достигнут суммарный объём {value}kg" },
 };
 
 function levelHistoryCopy() {
@@ -2062,13 +2044,6 @@ function localizeLevelHistoryReason(reason) {
   const value = String(reason || "");
   const direct = {
     "신기록 달성": copy.personalBest,
-    "이전 기록보다 낮은 운동량": copy.lowerVolume,
-    "운동 목표 미달": copy.weeklyMiss,
-    "주간 운동 목표 미달": copy.weeklyMiss,
-    "이전 운동 목표 미달": copy.previousMiss,
-    "기록 패널티": copy.recordPenalty,
-    "경험치 차감으로 레벨 하락": copy.xpLevelDown,
-    "경험치 차감": copy.loss,
     "경험치 조정": copy.adjustment,
     "첫 운동 기록": copy.firstWorkout,
   }[value];
@@ -2089,8 +2064,6 @@ function levelHistoryReason(event) {
   if (event?.reason) return String(event.reason);
   const direction = levelHistoryDirection(event);
   if (direction === "up") return "신기록 달성";
-  if (event?.type === "level_down") return "경험치 차감으로 레벨 하락";
-  if (direction === "down") return "경험치 차감";
   return "경험치 조정";
 }
 
@@ -2123,21 +2096,11 @@ function renderLevelHistory() {
   const level = stats.level || state.profile?.level || 1;
   const nickname = displayNickname(state.profile?.nickname);
   const percent = Math.min(Math.max(Number(stats.experiencePercent) || 0, 0), 100);
-  const history = Array.isArray(stats.levelHistory) ? stats.levelHistory : [];
+  const history = (Array.isArray(stats.levelHistory) ? stats.levelHistory : [])
+    .filter((event) => levelHistoryDirection(event) === "up");
   const copy = levelHistoryCopy();
-  const gainedEvents = history.filter((event) => levelHistoryDirection(event) === "up");
-  const lostEvents = history.filter((event) => levelHistoryDirection(event) === "down");
+  const gainedEvents = history;
   const gainedExperience = gainedEvents.reduce((sum, event) => sum + Math.max(Number(event.experienceDelta) || 0, 0), 0);
-  const lostExperience = lostEvents.reduce((sum, event) => sum + Math.abs(Math.min(Number(event.experienceDelta) || 0, 0)), 0);
-  const historyLevelDowns = history.reduce((total, event) => {
-    if (event.type !== "level_down") return total;
-    return total + Math.max((Number(event.levelBefore) || 0) - (Number(event.levelAfter) || 0), 1);
-  }, 0);
-  const levelDowns = Math.max(
-    Number(stats.levelDowns) || 0,
-    Number(stats.recordedLevelDowns) || 0,
-    historyLevelDowns,
-  );
   els.levelHistoryAthlete.innerHTML = `
     ${levelBadgeMarkup(level)}
     <span><small>LEVEL ${level}</small><strong>${escapeHtml(nickname)}</strong></span>
@@ -2147,16 +2110,13 @@ function renderLevelHistory() {
   els.levelHistoryXpTrack.setAttribute("aria-valuenow", String(level >= 99 ? 100 : percent));
   els.levelHistoryXpDetail.textContent = level >= 99
     ? `최고 레벨 달성 · 누적 ${displayExperience(stats.experience)} XP`
-    : `누적 ${displayExperience(stats.experience)} XP · 신기록 ${stats.levelUps || 0}회 · 레벨다운 ${levelDowns}회`;
+    : `누적 ${displayExperience(stats.experience)} XP · 신기록 ${stats.levelUps || 0}회`;
   els.levelHistoryCount.textContent = `${history.length}건`;
   els.levelHistoryLedger.querySelector(".is-up small").textContent = copy.gain;
-  els.levelHistoryLedger.querySelector(".is-down small").textContent = copy.loss;
   els.levelHistoryReasons.querySelector("h3").textContent = copy.reasons;
   els.levelHistoryReasons.querySelector(".level-history-reasons-head span").textContent = copy.recent;
   els.levelHistoryGainCount.textContent = formatLevelHistoryCount(0);
-  els.levelHistoryLossCount.textContent = formatLevelHistoryCount(0);
   els.levelHistoryGainXp.textContent = "+0 XP";
-  els.levelHistoryLossXp.textContent = "-0 XP";
   renderLevelHistoryReasons(history);
   els.levelHistoryList.replaceChildren();
   if (!history.length) {
@@ -2169,38 +2129,31 @@ function renderLevelHistory() {
   }
   history.forEach((event) => {
     const direction = levelHistoryDirection(event);
-    const up = direction === "up";
-    const down = direction === "down";
     const levelUp = event.type === "level_up" && Number(event.levelAfter) > Number(event.levelBefore);
-    const levelDown = event.type === "level_down" && Number(event.levelAfter) < Number(event.levelBefore);
     const experienceDelta = Math.abs(Number(event.experienceDelta) || 0);
     const displayedExperienceDelta = displayExperience(experienceDelta);
     const resultMarkup = levelUp
       ? `<small>LV.${event.levelBefore}</small><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg><strong>LV.${event.levelAfter}</strong>`
-      : levelDown
-        ? `<small>LV.${event.levelBefore}</small><svg class="lucide" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg><strong>LV.${event.levelAfter}</strong>`
-        : `<strong>${up ? "+" : "-"}${displayedExperienceDelta} XP</strong>`;
+      : `<strong>+${displayedExperienceDelta} XP</strong>`;
     const reason = levelHistoryReason(event);
     const displayedReason = localizeLevelHistoryReason(reason);
     const subject = event.exercise && event.exercise !== reason ? String(event.exercise) : "";
     const displayedSubject = subject ? (window.SetCounterI18n?.exerciseName?.(subject) || subject) : "";
-    const outcome = levelUp ? copy.levelUp : levelDown ? copy.levelDown : copy.levelKeep;
+    const outcome = levelUp ? copy.levelUp : copy.levelKeep;
     const item = document.createElement("article");
     item.className = `level-history-item is-${direction}`;
     item.dataset.motionKey = `level-history:${event.date || ""}:${event.createdAt || ""}:${reason}`;
     item.setAttribute("data-i18n-skip", "");
     item.innerHTML = `
-      <span class="level-history-direction" aria-hidden="true"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${up ? "m18 15-6-6-6 6" : "m6 9 6 6 6-6"}"/></svg></span>
-      <span class="level-history-copy"><small>${escapeHtml(formatLevelHistoryDate(event.date))}</small><strong>${escapeHtml(displayedReason)}</strong><em>${displayedSubject ? `${escapeHtml(displayedSubject)} · ` : ""}${up ? "+" : "-"}${displayedExperienceDelta} XP · ${outcome}</em></span>
+      <span class="level-history-direction" aria-hidden="true"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></span>
+      <span class="level-history-copy"><small>${escapeHtml(formatLevelHistoryDate(event.date))}</small><strong>${escapeHtml(displayedReason)}</strong><em>${displayedSubject ? `${escapeHtml(displayedSubject)} · ` : ""}+${displayedExperienceDelta} XP · ${outcome}</em></span>
       <span class="level-history-level">${resultMarkup}</span>
     `;
     els.levelHistoryList.append(item);
   });
   window.requestAnimationFrame(() => {
     window.SetCounterMotion?.animateCounter(els.levelHistoryGainCount, gainedEvents.length, formatLevelHistoryCount, { duration: 0.5, from: 0 });
-    window.SetCounterMotion?.animateCounter(els.levelHistoryLossCount, lostEvents.length, formatLevelHistoryCount, { duration: 0.5, from: 0 });
     window.SetCounterMotion?.animateCounter(els.levelHistoryGainXp, gainedExperience, (value) => `+${displayExperience(value)} XP`, { duration: 0.62, from: 0 });
-    window.SetCounterMotion?.animateCounter(els.levelHistoryLossXp, lostExperience, (value) => `-${displayExperience(value)} XP`, { duration: 0.62, from: 0 });
     window.SetCounterMotion?.animateLevelHistory?.(els.levelHistoryModal);
   });
 }
@@ -2220,11 +2173,8 @@ function renderLevelHistoryLoading() {
   els.levelHistoryXpTrack.setAttribute("aria-valuenow", "0");
   els.levelHistoryXpDetail.textContent = "레벨 기록 불러오는 중...";
   els.levelHistoryLedger.querySelector(".is-up small").textContent = copy.gain;
-  els.levelHistoryLedger.querySelector(".is-down small").textContent = copy.loss;
   els.levelHistoryGainCount.textContent = formatLevelHistoryCount(0);
-  els.levelHistoryLossCount.textContent = formatLevelHistoryCount(0);
   els.levelHistoryGainXp.textContent = "+0 XP";
-  els.levelHistoryLossXp.textContent = "-0 XP";
   els.levelHistoryReasons.hidden = true;
   els.levelHistoryReasonList.replaceChildren();
   els.levelHistoryCount.textContent = "";
@@ -2949,43 +2899,6 @@ function menuSelectedDateText() {
   return date.toLocaleDateString(window.SetCounterI18n?.dateLocale?.() || "ko-KR", { month: "long", day: "numeric", weekday: "short" });
 }
 
-function syncSosReasonInput() {
-  if (!els.sosReasonInput) return;
-  const length = els.sosReasonInput.value.length;
-  if (els.sosReasonCounter) els.sosReasonCounter.textContent = `${length} / 500`;
-  if (els.sosButton) els.sosButton.disabled = state.sosSubmitting || !els.sosReasonInput.value.trim() || length > 500;
-  els.sosReasonButtons.forEach((button) => {
-    button.classList.toggle("is-selected", button.dataset.sosReason === els.sosReasonInput.value.trim());
-  });
-}
-
-function renderMenuSos() {
-  if (!els.sosSelectedDate || !els.sosStatus) return;
-  const excuse = excuseForDate(state.selectedDate);
-  els.sosSelectedDate.textContent = menuSelectedDateText();
-  els.sosStatus.classList.toggle("has-record", Boolean(excuse));
-  els.sosStatus.hidden = !excuse;
-  els.sosStatus.textContent = excuse
-    ? `${window.SetCounterI18n?.isEnglish() ? "Saved SOS note" : "저장된 회복 사유"} · ${excuse.reason}`
-    : "";
-  if (excuse && document.activeElement !== els.sosReasonInput) {
-    els.sosReasonInput.value = excuse.reason || "";
-  }
-  if (!excuse && document.activeElement !== els.sosReasonInput) els.sosReasonInput.value = "";
-  const buttonLabel = els.sosButton?.querySelector("span");
-  if (buttonLabel && !state.sosSubmitting) buttonLabel.textContent = excuse ? "SOS 업데이트" : "SOS 저장";
-  syncSosReasonInput();
-}
-
-function openMenuSos() {
-  setActiveScreen("menu");
-  window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-    els.menuSosSection?.scrollIntoView({ behavior: reducedMotionPreferred() ? "auto" : "smooth", block: "start" });
-    els.menuSosSection?.classList.add("is-arrival-highlighted");
-    window.setTimeout(() => els.menuSosSection?.classList.remove("is-arrival-highlighted"), 900);
-  }));
-}
-
 function openWorkoutDeleteConfirm(log, displayName) {
   state.pendingWorkoutDelete = { id: log.id, displayName };
   els.workoutDeleteMessage.textContent = `${displayName} 기록을 삭제하면 세트와 통계에서도 사라집니다.`;
@@ -3038,12 +2951,11 @@ function syncSelectedDateUi() {
   if (els.selectedDateBanner) {
     els.selectedDateBanner.classList.toggle("is-past", state.selectedDate !== todayKey);
   }
-  renderMenuSos();
 }
 
 function announceLevelChange(previousLevel, nextLevel) {
   if (!previousLevel || nextLevel === previousLevel) return;
-  showToast(nextLevel > previousLevel ? `레벨업: LV.${nextLevel}` : `레벨다운: LV.${nextLevel}`);
+  if (nextLevel > previousLevel) showToast(`레벨업: LV.${nextLevel}`);
 }
 
 function reducedMotionPreferred() {
@@ -3236,16 +3148,8 @@ function closeLevelUpScreen() {
 
 function announceCheatGuard(previousStats, nextStats) {
   if (!previousStats || !nextStats) return false;
-  const previousPenalty = previousStats.cheatPenalty || 0;
-  const nextPenalty = nextStats.cheatPenalty || 0;
   const previousCount = previousStats.cheatSuspicionCount || 0;
   const nextCount = nextStats.cheatSuspicionCount || 0;
-  if (nextPenalty > previousPenalty) {
-    const email = nextStats.complaintEmail || "";
-    showToast(`부정행위 판정으로 경험치가 차감되었습니다. 컴플레인 이메일: ${email}`);
-    openComplaintModal();
-    return true;
-  }
   if (nextCount > previousCount) {
     showToast("비정상 기록이 반복되면 부정행위로 제한을 받을 수 있습니다.");
     return true;
@@ -3827,7 +3731,6 @@ async function loadBootstrap(options = {}) {
   const data = await api(`/api/bootstrap?${query.toString()}`);
   state.logs = data.logs;
   state.recommendationLogs = Object.values(data.latestByExercise || {});
-  state.excuses = data.excuses;
   state.boardPosts = data.boardPosts || [];
   state.profile = data.profile;
   let appliedRecommendation = null;
@@ -4086,10 +3989,6 @@ async function startNextRecommendation() {
   await selectExercise(exercise);
 }
 
-function excuseForDate(dateKey) {
-  return state.excuses.find((excuse) => excuse.date === dateKey) || null;
-}
-
 function exercisePartName(exerciseName) {
   const part = bodyForExercise(exerciseName || "", "");
   return part && part !== "기타" ? part : "기타";
@@ -4146,8 +4045,6 @@ function renderCalendar() {
     row.logs.push(log);
     daily.set(log.date, row);
   });
-  const excusesByDate = new Map(state.excuses.map((excuse) => [excuse.date, excuse]));
-
   els.calendarTitle.textContent = window.SetCounterI18n?.isEnglish()
     ? new Date(year, month, 1).toLocaleDateString(window.SetCounterI18n?.dateLocale?.() || "en-US", { month: "long", year: "numeric" })
     : `${year}년 ${month + 1}월`;
@@ -4162,7 +4059,6 @@ function renderCalendar() {
   for (let day = 1; day <= lastDate; day += 1) {
     const key = `${year}-${pad(month + 1)}-${pad(day)}`;
     const summary = daily.get(key);
-    const excuse = excusesByDate.get(key);
     const cell = document.createElement("button");
     cell.type = "button";
     cell.className = "day-cell";
@@ -4192,17 +4088,10 @@ function renderCalendar() {
     if (key === todayKey) cell.classList.add("is-today");
     if (key === state.selectedDate) cell.classList.add("is-selected");
     if (summary) cell.classList.add("has-workout");
-    if (excuse) {
-      if (!summary) cell.classList.add("has-sos");
-      cell.title = summary
-        ? `운동 기록 ${breakdownText} · SOS: ${excuse.reason}`
-        : `SOS: ${excuse.reason}`;
-    }
     cell.addEventListener("click", () => chooseDate(key));
     els.calendarGrid.append(cell);
   }
   renderDayDetail();
-  renderExcuses();
 }
 
 function muscleSummaryForLogs(logs) {
@@ -4492,28 +4381,6 @@ function renderDayDetail() {
     els.weightInput.focus({ preventScroll: true });
   });
   els.calendarDayDetail.append(action);
-}
-
-function renderExcuses() {
-  els.calendarExcuseList.replaceChildren();
-  const monthExcuses = [...state.excuses].sort((a, b) => b.date.localeCompare(a.date));
-  if (!monthExcuses.length) return;
-  const heading = document.createElement("h3");
-  heading.textContent = "SOS 사유";
-  els.calendarExcuseList.append(heading);
-  monthExcuses.forEach((excuse) => {
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = "calendar-excuse-item";
-    item.dataset.excuseDate = excuse.date;
-    const dateLabel = document.createElement("strong");
-    dateLabel.textContent = excuse.date;
-    const reason = document.createElement("p");
-    reason.textContent = excuse.reason;
-    item.append(dateLabel, reason);
-    item.addEventListener("click", () => chooseDate(excuse.date));
-    els.calendarExcuseList.append(item);
-  });
 }
 
 async function chooseDate(dateKey, options = {}) {
@@ -5209,37 +5076,6 @@ function renderHistory() {
   renderHomeDashboard();
 }
 
-async function saveSosExcuse() {
-  if (state.sosSubmitting) return;
-  const previousLevel = state.stats?.level;
-  const reason = els.sosReasonInput.value.trim();
-  if (!reason) {
-    showToast("SOS 사유를 입력해주세요.");
-    return;
-  }
-  state.sosSubmitting = true;
-  els.sosButton.classList.add("is-loading");
-  els.sosButton.querySelector("span").textContent = "저장 중...";
-  syncSosReasonInput();
-  let succeeded = false;
-  try {
-    await api("/api/excuses", {
-      method: "POST",
-      body: JSON.stringify({ date: state.selectedDate, reason }),
-    });
-    const data = await loadBootstrap();
-    showToast(`${state.selectedDate} SOS를 저장했습니다.`);
-    announceLevelChange(previousLevel, data.stats.level);
-    succeeded = true;
-  } finally {
-    state.sosSubmitting = false;
-    els.sosButton.classList.remove("is-loading");
-    els.sosButton.querySelector("span").textContent = excuseForDate(state.selectedDate) ? "SOS 업데이트" : "SOS 저장";
-    renderMenuSos();
-    if (succeeded) window.SetCounterMotion?.animateButtonComplete(els.sosButton);
-  }
-}
-
 async function saveWorkout() {
   const previousLevel = state.stats?.level;
   const previousStats = state.stats ? { ...state.stats } : null;
@@ -5618,7 +5454,6 @@ function bindEvents() {
     closeNicknameModal(true);
     openAuthModal("login");
   });
-  els.calendarSosButton.addEventListener("click", openMenuSos);
   els.userBadgeLabel.addEventListener("click", openLevelHistory);
   els.closeLevelHistoryButton.addEventListener("click", closeLevelHistory);
   els.levelHistoryModal.addEventListener("click", (event) => {
@@ -5681,15 +5516,6 @@ function bindEvents() {
     });
   });
   els.enableReminderButton.addEventListener("click", () => enableReminder().catch((error) => showToast(error.message)));
-  els.sosReasonInput.addEventListener("input", syncSosReasonInput);
-  els.sosReasonButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      els.sosReasonInput.value = button.dataset.sosReason || "";
-      syncSosReasonInput();
-      els.sosReasonInput.focus();
-    });
-  });
-  els.sosButton.addEventListener("click", () => saveSosExcuse().catch((error) => showToast(error.message)));
   els.boardForm.addEventListener("submit", submitBoardPost);
   els.boardInput.addEventListener("input", syncBoardPostCounter);
   els.boardTermsInput?.addEventListener("change", () => {
