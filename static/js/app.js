@@ -1808,17 +1808,20 @@ function syncRecordCompare() {
   const lastVolume = state.lastRecord?.volume || 0;
   els.recordCompare.textContent = "";
   els.recordCompare.classList.remove("is-visible", "is-cleared");
-  if (!lastVolume || completed !== Math.max(target - 1, 0)) return;
+  if (!lastVolume || completed < Math.max(target - 1, 0)) return;
 
   const currentWeight = normalizedWeight(false);
-  if (currentWeight <= 0) return;
-  const afterNextSetVolume = totalVolume(state.setRows) + currentWeight * currentReps();
-  const remainingVolume = Math.max(lastVolume - afterNextSetVolume, 0);
-  const remainingReps = Math.ceil(remainingVolume / currentWeight);
+  const comparedVolume = totalVolume(state.setRows)
+    + (completed < target ? currentWeight * currentReps() : 0);
+  const difference = comparedVolume - lastVolume;
+  if (difference < 0 && currentWeight <= 0) return;
+  const remainingReps = Math.ceil(Math.max(-difference, 0) / (currentWeight || 1));
   els.recordCompare.classList.add("is-visible");
-  if (remainingReps === 0) {
+  if (difference > 0) {
     els.recordCompare.classList.add("is-cleared");
-    els.recordCompare.textContent = "지난 볼륨을 넘길 수 있습니다.";
+    els.recordCompare.textContent = "새로운 기록입니다!";
+  } else if (difference === 0) {
+    els.recordCompare.textContent = "지난 볼륨과 같습니다.";
   } else {
     els.recordCompare.textContent = `지난 볼륨까지 현재 무게 기준 ${remainingReps}회 남았습니다`;
   }
