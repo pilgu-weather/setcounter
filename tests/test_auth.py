@@ -1471,6 +1471,21 @@ class AuthSystemTestCase(unittest.TestCase):
                 1,
             )
 
+    def test_late_bonus_does_not_reprice_earlier_breakthroughs(self):
+        logs = [
+            {"exercise": "Curl", "date": "2026-09-13",
+             "createdAt": f"2026-09-13T00:{index:02d}:00Z",
+             "volume": 100 + index, "totalReps": 10,
+             "completedSets": 1, "suspicionScore": 0}
+            for index in range(18)
+        ]
+        before = stats_from_logs(logs, set())
+        events = [(("2026-09-13", "2026-09-13T00:18:00Z"), 1)]
+        after = stats_from_logs(logs, set(), experience_events=events)
+        self.assertAlmostEqual(after["experience"], before["experience"] + 1)
+        self.assertEqual(after["levelHistory"], before["levelHistory"])
+        self.assertEqual(after, stats_from_logs(logs, set(), experience_events=events))
+
     def test_high_level_lower_record_keeps_fractional_experience(self):
         workout_date = date.today().isoformat()
         logs = []

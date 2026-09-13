@@ -1473,13 +1473,22 @@ def stats_from_logs(
     weekly_target_started_on=None,
     attendance_penalty_carryover=0,
     starting_experience=0,
+    experience_events=None,
 ):
     previous_by_exercise = {}
     xp = max(float(starting_experience or 0), 0)
     level = level_for_experience(xp)
     ups = 0
     level_history = []
+    pending_events = sorted(experience_events or [], key=lambda event: event[0])
+    event_index = 0
     for log in logs:
+        log_time = (log["date"], log.get("createdAt") or "")
+        # Apply earned bonuses in order, without changing earlier reward rates.
+        while event_index < len(pending_events) and pending_events[event_index][0] <= log_time:
+            xp += pending_events[event_index][1]
+            event_index += 1
+        level = level_for_experience(xp)
         previous = previous_by_exercise.get(log["exercise"])
         if previous is not None:
             before_level = level
@@ -1504,6 +1513,7 @@ def stats_from_logs(
                     }
                 )
         previous_by_exercise[log["exercise"]] = log["volume"]
+    xp += sum(event[1] for event in pending_events[event_index:])
     weekly_goal_active = weekly_target is not None
     challenge = (
         weekly_challenge_penalty(logs, excuse_dates, weekly_target, weekly_target_started_on)
@@ -1573,9 +1583,11 @@ def volume_stats(user_id):
         .where(HealthLevelEvent.user_id == user_id)
         .order_by(HealthLevelEvent.event_date.asc(), HealthLevelEvent.created_at.asc())
     ).all()
-    active_experience = sum(
-        event.experience_delta for event in level_events if event.affects_current
-    )
+    experience_events = [
+        ((event.event_date.isoformat(), event.created_at.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")),
+         event.experience_delta)
+        for event in level_events if event.affects_current
+    ]
     stats = stats_from_logs(
         logs,
         set(),
@@ -1583,7 +1595,8 @@ def volume_stats(user_id):
         weekly_target_for_user(user),
         weekly_target_start_date(user),
         0,
-        active_experience,
+        0,
+        experience_events,
     )
     if level_events:
         history = list(stats["levelHistory"])

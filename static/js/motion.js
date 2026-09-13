@@ -5,6 +5,7 @@
   const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
   const animatedKeys = new Set();
   const counterValues = new WeakMap();
+  const counterTweens = new WeakMap();
   const overlayTweens = new WeakMap();
   const pressSelector = [
     "button:not([disabled])",
@@ -320,6 +321,8 @@
 
   function animateCounter(element, target, formatter = String, options = {}) {
     if (!element) return;
+    counterTweens.get(element)?.kill();
+    counterTweens.delete(element);
     const next = Number(target) || 0;
     const previous = Number.isFinite(Number(options.from))
       ? Number(options.from)
@@ -330,7 +333,7 @@
       return;
     }
     const value = { current: previous };
-    gsap.to(value, {
+    const tween = gsap.to(value, {
       current: next,
       duration: options.duration || 0.56,
       ease: "power2.out",
@@ -338,6 +341,7 @@
       onUpdate: () => { element.textContent = formatter(value.current); },
       onComplete: () => { element.textContent = formatter(next); },
     });
+    counterTweens.set(element, tween);
   }
 
   function animateProgress(element, ratio, options = {}) {
