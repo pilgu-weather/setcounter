@@ -1432,6 +1432,14 @@ class AuthSystemTestCase(unittest.TestCase):
         self.assertEqual(payload["levelBefore"], 1)
         self.assertEqual(payload["levelAfter"], 3)
 
+        for query in ("", "?month=2026-01&before=2026-01-01"):
+            bootstrap = self.client.get("/api/bootstrap" + query, headers=self.headers(key)).get_json()
+            stats = self.client.get("/api/stats", headers=self.headers(key)).get_json()
+            self.assertEqual(bootstrap["stats"], stats)
+            self.assertEqual(bootstrap["stats"]["level"], payload["levelAfter"])
+            self.assertEqual(bootstrap["stats"]["experience"], payload["experienceAfter"])
+            self.assertEqual(bootstrap["profile"]["level"], payload["levelAfter"])
+
         with app.app_context():
             user = db.session.scalar(select(HealthUser).where(HealthUser.user_key == key))
             bonuses = db.session.scalars(

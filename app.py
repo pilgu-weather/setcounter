@@ -2175,14 +2175,7 @@ def bootstrap():
         if before is not None and item["date"] >= before:
             continue
         latest_by_exercise[item["exercise"]] = item
-    stats_data = stats_from_logs(
-        logs,
-        set(),
-        {},
-        weekly_target_for_user(user),
-        weekly_target_start_date(user),
-        weekly_penalty_carryover_for_user(user),
-    )
+    stats_data = volume_stats(user.id)
     return jsonify(
         {
             "claimedLegacy": claimed,
