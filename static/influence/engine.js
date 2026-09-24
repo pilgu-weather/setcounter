@@ -18,7 +18,7 @@ export function classify(text){if(/사용자|행동.*변화|유지율|재사용|
 export function impactValue(m){if(!m||!Number.isFinite(m.reach)||m.reach<0)return null;return clamp(100*(1-Math.exp(-Math.log1p(m.reach)*m.depth*(1-Math.exp(-m.days/90))*m.attribution/5)));}
 export function compute(data,window='form',now=new Date()){
  const limit=window==='current'?30:window==='form'?365:Infinity;
- const records=data.records.filter(r=>!r.archived&&new Date(r.date)<=now&&(now-new Date(r.date))/86400000<=limit);
+ const records=data.records.filter(r=>!r.archived&&new Date(r.date+'T00:00:00')<=now&&(now-new Date(r.date+'T00:00:00'))/86400000<=limit);
  const stats={};for(const a of axes){const obs=records.filter(r=>r.axis===a&&r.values).map(r=>({date:r.date,value:weighted(a,r.values),level:r.level??0})).filter(o=>o.value!=null);stats[a]=posterior(obs,now);}
  const impacts=records.filter(r=>r.axis==='impact'&&r.metrics).map(r=>({...r,value:impactValue(r.metrics)})).filter(r=>r.value!=null);
  const impact=impacts.length?impacts.reduce((s,r)=>s+r.value,0)/impacts.length:null;

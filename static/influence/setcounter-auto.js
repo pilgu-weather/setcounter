@@ -1,8 +1,9 @@
 import {SETCOUNTER_ORIGIN} from './setcounter.js';
 export const hostedWithSetcounter = typeof location !== 'undefined' && location.origin === SETCOUNTER_ORIGIN;
 
-export async function readOwnWorkouts(fetcher = fetch, userKey = null) {
-  const headers = userKey ? {'X-User-Key':userKey} : {};
+export async function readOwnWorkouts(fetcher = fetch) {
+  // An anonymous browser key is not the user's signed-in workout account.
+  const headers = {};
   async function read(path) {
     const controller = new AbortController();
     const timer = setTimeout(()=>controller.abort(),8000);
@@ -17,6 +18,11 @@ export async function readOwnWorkouts(fetcher = fetch, userKey = null) {
       error.status=response.status; throw error;
     }
     return response.json();
+  }
+  const auth = await read('/api/auth/status');
+  if (auth.authenticated !== true || auth.accountLinked !== true) {
+    const error = Error('계정 연결 대기 · SetCounter의 운동 기록이 있는 계정으로 로그인해야 합니다. 기기의 임시 계정은 연결하지 않습니다.');
+    error.status=401;throw error;
   }
   const before = await read('/api/profile');
   const logs = await read('/api/logs');
