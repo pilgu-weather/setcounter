@@ -474,6 +474,18 @@ def today_kst():
     return datetime.now(KST).date()
 
 
+# The Influence UI renders dynamic chart widths and mobile safe-area styles.
+@app.after_request
+def influence_page_style_policy(response):
+    if request.path.startswith("/static/influence/"):
+        policy = response.headers.get("Content-Security-Policy", "default-src 'self'")
+        response.headers["Content-Security-Policy"] = policy.replace(
+            "style-src 'self';", "style-src 'self' 'unsafe-inline';"
+        )
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @app.after_request
 def add_release_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")

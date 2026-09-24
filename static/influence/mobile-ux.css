@@ -1,0 +1,75 @@
+/* 1. Keep navigation and content clear of the iPhone home indicator/notch. */
+@media (max-width: 560px) {
+  :root { --mobile-nav-height: 72px; }
+  .sidebar {
+    height: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+    padding: 5px max(12px, env(safe-area-inset-right, 0px))
+      calc(5px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+  }
+  .topbar {
+    height: auto;
+    min-height: calc(65px + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: max(18px, env(safe-area-inset-left, 0px));
+    padding-right: max(18px, env(safe-area-inset-right, 0px));
+  }
+  .main {
+    padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 28px);
+    padding-left: max(18px, env(safe-area-inset-left, 0px));
+    padding-right: max(18px, env(safe-area-inset-right, 0px));
+  }
+  #toast { bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 16px); }
+}
+
+/* 2. Legible controls without Safari's small-input focus zoom. */
+@media (max-width: 850px) {
+  input, textarea, select, .rubrics select { font-size: 16px; }
+  .field, input, textarea, select { min-width: 0; max-width: 100%; }
+  input[type="date"] { min-height: 46px; }
+}
+
+/* 3. Give the journal title and search their own rows on narrow screens. */
+@media (max-width: 560px) {
+  .journal-toolbar { flex-direction: column; align-items: stretch; gap: 16px; }
+  .journal-toolbar h2 { white-space: normal; word-break: keep-all; }
+  .journal-toolbar .search { width: 100%; max-width: none; }
+}
+
+/* 4. Keep dialogs usable with a short viewport, keyboard and long content. */
+@media (max-width: 560px) {
+  dialog {
+    position: fixed;
+    top: calc(var(--visual-top, 0px) + env(safe-area-inset-top, 0px) + 12px);
+    bottom: auto;
+    margin: 0 auto;
+    width: calc(100% - 24px);
+    max-height: calc(var(--visual-height, 100dvh) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px);
+    padding: 20px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding-block: 76px 24px;
+    overflow-wrap: anywhere;
+  }
+  body:has(dialog[open]) { overflow: hidden; }
+  .modal-head { position: sticky; top: -20px; z-index: 2; background: #181d17; padding-block: 12px; margin-top: -12px; gap: 12px; }
+  .modal-head h2 { font-size: 21px; min-width: 0; word-break: keep-all; }
+  .modal-actions { flex-wrap: wrap; gap: 10px; }
+  .modal-actions .btn { flex: 1 1 120px; white-space: normal; }
+  dialog .row, dialog .settings-row { flex-wrap: wrap; }
+  dialog .row > *, dialog .settings-row > * { min-width: 0; }
+  dialog .btn { max-width: 100%; overflow-wrap: anywhere; }
+}
+
+/* 5. Comfortable tap targets, including text actions and the close control. */
+@media (max-width: 850px) {
+  .btn, .text-btn, .filters button, .period button, button.tag {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .topbar .btn { min-height: 44px !important; }
+  .modal-head .close { min-width: 44px; min-height: 44px; flex-shrink: 0; padding: 6px; }
+  .field label:has(input[type="checkbox"]) { min-height: 44px; cursor: pointer; }
+  .topbar > .row { gap: 8px; }
+  .period { max-width: 100%; }
+  .period button { flex: 1; min-width: 0; padding-inline: 10px; }
+}
