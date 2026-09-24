@@ -4,7 +4,14 @@ export const hostedWithSetcounter = typeof location !== 'undefined' && location.
 export async function readOwnWorkouts(fetcher = fetch, userKey = null) {
   const headers = userKey ? {'X-User-Key':userKey} : {};
   async function read(path) {
-    const response = await fetcher(path, {headers, credentials:'same-origin', cache:'no-store', signal:AbortSignal.timeout(20000)});
+    const controller = new AbortController();
+    const timer = setTimeout(()=>controller.abort(),8000);
+    let response;
+    try {
+      response = await fetcher(path, {headers, credentials:'same-origin', cache:'no-store', signal:controller.signal});
+    } catch {
+      throw Error('연결이 지연되고 있습니다. 앱은 사용할 수 있으며 운동 기록은 자동으로 다시 가져옵니다.');
+    } finally { clearTimeout(timer); }
     if (!response.ok) {
       const error = Error(response.status === 401 ? 'SetCounter 로그인이 필요합니다.' : '운동 기록을 불러오지 못했습니다. 잠시 후 다시 연결합니다.');
       error.status=response.status; throw error;

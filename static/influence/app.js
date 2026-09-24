@@ -59,7 +59,7 @@ document.addEventListener('submit',async e=>{e.preventDefault();const f=e.target
  if(f.id==='daily-result'){const c=data().commitments.find(c=>c.date===day());c.status=f.dataset.status;c.reason=v('reason');c.cause=v('cause');c.resolvedAt=new Date().toISOString();data().records.push({id:uid(),text:`[${c.status}] ${c.text}\n${c.reason} · ${c.cause}`,axis:'control',date:day(),level:1});save();close();render();toast('약속의 결과를 기록했습니다.');return;}
  if(f.id==='campaign-end'){const c=data().campaigns.find(c=>c.id===f.dataset.id);c.status='ended';c.reason=v('reason');data().records.push({id:uid(),text:`캠페인 종료: ${c.title}\n${c.reason}`,axis:'action',date:day(),level:1,campaign:c.id});save();close();render();toast('종료 이유를 남겼습니다.');return;}
  }catch(err){const error=$('#form-error');if(error)error.textContent=err.message;else toast(err.message);}});
-queueMicrotask(async()=>{if(hostedWithSetcounter)await autoSyncSetcounter();render();$('#modal').addEventListener('click',e=>{if(e.target===$('#modal')){const r=$('#modal').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)close();}});});
+queueMicrotask(()=>{if(hostedWithSetcounter)mode='real';render();if(hostedWithSetcounter)void autoSyncSetcounter();$('#modal').addEventListener('click',e=>{if(e.target===$('#modal')){const r=$('#modal').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)close();}});});
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icons={status:'M3 17V9m6 8V4m6 13v-6m6 6V2',campaign:'M12 3v18M3 12h18M5.6 5.6l12.8 12.8M5.6 18.4 18.4 5.6',records:'M6 3h12v18H6zM9 8h6M9 12h6M9 16h4',profile:'M20 21v-2a7 7 0 0 0-14 0v2M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0',arrow:'M4 12h16m-6-6 6 6-6 6',plus:'M12 5v14M5 12h14',shield:'M12 2 3 6v6c0 5 9 10 9 10s9-5 9-10V6zM8 12l3 3 5-6',chart:'M3 19h18M4 14l5-5 5 3 6-8',link:'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2'};
 const icon=n=>`<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${icons[n]||icons.status}"/></svg>`;
@@ -80,7 +80,7 @@ const close=()=>$('#modal').close();
 function head(title,sub=''){return `<div class="modal-head"><h2>${title}</h2><button class="close" data-action="close" aria-label="닫기">×</button></div>${sub?`<p class="lead">${sub}</p>`:''}`;}
 const option=(v,l,s)=>`<option value="${v}" ${String(v)===String(s)?'selected':''}>${l}</option>`;
 function nav(){return `<aside class="sidebar"><div class="brand"><img src="./exert-influence-icon.svg" alt=""><span>EXERT INFLUENCE</span></div><div class="brand-sub">TURN POTENTIAL INTO IMPACT</div><nav class="nav" aria-label="주 메뉴">${[['status','상태'],['campaign','캠페인'],['records','기록'],['profile','프로필']].map(([id,label])=>`<button data-view="${id}" class="${view===id?'active':''}" ${view===id?'aria-current="page"':''}>${icon(id)}<span>${label}</span></button>`).join('')}</nav><div class="sidebar-foot"><div class="side-note"><span class="eyebrow">BUILT ON EVIDENCE</span><p style="margin-top:9px">당신의 변화는<br>현실에서 증명됩니다.</p></div><button class="row profile-small" data-view="profile"><span class="avatar">${mode==='demo'?'E':esc(data().name.slice(0,1))}</span><span><strong>${esc(data().name)}</strong><small>${mode==='demo'?'예시 프로필':'이 기기에 저장됨'}</small></span></button></div></aside>`;}
-function render(){const m=compute(data(),windowName);$('#app').innerHTML=`${nav()}<div class="shell"><header class="topbar"><div class="mobile-brand"><img src="./exert-influence-icon.svg" alt="">EXERT INFLUENCE</div><div class="path">나의 상황실 <span>/ &nbsp; ${{status:'상태',campaign:'캠페인',records:'기록',profile:'프로필'}[view]}</span></div><div class="row"><span class="connection"><i class="dot"></i>${mode==='demo'?'예시 데이터':'로컬 저장'}</span><button class="btn" style="padding:7px 12px;min-height:32px;font-size:10px" data-action="switch">${mode==='demo'?'내 기록 시작':'예시 둘러보기'}</button></div></header><main class="main fade">${view==='status'?statusPage(m):view==='campaign'?campaignPage(m):view==='records'?recordsPage(m):profilePage(m)}<footer class="footer"><span>EXERT INFLUENCE &nbsp; / &nbsp; REALITY IS THE MEASURE.</span><span>PERSONAL STATE ENGINE · V0.1</span></footer></main></div>`;}
+function render(){const m=compute(data(),windowName);$('#app').innerHTML=`${nav()}<div class="shell"><header class="topbar"><div class="mobile-brand"><img src="./exert-influence-icon.svg" alt="">EXERT INFLUENCE</div><div class="path">나의 상황실 <span>/ &nbsp; ${{status:'상태',campaign:'캠페인',records:'기록',profile:'프로필'}[view]}</span></div><div class="row"><span class="connection"><i class="dot"></i>${mode==='demo'?'예시 데이터':'로컬 저장'}</span><button class="btn" style="padding:7px 12px;min-height:32px;font-size:10px" data-action="switch">${mode==='demo'?'내 기록 시작':'예시 둘러보기'}</button></div></header><main class="main fade">${hostedWithSetcounter?autoStatusBanner():''}${view==='status'?statusPage(m):view==='campaign'?campaignPage(m):view==='records'?recordsPage(m):profilePage(m)}<footer class="footer"><span>EXERT INFLUENCE &nbsp; / &nbsp; REALITY IS THE MEASURE.</span><span>PERSONAL STATE ENGINE · V0.1</span></footer></main></div>`;}
 function period(){return `<div class="period" aria-label="측정 기간">${[['current','CURRENT · 30일'],['form','FORM · 1년'],['legacy','LEGACY · 전체']].map(([id,l])=>`<button data-period="${id}" class="${windowName===id?'active':''}" aria-pressed="${windowName===id}">${l}</button>`).join('')}</div>`;}
 function seal(m){return `<div class="rank-seal"><img src="./exert-influence-icon.svg" alt=""><strong>${roman[m.rank??0]}</strong><span>${m.rank?'RANK':'UNMEASURED'}</span></div>`;}
 function hero(m){const val=number(m.influence).split('.');return `<section class="card hero"><div class="row between"><span class="eyebrow">YOUR CURRENT STATE</span><button class="tag gold" data-action="rank">${mode==='demo'?'예시 계급':m.rank?'잠정 계급':'측정 대기'} &nbsp; ↗</button></div><div class="hero-main"><div><div class="label">현실에 휘두를 수 있는 영향력</div><div class="big-number mono">${val[0]}${val[1]?`<span class="decimal">.${val[1]}</span>`:''}</div><div class="number-note">${m.influence==null?'기록이 쌓이면 현재 위치가 드러납니다.':'증거로 추정한 현재의 힘 · 100점 기준'}</div></div>${seal(m)}</div><div class="hero-metrics"><div><small>보유한 힘</small><strong class="mono">${number(m.power)}</strong><em>POWER</em></div><div><small>현실 출력</small><strong class="mono">${number(m.impact)}</strong><em>IMPACT</em></div><div><small>종합 신뢰도</small><strong class="mono">${m.confidence}<span style="font-size:13px">%</span></strong></div></div></section>`;}
@@ -126,12 +126,12 @@ window.addEventListener('message',event=>{
  }catch(e){toast(e.message);}
 });
 
-let autoSyncBusy=false,autoSyncStatus='운동 기록을 자동으로 연결하고 있습니다.';
+let autoNeedsLogin=false,autoSyncBusy=false,autoSyncStatus='운동 기록을 자동으로 연결하고 있습니다.';
 async function autoSyncSetcounter(manual=false){
  if(!hostedWithSetcounter||autoSyncBusy)return;
  autoSyncBusy=true;
  try{
-  const payload=await readOwnWorkouts(fetch,localStorage.getItem('healthUserKey'));
+  const payload=await readOwnWorkouts(fetch,localStorage.getItem('healthUserKey'));autoNeedsLogin=false;
   const key='sovereign.setcounter.'+payload.profile.id;
   if(storageKey!==key){
    const saved=JSON.parse(localStorage.getItem(key)||'null');
@@ -147,7 +147,7 @@ async function autoSyncSetcounter(manual=false){
   if(manual)toast('최신 운동 기록을 반영했습니다.');
  }catch(error){
   autoSyncStatus=error.message;
-  if(error.status===401){real=fresh();mode='real';storageKey='sovereign.signed-out';close();}
+  if(error.status===401){autoNeedsLogin=true;real=fresh();mode='real';storageKey='sovereign.signed-out';close();}
   if(manual)toast(error.message);
  }finally{autoSyncBusy=false;render();}
 }
@@ -155,3 +155,5 @@ if(hostedWithSetcounter){
  setInterval(()=>{if(!document.hidden&&!document.querySelector('#modal').open)autoSyncSetcounter();},60000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!document.querySelector('#modal').open)autoSyncSetcounter();});
 }
+
+function autoStatusBanner(){return `<div class="help-box" role="status">${esc(autoSyncStatus)}${autoNeedsLogin?'<p><a class="btn" href="/main">SetCounter 로그인 열기</a></p>':''}</div>`;}
