@@ -1,6 +1,137 @@
-import {hostedWithSetcounter,readOwnWorkouts,claimDeviceLink,disconnectDevice} from './setcounter-auto.js';
-import {SETCOUNTER_ORIGIN,importWorkouts,workoutSummary} from './setcounter.js';
-import {axes,names,english,weights,subaxes,roman,day,weighted,compute,classify,validateRecord,impactValue} from './engine.js';
+(function(){
+const axes=['body','ability','control','production','responsibility'];
+const names={body:'신체',ability:'능력',control:'통제',production:'생산',responsibility:'책임',impact:'현실 영향',action:'행동',adoption:'채택'};
+const english={body:'BODY',ability:'ABILITY',control:'CONTROL',production:'PRODUCTION',responsibility:'RESPONSIBILITY'};
+const weights={body:[.35,.25,.20,.20],ability:[.30,.25,.25,.20],control:[.30,.25,.25,.20],production:[.30,.25,.20,.15,.10],responsibility:[.30,.30,.25,.15]};
+const subaxes={body:['힘','지속능력','움직임','신체 유지력'],ability:['전문성','전이 능력','문제 복잡도','학습 속도'],control:['약속 이행','지속성','방해 극복','복구 속도'],production:['완성 산출물','기능적 품질','제작 난도','완결성','재현성'],responsibility:['책임의 범위','실패의 영향','유지 기간','안정적 유지']};
+const roman=['—','I','II','III','IV','V','VI','VII','VIII','IX','X'];
+const clamp=(x,a=0,b=100)=>Math.max(a,Math.min(b,x));
+const day=()=>new Date().toLocaleDateString('sv-SE');
+function weighted(axis,values){if(!values||values.length!==weights[axis]?.length||values.some(v=>!Number.isFinite(v)||v<0||v>100))return null;return values.reduce((s,v,i)=>s+v*weights[axis][i],0);}
+function geometric(values,ws=values.map(()=>1/values.length)){if(values.some(v=>v==null||!Number.isFinite(v)))return null;return Math.exp(values.reduce((s,v,i)=>s+Math.log(Math.max(1,v))*ws[i],0));}
+function posterior(observations,now=new Date()){
+ if(!observations.length)return null;
+ let precision=0,sum=0;for(const o of observations){const age=Math.max(0,(now-new Date(o.date))/86400000);const tau=[25,20,14,10,6,4][Math.min(o.level??0,5)]*(1+Math.max(0,age-30)/180);const p=1/(tau*tau);precision+=p;sum+=o.value*p;}
+ const sigma=Math.sqrt(1/precision);return {mu:sum/precision,sigma,confidence:Math.round(clamp(100*(1-sigma/30),0,99)),lower:clamp(sum/precision-.674*sigma)};
+}
+function rankFor(influence,stats){if(influence==null||axes.some(a=>!stats[a]))return null;let rank=Math.min(10,Math.floor(influence/10)+1);const min=Math.min(...axes.map(a=>stats[a].lower));while(rank>=7&&min<(rank-3)*10)rank--;return rank;}
+function classify(text){if(/사용자|행동.*변화|유지율|재사용|절감/.test(text))return 'impact';if(/다운로드|조회|팔로워/.test(text))return 'adoption';if(/벤치|스쿼트|풀업|푸쉬업|달리기|km|체력/.test(text))return 'body';if(/가족|아내|부모|돌봄|반려|의무/.test(text))return 'responsibility';if(/약속|계획|미루|복귀|마감/.test(text))return 'control';if(/완성|배포|출시|구현|제작|문서|작동/.test(text))return 'production';if(/해결|학습|기술|설계|시험/.test(text))return 'ability';return 'action';}
+function impactValue(m){if(!m||!Number.isFinite(m.reach)||m.reach<0)return null;return clamp(100*(1-Math.exp(-Math.log1p(m.reach)*m.depth*(1-Math.exp(-m.days/90))*m.attribution/5)));}
+function compute(data,window='form',now=new Date()){
+ const limit=window==='current'?30:window==='form'?365:Infinity;
+ const records=data.records.filter(r=>!r.archived&&new Date(r.date+'T00:00:00')<=now&&(now-new Date(r.date+'T00:00:00'))/86400000<=limit);
+ const stats={};for(const a of axes){const obs=records.filter(r=>r.axis===a&&r.values).map(r=>({date:r.date,value:weighted(a,r.values),level:r.level??0})).filter(o=>o.value!=null);stats[a]=posterior(obs,now);}
+ const impacts=records.filter(r=>r.axis==='impact'&&r.metrics).map(r=>({...r,value:impactValue(r.metrics)})).filter(r=>r.value!=null);
+ const impact=impacts.length?impacts.reduce((s,r)=>s+r.value,0)/impacts.length:null;
+ const months=new Set(impacts.map(r=>r.date.slice(0,7))).size;
+ const repeatability=impacts.length?clamp(20+months*10+Math.min(4,impacts.length)*5):null;
+ const power=geometric(axes.map(a=>stats[a]?.mu));
+ const influence=geometric([power,impact,repeatability],[.35,.4,.25]);
+ const conservative=geometric([geometric(axes.map(a=>stats[a]?.lower)),impact,repeatability],[.35,.4,.25]);
+ const rank=window==='form'?rankFor(conservative,stats):compute(data,'form',now).rank;
+ const confidence=Math.round(axes.reduce((s,a)=>s+(stats[a]?.confidence??0),0)/5);
+ const missing=axes.find(a=>!stats[a]);const uncertain=axes.find(a=>stats[a]?.confidence<50);
+ const effects=axes.map(a=>{const changed=axes.map(b=>stats[b]?Math.min(100,stats[b].mu+(b===a?5:0)):null);const next=geometric([geometric(changed),impact,repeatability],[.35,.4,.25]);return {axis:a,delta:next==null?null:next-influence};});
+ effects.push({axis:'impact',delta:influence==null?null:geometric([power,Math.min(100,impact+5),repeatability],[.35,.4,.25])-influence});
+ const bottleneck=missing||uncertain||[...effects].sort((a,b)=>(b.delta??0)-(a.delta??0))[0].axis;
+ return {stats,power,impact,repeatability,influence,conservative,rank,confidence,effects,bottleneck,evidenceBottleneck:!!(missing||uncertain),records};
+}
+function validateRecord(r,records){if(!r.text?.trim()||r.text.length>4000)return '변화를 1~4,000자로 기록해 주세요.';if(!r.date||r.date>day())return '오늘 또는 이전 날짜를 선택해 주세요.';if(r.values&&weighted(r.axis,r.values)==null)return '측정 항목을 모두 선택해 주세요.';if(records.some(x=>!x.archived&&x.date===r.date&&x.axis===r.axis&&x.text.trim()===r.text.trim()))return '같은 날짜에 동일한 기록이 이미 있습니다.';if(r.metrics&&(!Number.isFinite(r.metrics.reach)||r.metrics.reach<1||!Number.isFinite(r.metrics.days)||r.metrics.days<1))return '영향을 받은 대상 수와 유지 기간을 입력해 주세요.';return null;}
+
+const SETCOUNTER_ORIGIN = 'https://setcounter.onrender.com';
+
+// Import source facts only. Training volume or app XP cannot establish all four Body dimensions.
+function importWorkouts(payload, existing, now = new Date()) {
+  if (!payload || !Number.isSafeInteger(payload.profile?.id) || !Array.isArray(payload.logs) || payload.logs.length > 10000) throw Error('SetCounter 응답 형식이 올바르지 않습니다.');
+  const account = String(payload.profile.id), today = now.toISOString().slice(0,10);
+  const ids = new Set();
+  const records = payload.logs.map(log => {
+    if (!Number.isSafeInteger(log.id) || log.id < 1 || ids.has(log.id) || typeof log.exercise !== 'string' || !log.exercise.trim() || log.exercise.length > 120 || !/^\d{4}-\d{2}-\d{2}$/.test(log.date) || !Number.isFinite(Date.parse(log.date)) || new Date(log.date).toISOString().slice(0,10) !== log.date || log.date > today || !Array.isArray(log.setRows) || !log.setRows.length || log.setRows.length > 1000) throw Error('가져올 운동 기록에 잘못된 값이 있습니다.');
+    ids.add(log.id);
+    const sets = log.setRows.map(s => {
+      if (!Number.isFinite(s.weightKg) || s.weightKg < 0 || s.weightKg > 2000 || !Number.isSafeInteger(s.reps) || s.reps < 0 || s.reps > 10000) throw Error('중량 또는 횟수가 올바르지 않습니다.');
+      return {weightKg:s.weightKg,reps:s.reps};
+    });
+    const id = `setcounter:${account}:${log.id}`;
+    const prior = existing.find(r => r.id === id);
+    return {id, date:log.date, axis:'body', level:1, values:null, sample:false,
+      text:`SetCounter · ${log.exercise}\n${sets.map((s,i)=>`${i+1}세트: ${s.weightKg}kg × ${s.reps}회`).join('\n')}`.slice(0,4000),
+      source:{provider:'setcounter',account,workoutId:log.id,exercise:log.exercise,sets},
+      archived:prior?.archived || false};
+  });
+  // Replace this account's snapshot so edits/deletions are reflected without inflating evidence.
+  return {records:[...existing.filter(r => !(r.source?.provider === 'setcounter' && r.source.account === account)),...records],
+    connection:{account,nickname:String(payload.profile.nickname || 'SetCounter 계정').slice(0,40),level:Number.isFinite(payload.profile.level)?payload.profile.level:null,syncedAt:now.toISOString(),count:records.length}};
+}
+
+function workoutSummary(records) {
+  const logs = records.filter(r => r.source?.provider === 'setcounter' && !r.archived && Array.isArray(r.source.sets) && r.source.sets.every(s=>Number.isFinite(s.weightKg)&&s.weightKg>=0&&Number.isFinite(s.reps)&&s.reps>=0));
+  return {count:logs.length,days:new Set(logs.map(r=>r.date)).size,
+    sets:logs.reduce((n,r)=>n+r.source.sets.length,0),
+    volume:logs.reduce((n,r)=>n+r.source.sets.reduce((v,s)=>v+s.weightKg*s.reps,0),0)};
+}
+
+const hostedWithSetcounter = typeof location !== 'undefined' && location.origin === SETCOUNTER_ORIGIN;
+
+async function readOwnWorkouts(fetcher = fetch, paired = false) {
+  // An anonymous browser key is not the user's signed-in workout account.
+  const headers = {};
+  async function read(path) {
+    const controller = new AbortController();
+    const timer = setTimeout(()=>controller.abort(),8000);
+    let response;
+    try {
+      response = await fetcher(path, {headers, credentials:'same-origin', cache:'no-store', signal:controller.signal});
+    } catch {
+      throw Error('연결이 지연되고 있습니다. 앱은 사용할 수 있으며 운동 기록은 자동으로 다시 가져옵니다.');
+    } finally { clearTimeout(timer); }
+    if (!response.ok) {
+      const error = Error(response.status === 401 ? 'SetCounter 로그인이 필요합니다.' : '운동 기록을 불러오지 못했습니다. 잠시 후 다시 연결합니다.');
+      error.status=response.status; throw error;
+    }
+    return response.json();
+  }
+  if (paired === true) return read('/influence-api/workouts');
+  const auth = await read('/api/auth/status');
+  if (auth.authenticated !== true || auth.accountLinked !== true) {
+    const error = Error('계정 연결 대기 · SetCounter의 운동 기록이 있는 계정으로 로그인해야 합니다. 기기의 임시 계정은 연결하지 않습니다.');
+    error.status=401;throw error;
+  }
+  const before = await read('/api/profile');
+  const logs = await read('/api/logs');
+  const after = await read('/api/profile');
+  if (!Number.isSafeInteger(before.id) || before.id !== after.id) throw Error('계정이 변경되어 기록을 다시 확인합니다.');
+  return {profile:after,logs};
+}
+
+function connectionToken(value) {
+  let url;
+  try { url = new URL(String(value).trim()); } catch { throw Error('전용 연결 주소 전체를 붙여넣어 주세요.'); }
+  const token = new URLSearchParams(url.hash.slice(1)).get('connect');
+  if (url.origin !== SETCOUNTER_ORIGIN || url.pathname !== '/static/influence/index.html' || !token || token.length > 2048 || !/^[A-Za-z0-9_.-]+$/.test(token)) {
+    throw Error('SetCounter 전용 연결 주소가 아닙니다. #connect= 부분까지 복사해 주세요.');
+  }
+  return token;
+}
+
+async function claimDeviceLink(value) {
+  if (!hostedWithSetcounter) return;
+  const token = value ? connectionToken(value) : new URLSearchParams(location.hash.slice(1)).get('connect');
+  if (!token) return;
+  const response = await fetch('/influence-api/claim', {method:'POST',credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
+  if (!response.ok) throw Error('연결 주소가 만료됐거나 올바르지 않습니다.');
+  localStorage.setItem('influence.paired','1');
+  history.replaceState(null,'',location.pathname+location.search);
+}
+
+async function disconnectDevice() {
+  if (!hostedWithSetcounter) return;
+  const response=await fetch('/influence-api/disconnect',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(!response.ok)throw Error('연결 해제를 완료하지 못했습니다.');
+  localStorage.removeItem('influence.paired');
+}
+
 function onboardingStart(){close();onboarding={step:-1,records:[]};onboardingRender();}
 function onboardingRender(){const step=onboarding.step;const prompts=['최근에 몸으로 해낸 것은 무엇인가요?','최근 해결한 가장 어려운 문제는 무엇인가요?','최근 중요한 약속을 어떻게 이행했나요?','실제로 완성한 결과물은 무엇인가요?','지속적으로 무엇을 유지하고 있나요?'];if(step<0){modal(`${head('첫 번째 측정')}<div class="welcome"><img src="./exert-influence-icon.svg" alt=""><div class="eyebrow">INITIAL CALIBRATION</div><h2 style="margin-top:16px">당신의 현재 위치를<br>측정합니다.</h2><p>돈, 직업명, 소유물은 평가하지 않습니다.<br>실제로 무엇을 할 수 있고,<br>무엇을 만들며, 무엇을 움직이는지 봅니다.</p></div><form id="onboard-name"><div class="field"><label for="display-name">어떻게 부르면 좋을까요?</label><input id="display-name" name="name" required maxlength="30" value="${mode==='real'&&real.name!=='나의 기록'?esc(real.name):''}" placeholder="이름 또는 별명"></div><div class="modal-actions"><button class="btn primary full">측정 시작 ${icon('arrow')}</button></div></form>`);return;}
 if(step===5){$('#modal').innerHTML=`${head('현실에 만든 변화.','생산과 영향은 다릅니다. 다른 사람이나 시스템에 실제로 생긴 변화를 기록해 주세요.')}<form id="onboard-impact" style="margin-top:24px"><div class="field"><label for="impact-text">실제로 달라진 것</label><textarea id="impact-text" name="text" required placeholder="누가, 어떻게 달라졌나요?"></textarea></div><div class="form-grid"><div class="field"><label for="initial-reach">실제 변화 대상 수</label><input id="initial-reach" name="reach" type="number" min="1" required></div><div class="field"><label for="initial-days">변화 유지 기간 (일)</label><input id="initial-days" name="days" type="number" min="1" required></div></div><div class="help-box">초기 기록은 E0 자기진술로 보관됩니다. 추후 증거를 더해 교정할 수 있습니다.</div><div class="modal-actions"><button type="button" class="btn" data-action="onboard-finish">아직 미측정</button><button class="btn primary">초기 측정 마치기</button></div></form>`;return;}
@@ -161,3 +292,16 @@ if(hostedWithSetcounter){
 function autoStatusBanner(){return `<div class="help-box" role="status">${esc(autoSyncStatus)}${autoNeedsLogin?'<p>Safari와 홈 화면 앱은 연결 정보를 따로 보관할 수 있습니다.</p><button class="btn primary" data-action="recover-device">이 홈 화면 앱에 연결</button><p><a class="text-btn" href="/main">SetCounter 로그인 열기</a></p>':''}</div>`;}
 
 function deviceRecoveryModal(){modal(`${head('이 앱에 운동 계정 연결')}<p class="lead">정상 연결됐던 전용 주소를 붙여넣으면, 지금 실행 중인 홈 화면 앱에 연결이 저장됩니다. 다른 브라우저로 이동하지 않습니다.</p><form id="recover-device-form"><div class="field"><label for="device-link">전용 연결 주소</label><textarea id="device-link" name="link" required maxlength="2600" rows="4" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="https://setcounter.onrender.com/…#connect=…"></textarea></div><p id="form-error" class="form-error" role="alert"></p><button type="submit" class="btn primary full">이 앱에 연결 저장</button></form>`);}
+
+// Follow Safari's visible viewport when its keyboard or browser bars move.
+const viewport = window.visualViewport;
+function syncViewport() {
+  document.documentElement.style.setProperty('--visual-height', `${viewport?.height ?? window.innerHeight}px`);
+  document.documentElement.style.setProperty('--visual-top', `${viewport?.offsetTop ?? 0}px`);
+}
+viewport?.addEventListener('resize', syncViewport, { passive: true });
+viewport?.addEventListener('scroll', syncViewport, { passive: true });
+window.addEventListener('resize', syncViewport, { passive: true });
+syncViewport();
+
+})();

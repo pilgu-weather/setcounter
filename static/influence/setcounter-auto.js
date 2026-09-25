@@ -32,9 +32,19 @@ export async function readOwnWorkouts(fetcher = fetch, paired = false) {
   return {profile:after,logs};
 }
 
-export async function claimDeviceLink() {
+export function connectionToken(value) {
+  let url;
+  try { url = new URL(String(value).trim()); } catch { throw Error('전용 연결 주소 전체를 붙여넣어 주세요.'); }
+  const token = new URLSearchParams(url.hash.slice(1)).get('connect');
+  if (url.origin !== SETCOUNTER_ORIGIN || url.pathname !== '/static/influence/index.html' || !token || token.length > 2048 || !/^[A-Za-z0-9_.-]+$/.test(token)) {
+    throw Error('SetCounter 전용 연결 주소가 아닙니다. #connect= 부분까지 복사해 주세요.');
+  }
+  return token;
+}
+
+export async function claimDeviceLink(value) {
   if (!hostedWithSetcounter) return;
-  const token = new URLSearchParams(location.hash.slice(1)).get('connect');
+  const token = value ? connectionToken(value) : new URLSearchParams(location.hash.slice(1)).get('connect');
   if (!token) return;
   const response = await fetch('/influence-api/claim', {method:'POST',credentials:'same-origin',
     headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
