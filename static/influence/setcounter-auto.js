@@ -1,7 +1,7 @@
 import {SETCOUNTER_ORIGIN} from './setcounter.js';
 export const hostedWithSetcounter = typeof location !== 'undefined' && location.origin === SETCOUNTER_ORIGIN;
 
-export async function readOwnWorkouts(fetcher = fetch) {
+export async function readOwnWorkouts(fetcher = fetch, paired = false) {
   // An anonymous browser key is not the user's signed-in workout account.
   const headers = {};
   async function read(path) {
@@ -19,6 +19,7 @@ export async function readOwnWorkouts(fetcher = fetch) {
     }
     return response.json();
   }
+  if (paired === true) return read('/influence-api/workouts');
   const auth = await read('/api/auth/status');
   if (auth.authenticated !== true || auth.accountLinked !== true) {
     const error = Error('계정 연결 대기 · SetCounter의 운동 기록이 있는 계정으로 로그인해야 합니다. 기기의 임시 계정은 연결하지 않습니다.');
@@ -29,4 +30,22 @@ export async function readOwnWorkouts(fetcher = fetch) {
   const after = await read('/api/profile');
   if (!Number.isSafeInteger(before.id) || before.id !== after.id) throw Error('계정이 변경되어 기록을 다시 확인합니다.');
   return {profile:after,logs};
+}
+
+export async function claimDeviceLink() {
+  if (!hostedWithSetcounter) return;
+  const token = new URLSearchParams(location.hash.slice(1)).get('connect');
+  if (!token) return;
+  const response = await fetch('/influence-api/claim', {method:'POST',credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
+  if (!response.ok) throw Error('연결 주소가 만료됐거나 올바르지 않습니다.');
+  localStorage.setItem('influence.paired','1');
+  history.replaceState(null,'',location.pathname+location.search);
+}
+
+export async function disconnectDevice() {
+  if (!hostedWithSetcounter) return;
+  const response=await fetch('/influence-api/disconnect',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(!response.ok)throw Error('연결 해제를 완료하지 못했습니다.');
+  localStorage.removeItem('influence.paired');
 }

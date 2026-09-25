@@ -2624,5 +2624,11 @@ def delete_log(log_id):
     return "", 204
 
 
+from influence_pairing import register_influence_pairing
+register_influence_pairing(app, db, HealthUser, get_current_health_user,
+                           require_auth_csrf, workout_query, load_workouts,
+                           workout_to_log, profile_to_dict, volume_stats)
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
